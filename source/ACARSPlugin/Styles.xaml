@@ -8,6 +8,9 @@
     <converters:FontSizeToHeightConverter x:Key="FontSizeToHeightConverter"/>
     <converters:FontSizeToLineHeightConverter x:Key="FontSizeToLineHeightConverter"/>
     <converters:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+    <converters:AddOneConverter x:Key="AddOneConverter"/>
+    <converters:IndexInCollectionConverter x:Key="IndexInCollectionConverter"/>
+    <converters:EqualityConverter x:Key="EqualityConverter"/>
 
     <Style TargetType="Window">
         <Setter Property="UseLayoutRounding" Value="True" />

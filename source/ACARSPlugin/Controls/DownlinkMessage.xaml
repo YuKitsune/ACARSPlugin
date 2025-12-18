@@ -5,6 +5,7 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:acarsPlugin="clr-namespace:ACARSPlugin"
              xmlns:viewModels="clr-namespace:ACARSPlugin.ViewModels"
+             xmlns:converters="clr-namespace:ACARSPlugin.Converters"
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=viewModels:DownlinkMessageViewModel}"
              Height="20">
@@ -14,10 +15,10 @@
                 <ResourceDictionary Source="/ACARSPlugin;component/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
             
+            <converters:TimeConverter x:Key="TimeConverter" />
+            
             <Style x:Key="Background" TargetType="Grid">
-                
                 <Setter Property="Background" Value="{x:Static acarsPlugin:Theme.CPDLCDownlinkColor}"/>
-                
                 <Style.Triggers>
                     <DataTrigger Binding="{Binding Selected}" Value="True">
                         <Setter Property="Background" Value="{x:Static acarsPlugin:Theme.CPDLCSelectedDownlinkBackgroundColor}"/>
@@ -25,24 +26,39 @@
                 </Style.Triggers>
             </Style>
                 
-            <Style TargetType="TextBlock" BasedOn="{StaticResource InteractiveTextStyle}" />
+            <Style x:Key="DownlinkMessageText" TargetType="TextBlock" BasedOn="{StaticResource InteractiveTextStyle}">
+                <Setter Property="Foreground" Value="{x:Static acarsPlugin:Theme.CPDLCSelectedDownlinkBackgroundColor}"/>
+                <Style.Triggers>
+                    <DataTrigger Binding="{Binding Selected}" Value="True">
+                        <Setter Property="Foreground" Value="{x:Static acarsPlugin:Theme.InteractiveTextColor}"/>
+                    </DataTrigger>
+                </Style.Triggers>
+            </Style>
             
         </ResourceDictionary>
     </UserControl.Resources>
     <Grid Style="{StaticResource Background}">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="44" />
-            <ColumnDefinition Width="10" />
-            <ColumnDefinition Width="10" />
+            <ColumnDefinition Width="42" />
+            <ColumnDefinition Width="18" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
         
-        <TextBlock Grid.Column="0" Text="12:34"/>
-        <Border Grid.Column="1" BorderThickness="1" BorderBrush="{x:Static acarsPlugin:Theme.InteractiveTextColor}">
+        <TextBlock
+            Grid.Column="0"
+            Text="{Binding Received, Converter={StaticResource TimeConverter}}"
+            Margin="0,0,2,0"
+            Style="{StaticResource DownlinkMessageText}"/>
+        
+        <Border Grid.Column="1" BorderThickness="1" Margin="2,0,2,0">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Visibility" Value="Collapsed"/>
+                    <Setter Property="BorderBrush" Value="{x:Static acarsPlugin:Theme.CPDLCSelectedDownlinkBackgroundColor}"/>
                     <Style.Triggers>
+                        <DataTrigger Binding="{Binding Selected}" Value="True">
+                            <Setter Property="BorderBrush" Value="{x:Static acarsPlugin:Theme.InteractiveTextColor}"/>
+                        </DataTrigger>
                         <DataTrigger Binding="{Binding StandbySent}" Value="True">
                             <Setter Property="Visibility" Value="Visible"/>
                         </DataTrigger>
@@ -52,9 +68,10 @@
                     </Style.Triggers>
                 </Style>
             </Border.Style>
-            <TextBlock>
+            
+            <TextBlock TextAlignment="Center">
                 <TextBlock.Style>
-                    <Style TargetType="TextBlock" BasedOn="{StaticResource InteractiveTextStyle}">
+                    <Style TargetType="TextBlock" BasedOn="{StaticResource DownlinkMessageText}">
                         <Setter Property="Text" Value=" "/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding StandbySent}" Value="True">
@@ -69,7 +86,7 @@
             </TextBlock>
         </Border>
         
-        <TextBlock Grid.Column="3" Text="{Binding Message}"/>
+        <TextBlock Grid.Column="2" Text="{Binding Message}" Margin="2,0,0,0" Style="{StaticResource DownlinkMessageText}"/>
         
     </Grid>
 </UserControl>

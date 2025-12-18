@@ -10,8 +10,9 @@
         d:DataContext="{d:DesignInstance Type=viewModels:EditorViewModel}"
         mc:Ignorable="d"
         Title="{Binding Callsign}"
-        Height="Auto"
-        Width="480">
+        Width="480"
+        SizeToContent="Height"
+        Topmost="true">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
@@ -84,94 +85,125 @@
         </ListBox>
         
         <!-- Message Class Button (Mode 1) -->
-        <UniformGrid Grid.Row="1" Rows="2" Margin="8">
-            <Button Content="LEVEL" Style="{StaticResource MessageClassButton}" />
-            <Button Content="TRANSFR" Style="{StaticResource MessageClassButton}" />
-            <Button Content="ROUTE" Style="{StaticResource MessageClassButton}" />
-            <Button Content="CROSS" Style="{StaticResource MessageClassButton}" />
-            <Button Content="ENQ/TXT" Style="{StaticResource MessageClassButton}" />
-            <Button Content="SURV" Style="{StaticResource MessageClassButton}" />
-            <Button Content="EXPECT" Style="{StaticResource MessageClassButton}" />
-            <Button Content="BLK/CND" Style="{StaticResource MessageClassButton}" />
-            <Button Content="COMM" Style="{StaticResource MessageClassButton}" />
-            <Button Content="WX/OFF" Style="{StaticResource MessageClassButton}" />
-            <Button Content="SPEED" Style="{StaticResource MessageClassButton}" />
-            <Button Content="CFM/RPT" Style="{StaticResource MessageClassButton}" />
-            <Button Content="MISC" Style="{StaticResource MessageClassButton}" />
-            <Button Content="EMERG" Style="{StaticResource MessageClassButton}" />
-        </UniformGrid>
+        <ItemsControl Grid.Row="1" Margin="8" ItemsSource="{Binding MessageClasses}" Visibility="{Binding ShowMessageClassButtons, Converter={StaticResource BoolToVisibilityConverter}}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <UniformGrid Columns="7" Rows="2"/>
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Button Content="{Binding .}"
+                            Command="{Binding DataContext.SelectMessageClassCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                            CommandParameter="{Binding .}"
+                            Style="{StaticResource MessageClassButton}"/>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
         
         <!-- Hot Buttons (Mode 2) -->
-        <!-- <Grid Grid.Row="1"> -->
-        <!--     <Grid.ColumnDefinitions> -->
-        <!--         <ColumnDefinition Width="*"/> -->
-        <!--         <ColumnDefinition Width="4"/> -->
-        <!--         <ColumnDefinition Width="*"/> -->
-        <!--         <ColumnDefinition Width="4"/> -->
-        <!--         <ColumnDefinition Width="*"/> -->
-        <!--     </Grid.ColumnDefinitions> -->
-        <!-- -->
-        <!--     ~1~ Delay Response section @1@ -->
-        <!--     <Grid Grid.Column="0"> -->
-        <!--         <Grid.RowDefinitions> -->
-        <!--             <RowDefinition Height="30"/> -->
-        <!--             <RowDefinition Height="*"/> -->
-        <!--         </Grid.RowDefinitions> -->
-        <!-- -->
-        <!--         <TextBlock Grid.Row="0" Text="Delay Response" TextAlignment="Center"/> -->
-        <!-- -->
-        <!--         <WrapPanel Grid.Row="1" HorizontalAlignment="Center"> -->
-        <!--             <Button Content="SBY" Style="{StaticResource HotButton}" /> -->
-        <!--             <Button Content="DEF" Style="{StaticResource HotButton}" /> -->
-        <!--         </WrapPanel> -->
-        <!--     </Grid> -->
-        <!--      -->
-        <!--     <controls:BeveledLine Grid.Column="1" Orientation="Vertical"/> -->
-        <!-- -->
-        <!--     ~1~ To Editor section @1@ -->
-        <!--     <Grid Grid.Column="2"> -->
-        <!--         <Grid.RowDefinitions> -->
-        <!--             <RowDefinition Height="30"/> -->
-        <!--             <RowDefinition Height="*"/> -->
-        <!--         </Grid.RowDefinitions> -->
-        <!-- -->
-        <!--         <TextBlock Grid.Row="0" Text="To Editor" TextAlignment="Center"/> -->
-        <!-- -->
-        <!--         <WrapPanel Grid.Row="1" HorizontalAlignment="Center"> -->
-        <!--             <Button Content="Edit" Style="{StaticResource HotButton}" /> -->
-        <!--         </WrapPanel> -->
-        <!--     </Grid> -->
-        <!--      -->
-        <!--     <controls:BeveledLine Grid.Column="3" Orientation="Vertical"/> -->
-        <!-- -->
-        <!--     ~1~ Unable section @1@ -->
-        <!--     <Grid Grid.Column="4"> -->
-        <!--         <Grid.RowDefinitions> -->
-        <!--             <RowDefinition Height="30"/> -->
-        <!--             <RowDefinition Height="*"/> -->
-        <!--         </Grid.RowDefinitions> -->
-        <!-- -->
-        <!--         <TextBlock Grid.Row="0" Text="Unable Due To" TextAlignment="Center"/> -->
-        <!-- -->
-        <!--         <WrapPanel Grid.Row="1" HorizontalAlignment="Center"> -->
-        <!--             <Button Content="TFC" Style="{StaticResource HotButton}" /> -->
-        <!--             <Button Content="AIR" Style="{StaticResource HotButton}" /> -->
-        <!--         </WrapPanel> -->
-        <!--     </Grid> -->
-        <!-- </Grid> -->
+        <Grid Grid.Row="1" Visibility="{Binding ShowHotButtons, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="4"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+        
+            <!-- Delay Response section -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+        
+                <TextBlock Grid.Row="0" Text="Delay Response" TextAlignment="Center"/>
+        
+                <WrapPanel Grid.Row="1" HorizontalAlignment="Center">
+                    <Button Content="SBY" Style="{StaticResource HotButton}" Command="{Binding SendStandbyUplinkMessageCommand}"/>
+                    <Button Content="DEF" Style="{StaticResource HotButton}" Command="{Binding DeferCommand}" />
+                </WrapPanel>
+            </Grid>
+        
+            <controls:BeveledLine Grid.Column="1" Orientation="Vertical"/>
+        
+            <!-- To Editor section -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+        
+                <TextBlock Grid.Row="0" Text="To Editor" TextAlignment="Center"/>
+        
+                <WrapPanel Grid.Row="1" HorizontalAlignment="Center">
+                    <Button Content="Edit" Style="{StaticResource HotButton}" Command="{Binding EditCommand}" />
+                </WrapPanel>
+            </Grid>
+        
+            <controls:BeveledLine Grid.Column="3" Orientation="Vertical"/>
+        
+            <!-- Unable section -->
+            <Grid Grid.Column="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="30"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+        
+                <TextBlock Grid.Row="0" Text="Unable Due To" TextAlignment="Center"/>
+        
+                <WrapPanel Grid.Row="1" HorizontalAlignment="Center">
+                    <Button Content="TFC" Style="{StaticResource HotButton}" Command="{Binding SendUnableDueTrafficUplinkMessageCommand}" />
+                    <Button Content="AIR" Style="{StaticResource HotButton}" Command="{Binding SendUnableDueAirspaceUplinkMessageCommand}" />
+                </WrapPanel>
+            </Grid>
+        </Grid>
         
         <!-- Class Elements Display Area -->
+        <!-- TODO: Prefix with * if the text needs to overflow. Right-click to extend the display area. -->
+        <!-- TODO: Prefix with F if uplink id is 169 -->
+        <!-- TODO: Prefix with E if uplink id is 170 -->
         <ListBox
             Grid.Row="2"
             BorderThickness="2"
             Margin="8"
-            ItemsSource="{Binding SelectedMessageClassElements}"/>
+            ItemsSource="{Binding SelectedMessageClassElements}">
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock
+                        Text="{Binding Template}"
+                        Style="{StaticResource GenericTextStyle}"
+                        MouseLeftButtonDown="MessageClassElement_Click"/>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Padding" Value="4,2"/>
+                    <Setter Property="Margin" Value="0"/>
+                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border
+                                    Background="Transparent"
+                                    Padding="{TemplateBinding Padding}">
+                                    <ContentPresenter/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+
+        </ListBox>
         
         <!-- Message Construction Area -->
         <ItemsControl
             Grid.Row="3"
             Margin="8"
-            ItemsSource="{Binding ConstructedMessageElements}">
+            ItemsSource="{Binding UplinkMessageElements}">
             
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type viewModels:UplinkMessageElementViewModel}">
@@ -184,18 +216,41 @@
                         <!-- Line Number Button -->
                         <Button
                             Grid.Column="0"
-                            Style="{StaticResource LineNumberButton}">
-                            <TextBlock
-                                Style="{StaticResource InteractiveTextStyle}"
-                                Text="{Binding LineNumber}"/>
+                            Style="{StaticResource LineNumberButton}"
+                            PreviewMouseDown="LineNumberButton_Click">
+                            <TextBlock Style="{StaticResource InteractiveTextStyle}">
+                                <TextBlock.Text>
+                                    <MultiBinding Converter="{StaticResource IndexInCollectionConverter}" FallbackValue="?">
+                                        <Binding FallbackValue="{x:Null}"/>
+                                        <Binding Path="ItemsSource" RelativeSource="{RelativeSource AncestorType=ItemsControl}" FallbackValue="{x:Null}"/>
+                                    </MultiBinding>
+                                </TextBlock.Text>
+                            </TextBlock>
                         </Button>
                         
                         <!-- Message Parts -->
-                        <controls:BeveledBorder Grid.Column="1" BevelType="Sunken" BorderThickness="{x:Static local:Theme.BeveledBorderThickness}">
-                            <ItemsControl
-                                ItemsSource="{Binding Parts}"
-                                VerticalAlignment="Center"
-                                Margin="8,2,0,2">
+                        <Border Grid.Column="1" BorderThickness="2">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="BorderBrush" Value="Transparent"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Value="True">
+                                            <DataTrigger.Binding>
+                                                <MultiBinding Converter="{StaticResource EqualityConverter}" Mode="OneWay">
+                                                    <Binding Mode="OneWay"/>
+                                                    <Binding Path="DataContext.SelectedUplinkMessageElement" RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type Window}}" Mode="OneWay"/>
+                                                </MultiBinding>
+                                            </DataTrigger.Binding>
+                                            <Setter Property="BorderBrush" Value="{x:Static local:Theme.SelectedUtilityColor}"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <controls:BeveledBorder BevelType="Sunken" BorderThickness="{x:Static local:Theme.BeveledBorderThickness}">
+                                <ItemsControl
+                                    ItemsSource="{Binding Parts}"
+                                    VerticalAlignment="Center"
+                                    Margin="8,2,0,2">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <WrapPanel Orientation="Horizontal"/>
@@ -244,6 +299,7 @@
                                 </ItemsControl.Resources>
                             </ItemsControl>
                         </controls:BeveledBorder>
+                        </Border>
                     </Grid>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>

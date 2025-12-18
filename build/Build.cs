@@ -228,9 +228,9 @@ class Build : NukeBuild
                 absolutePath.CopyToDirectory(pluginDirectory, ExistsPolicy.MergeAndOverwrite);
             }
 
-            // Copy config
-            var configFile = RootDirectory / "ACARS.json";
-            configFile.CopyToDirectory(pluginDirectory, ExistsPolicy.MergeAndOverwrite);
+            // TODO: Copy config
+            // var configFile = RootDirectory / "ACARS.json";
+            // configFile.CopyToDirectory(pluginDirectory, ExistsPolicy.MergeAndOverwrite);
 
             Log.Information("Plugin installed to {PluginDirectory}", pluginDirectory);
         });
