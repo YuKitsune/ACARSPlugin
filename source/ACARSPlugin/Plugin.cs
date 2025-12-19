@@ -350,7 +350,32 @@ public class Plugin : ILabelPlugin, IStripPlugin
         window.Show();
     }
 
-    void OpenHistoryWindow() => throw new NotImplementedException();
+
+    HistoryWindow? _historyWindow = null;
+    void OpenHistoryWindow()
+    {
+        // If the history window is already open, close it
+        if (_historyWindow is not null)
+        {
+            _historyWindow.Close();
+            _historyWindow = null;
+            return;
+        }
+
+        // Get the mediator from the service provider
+        var mediator = ServiceProvider.GetRequiredService<IMediator>();
+
+        // TODO: Create the View Model
+
+        // Create and show the window
+        var window = new HistoryWindow();
+        window.Closed += (_, _) => _historyWindow = null;
+
+        ElementHost.EnableModelessKeyboardInterop(window);
+
+        _historyWindow = window;
+        window.Show();
+    }
 
     // TODO: Close the window if the aircraft disconnects from CPDLC, or if the connection to the ACARS Server fails.
     SemaphoreSlim _editorWindowStateSemaphore = new(1,1);
