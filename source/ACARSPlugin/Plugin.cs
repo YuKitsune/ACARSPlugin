@@ -2,20 +2,16 @@
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
-using System.Windows.Input;
 using System.Windows.Media;
 using ACARSPlugin.Model;
 using ACARSPlugin.Server;
 using ACARSPlugin.ViewModels;
 using ACARSPlugin.Windows;
-using CommunityToolkit.Mvvm.DependencyInjection;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using vatsys;
 using vatsys.Plugin;
-using Application = System.Windows.Application;
 using DownlinkMessage = ACARSPlugin.Controls.DownlinkMessage;
-using MouseEventArgs = System.Windows.Forms.MouseEventArgs;
 
 namespace ACARSPlugin;
 
@@ -27,7 +23,7 @@ public class Plugin : ILabelPlugin, IStripPlugin
 #else
     const string Name = "ACARS Plugin";
 #endif
-
+    
     string IPlugin.Name => Name;
 
     public IServiceProvider ServiceProvider { get; private set; }
@@ -55,10 +51,7 @@ public class Plugin : ILabelPlugin, IStripPlugin
     {
         ServiceProvider = new ServiceCollection()
             .AddSingleton<MessageRepository>()
-            .AddMediatR(c =>
-            {
-                c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly);
-            })
+            .AddMediatR(c => c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly))
             .BuildServiceProvider();
     }
 
@@ -69,7 +62,7 @@ public class Plugin : ILabelPlugin, IStripPlugin
             if (ConnectionManager is not null)
                 ConnectionManager.Dispose();
         
-            var mediator =  ServiceProvider.GetService<IMediator>();
+            var mediator =  ServiceProvider.GetRequiredService<IMediator>();
             var @delegate = new MediatorMessageHandler(mediator);
             
             ConnectionManager = new SignalRConnectionManager(@delegate);
@@ -157,7 +150,7 @@ public class Plugin : ILabelPlugin, IStripPlugin
                     customItem.ForegroundColour.Value.G,
                     customItem.ForegroundColour.Value.B)
                 : null,
-            OnMouseClick = (args) =>
+            OnMouseClick = args =>
             {
                 var button = args.Button switch
                 {
@@ -193,7 +186,7 @@ public class Plugin : ILabelPlugin, IStripPlugin
                     customItem.ForegroundColour.Value.G,
                     customItem.ForegroundColour.Value.B)
                 : null,
-            OnMouseClick = (args) =>
+            OnMouseClick = args =>
             {
                 var button = args.Button switch
                 {
@@ -300,31 +293,55 @@ public class Plugin : ILabelPlugin, IStripPlugin
 
     void OpenSetupWindow() => throw new NotImplementedException();
     void OpenHistoryWindow() => throw new NotImplementedException();
+
+    // TODO: Close the window if the aircraft disconnects from CPDLC, or if the connection to the ACARS Server fails.
+    SemaphoreSlim _editorWindowStateSemaphore = new(1,1);
+    WindowState? _editorWindowState = null;
     
     async Task OpenCpdlcWindow(string callsign, CancellationToken cancellationToken)
     {
-        // TODO: If the window is already opened, close it.
-        // TODO: Need to implement window manager.
+        await _editorWindowStateSemaphore.WaitAsync(cancellationToken);
         
-        // TODO: If the window is already opened for another aircraft, close it, and re-open it for this one.
-        
-        // TODO: Close the window if the aircraft disconnects from CPDLC, or if the connection to the ACARS Server fails.
-        
-        var repository = ServiceProvider.GetRequiredService<MessageRepository>();
-        
-        var downlinkMessages = await repository.GetDownlinkMessagesFrom(callsign, cancellationToken);
-        var downlinkMessageViewModels = downlinkMessages
-            .Where(m => !m.Completed)
-            .Select(m => new DownlinkMessageViewModel(m))
-            .ToArray();
+        try
+        {
+            // If the editor window is already opened for this aircraft, close it
+            if (_editorWindowState is not null && _editorWindowState.Callsign == callsign)
+            {
+                _editorWindowState.Window.Close();
+                _editorWindowState = null;
+                return;
+            }
 
-        var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels);
-        
-        var window = new EditorWindow(viewModel);
-        ElementHost.EnableModelessKeyboardInterop(window);
-        
-        window.Show();
+            // Close the existing window
+            if (_editorWindowState is not null)
+            {
+                _editorWindowState.Window.Close();
+                _editorWindowState = null;
+            }
+
+            var repository = ServiceProvider.GetRequiredService<MessageRepository>();
+
+            var downlinkMessages = await repository.GetDownlinkMessagesFrom(callsign, cancellationToken);
+            var downlinkMessageViewModels = downlinkMessages
+                .Where(m => !m.Completed)
+                .Select(m => new DownlinkMessageViewModel(m))
+                .ToArray();
+
+            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels);
+            var window = new EditorWindow(viewModel);
+            ElementHost.EnableModelessKeyboardInterop(window);
+            
+            _editorWindowState = new WindowState(callsign, window);
+
+            window.Show();
+        }
+        finally
+        {
+            _editorWindowStateSemaphore.Release();
+        }
     }
+
+    record WindowState(string Callsign, EditorWindow Window);
 
     public class AircraftInfo
     {
