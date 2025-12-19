@@ -1,5 +1,34 @@
 ﻿namespace ACARSPlugin.Configuration;
 
+// Left-click to use the popup
+// Middle-click to clear the value
+// Right-click to enter text manually
+// If no popup is available, use manual text entry
+
+public enum UplinkMessageParameterType
+{
+    Altimeter,
+    AtisCode,
+    Code,
+    Degree, // 3 digitsd of free text followed by M or T
+    Direction, // L, R, LR, N, S, E, W, NE, NW, SE, SW
+    DistanceOFfset,
+    FacilityDesignation,
+    FreeText,
+    Frequency,
+    LegType,
+    Level, // Altitude popup - Left click for CFL style menu, right click for text. Text is three digit altitude. FL and A inserted automatically based on transition level.
+    Position, // 9 positions (fixes in route) following the current position
+    PreDepartureClerance,
+    ProcedureName, // Intermediate window. Arrival / Approach / Departure popup -> NAME TYPE TRANSITION window.
+    RouteClearance, // Screw that...
+    Speed, // Speed popup. Only Mach and TAS are available via the popup. Free text = Prefix + 3 digits. Prefix is either M (Mach), N (TAS), I (IAS), or G (GS)
+    Time, // Time popup
+    ToFrom, // TO or FROM
+    UnitName, // Offline defined unit names (AUCKLAND CTR, BRISBANE CTR, MELBOURNE CTR, NADI CTR, etc.)
+    VerticalRate
+}
+
 public class Testing
 {
   public static string PermanentMessageClassName = "PERMANENT";

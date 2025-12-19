@@ -388,4 +388,7 @@ public partial class UplinkMessageTemplatePartViewModel : ObservableObject, IUpl
 
     [ObservableProperty]
     private string? value;
+
+    [ObservableProperty]
+    private bool isEditing;
 }

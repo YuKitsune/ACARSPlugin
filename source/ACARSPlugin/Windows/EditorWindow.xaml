@@ -203,11 +203,12 @@
         <ItemsControl
             Grid.Row="3"
             Margin="8"
-            ItemsSource="{Binding UplinkMessageElements}">
+            ItemsSource="{Binding UplinkMessageElements}"
+            Focusable="False">
             
             <ItemsControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type viewModels:UplinkMessageElementViewModel}">
-                    <Grid Margin="0,2,0,2" Height="28">
+                    <Grid Margin="0,2,0,2" Height="32" VerticalAlignment="Center">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="Auto"/>
                             <ColumnDefinition Width="*"/>
@@ -246,59 +247,62 @@
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
-                            <controls:BeveledBorder BevelType="Sunken" BorderThickness="{x:Static local:Theme.BeveledBorderThickness}">
+                            <controls:BeveledBorder BevelType="Sunken" BorderThickness="{x:Static local:Theme.BeveledBorderThickness}" Focusable="False">
                                 <ItemsControl
                                     ItemsSource="{Binding Parts}"
                                     VerticalAlignment="Center"
                                     Margin="8,2,0,2">
-                                <ItemsControl.ItemsPanel>
-                                    <ItemsPanelTemplate>
-                                        <WrapPanel Orientation="Horizontal"/>
-                                    </ItemsPanelTemplate>
-                                </ItemsControl.ItemsPanel>
-                                <ItemsControl.Resources>
-                                    <!-- Template for Text Parts -->
-                                    <DataTemplate DataType="{x:Type viewModels:UplinkMessageTextPartViewModel}">
-                                        <TextBlock Text="{Binding Value}" VerticalAlignment="Center" Style="{StaticResource GenericTextStyle}"/>
-                                    </DataTemplate>
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel Orientation="Horizontal"/>
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.Resources>
+                                        <!-- Template for Text Parts -->
+                                        <DataTemplate DataType="{x:Type viewModels:UplinkMessageTextPartViewModel}">
+                                            <TextBlock Text="{Binding Value}" VerticalAlignment="Center" Style="{StaticResource GenericTextStyle}"/>
+                                        </DataTemplate>
 
-                                    <!-- Template for Template Parts -->
-                                    <DataTemplate DataType="{x:Type viewModels:UplinkMessageTemplatePartViewModel}">
-                                        <Button Style="{StaticResource TemplateButton}">
-                                            <TextBlock>
-                                                <TextBlock.Style>
-                                                    <Style TargetType="TextBlock" BasedOn="{StaticResource InteractiveTextStyle}">
-                                                        <!-- Default: Show value if it exists -->
-                                                        <Setter Property="Text" Value="{Binding Value}"/>
-                                                        <Style.Triggers>
-                                                            <!-- If Value is null or empty, show placeholder in brackets -->
-                                                            <DataTrigger Binding="{Binding Value}" Value="{x:Null}">
-                                                                <Setter Property="Text">
-                                                                    <Setter.Value>
-                                                                        <MultiBinding StringFormat="[{0}]">
-                                                                            <Binding Path="Placeholder"/>
-                                                                        </MultiBinding>
-                                                                    </Setter.Value>
-                                                                </Setter>
-                                                            </DataTrigger>
-                                                            <DataTrigger Binding="{Binding Value}" Value="">
-                                                                <Setter Property="Text">
-                                                                    <Setter.Value>
-                                                                        <MultiBinding StringFormat="[{0}]">
-                                                                            <Binding Path="Placeholder"/>
-                                                                        </MultiBinding>
-                                                                    </Setter.Value>
-                                                                </Setter>
-                                                            </DataTrigger>
-                                                        </Style.Triggers>
-                                                    </Style>
-                                                </TextBlock.Style>
-                                            </TextBlock>
-                                        </Button>
-                                    </DataTemplate>
-                                </ItemsControl.Resources>
-                            </ItemsControl>
-                        </controls:BeveledBorder>
+                                        <!-- Template for Template Parts -->
+                                        <DataTemplate DataType="{x:Type viewModels:UplinkMessageTemplatePartViewModel}">
+                                            <Grid>
+                                                <!-- Button shown when not editing -->
+                                                <Button Style="{StaticResource TemplateButton}"
+                                                        PreviewMouseDown="TemplatePartButton_MouseDown"
+                                                        Visibility="{Binding IsEditing, Converter={StaticResource InverseBoolToVisibilityConverter}}">
+                                                    <TextBlock>
+                                                        <TextBlock.Style>
+                                                            <Style TargetType="TextBlock" BasedOn="{StaticResource InteractiveTextStyle}">
+                                                                <!-- Default: Show value if it exists -->
+                                                                <Setter Property="Text" Value="{Binding Value}"/>
+                                                                <Style.Triggers>
+                                                                    <!-- If Value is null or empty, show placeholder in brackets -->
+                                                                    <DataTrigger Binding="{Binding Value}" Value="{x:Null}">
+                                                                        <Setter Property="Text" Value="{Binding Placeholder}"/>
+                                                                    </DataTrigger>
+                                                                    <DataTrigger Binding="{Binding Value}" Value="">
+                                                                        <Setter Property="Text" Value="{Binding Placeholder}"/>
+                                                                    </DataTrigger>
+                                                                </Style.Triggers>
+                                                            </Style>
+                                                        </TextBlock.Style>
+                                                    </TextBlock>
+                                                </Button>
+
+                                                <!-- TextBox shown when editing -->
+                                                <TextBox
+                                                    Text="{Binding Value, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                                    Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}"
+                                                    IsVisibleChanged="TemplatePartTextBox_IsVisibleChanged"
+                                                    PreviewKeyDown="TemplatePartTextBox_PreviewKeyDown"
+                                                    LostFocus="TemplatePartTextBox_LostFocus"
+                                                    MinWidth="60"
+                                                    VerticalContentAlignment="Center"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.Resources>
+                                </ItemsControl>
+                            </controls:BeveledBorder>
                         </Border>
                     </Grid>
                 </DataTemplate>

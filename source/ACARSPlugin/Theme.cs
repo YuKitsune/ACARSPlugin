@@ -28,6 +28,7 @@ public static class Theme
     public static SolidColorBrush CPDLCSendBackgroundColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 101,101,255).ToWindowsColor());
     
     public static SolidColorBrush CPDLCUnableDownlinkColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 230, 127, 127).ToWindowsColor());
+    public static SolidColorBrush CPDLCSuspendedColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 255, 255, 255).ToWindowsColor());
 
     public static SolidColorBrush SelectedUtilityColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 0, 255, 255).ToWindowsColor());
     
