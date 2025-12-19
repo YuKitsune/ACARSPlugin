@@ -260,7 +260,7 @@
                                     <ItemsControl.Resources>
                                         <!-- Template for Text Parts -->
                                         <DataTemplate DataType="{x:Type viewModels:UplinkMessageTextPartViewModel}">
-                                            <TextBlock Text="{Binding Value}" VerticalAlignment="Center" Style="{StaticResource GenericTextStyle}"/>
+                                            <TextBlock Text="{Binding Value}" Style="{StaticResource GenericTextStyle}"/>
                                         </DataTemplate>
 
                                         <!-- Template for Template Parts -->
@@ -296,6 +296,7 @@
                                                     IsVisibleChanged="TemplatePartTextBox_IsVisibleChanged"
                                                     PreviewKeyDown="TemplatePartTextBox_PreviewKeyDown"
                                                     LostFocus="TemplatePartTextBox_LostFocus"
+                                                    CharacterCasing="Upper"
                                                     MinWidth="60"
                                                     VerticalContentAlignment="Center"/>
                                             </Grid>
