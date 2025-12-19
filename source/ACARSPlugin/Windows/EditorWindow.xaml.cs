@@ -3,16 +3,34 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using ACARSPlugin.Configuration;
+using ACARSPlugin.Messages;
 using ACARSPlugin.ViewModels;
+using CommunityToolkit.Mvvm.Messaging;
 
 namespace ACARSPlugin.Windows;
 
-public partial class EditorWindow : Window
+public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
 {
     public EditorWindow(EditorViewModel viewModel)
     {
         InitializeComponent();
         DataContext = viewModel;
+
+        // Register for disconnect notifications
+        WeakReferenceMessenger.Default.Register<DisconnectedNotification>(this);
+    }
+
+    public void Receive(DisconnectedNotification message)
+    {
+        // Close the window when disconnected from the server
+        Close();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        // Unregister from notifications when window closes
+        WeakReferenceMessenger.Default.Unregister<DisconnectedNotification>(this);
+        base.OnClosed(e);
     }
 
     private void MessageClassElement_Click(object sender, MouseButtonEventArgs e)

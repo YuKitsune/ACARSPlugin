@@ -6,13 +6,13 @@ namespace ACARSPlugin.Server;
 /// <summary>
 /// Manages the SignalR connection to the ACARS server.
 /// </summary>
-public class SignalRConnectionManager(IDownlinkHandlerDelegate downlinkHandlerDelegate) : IDisposable
+public class SignalRConnectionManager(
+    string serverEndpoint,
+    string serverApiKey,
+    IDownlinkHandlerDelegate downlinkHandlerDelegate)
+    : IDisposable
 {
-    private const string ServerUrl = "https://acars.eoinmotherway.dev/hubs/controller";
     private const string AuthHeaderName = "X-ACARS-ApiKey";
-    private const string AuthHeaderValue = "A010Q01-9UBTOkM9gf5UE9pbE1IttbjVtTNofK8W8Pw";
-
-    readonly IDownlinkHandlerDelegate _downlinkHandlerDelegate = downlinkHandlerDelegate;
 
     private HubConnection? _connection;
     private bool _isDisposed;
@@ -47,12 +47,12 @@ public class SignalRConnectionManager(IDownlinkHandlerDelegate downlinkHandlerDe
             await DisposeConnectionAsync();
         }
 
-        var url = $"{ServerUrl}?network=VATSIM&stationId={stationId}&callsign={callsign}";
+        var url = $"{serverEndpoint}?network=VATSIM&stationId={stationId}&callsign={callsign}";
 
         _connection = new HubConnectionBuilder()
             .WithUrl(url, options =>
             {
-                options.Headers.Add(AuthHeaderName, AuthHeaderValue);
+                options.Headers.Add(AuthHeaderName, serverApiKey);
             })
             .WithAutomaticReconnect()
             .Build();
@@ -114,7 +114,7 @@ public class SignalRConnectionManager(IDownlinkHandlerDelegate downlinkHandlerDe
     {
         if (_connection == null) return;
 
-        _connection.On("DownlinkReceived", WithCancellationToken<IDownlinkMessage>(_downlinkHandlerDelegate.DownlinkReceived));
+        _connection.On("DownlinkReceived", WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived));
     }
 
     Func<T, Task> WithCancellationToken<T>(Func<T, CancellationToken, Task> action)

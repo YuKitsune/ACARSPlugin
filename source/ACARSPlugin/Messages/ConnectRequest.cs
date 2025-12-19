@@ -1,0 +1,47 @@
+﻿using ACARSPlugin.Server;
+using CommunityToolkit.Mvvm.Messaging;
+using MediatR;
+using vatsys;
+
+namespace ACARSPlugin.Messages;
+
+public record ConnectRequest(string ServerEndpoint, string ServerApiKey, string StationId) : IRequest;
+
+public class ConnectRequestHandler(Plugin plugin, IMediator mediator) : IRequestHandler<ConnectRequest>
+{
+    public async Task Handle(ConnectRequest request, CancellationToken cancellationToken)
+    {
+        // If already connected, disconnect first
+        if (plugin.ConnectionManager is not null)
+        {
+            if (plugin.ConnectionManager.IsConnected)
+            {
+                await plugin.ConnectionManager.StopAsync();
+            }
+
+            plugin.ConnectionManager.Dispose();
+            plugin.ConnectionManager = null;
+        }
+
+        if (!Network.IsConnected)
+        {
+            // TODO: Throw the exception and handle it somewhere else
+            Errors.Add(new Exception("Not connected to VATSIM"), Plugin.Name);
+            return;
+        }
+
+        var downlinkHandler = new MediatorMessageHandler(mediator);
+        plugin.ConnectionManager = new SignalRConnectionManager(
+            request.ServerEndpoint,
+            request.ServerApiKey,
+            downlinkHandler);
+
+        // Initialize the connection with the station ID and current callsign
+        await plugin.ConnectionManager.InitializeAsync(request.StationId, Network.Callsign);
+
+        // Start the connection
+        await plugin.ConnectionManager.StartAsync();
+        
+        WeakReferenceMessenger.Default.Send(new ConnectedNotification(request.StationId));
+    }
+}

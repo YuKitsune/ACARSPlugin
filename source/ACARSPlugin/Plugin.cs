@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
 using System.Windows.Media;
+using ACARSPlugin.Messages;
 using ACARSPlugin.Model;
 using ACARSPlugin.Server;
 using ACARSPlugin.ViewModels;
@@ -19,16 +20,20 @@ namespace ACARSPlugin;
 public class Plugin : ILabelPlugin, IStripPlugin
 {
 #if DEBUG
-    const string Name = "ACARS Plugin - Debug";
+    public const string Name = "ACARS Plugin - Debug";
 #else
-    const string Name = "ACARS Plugin";
+    public const string Name = "ACARS Plugin";
 #endif
     
     string IPlugin.Name => Name;
 
     public IServiceProvider ServiceProvider { get; private set; }
-    
-    public SignalRConnectionManager? ConnectionManager { get; private set; }
+
+    public string ServerEndpoint { get; private set; } = string.Empty;
+    public string ServerApiKey { get; private set; } = string.Empty;
+    public string StationIdentifier { get; private set; } = string.Empty;
+
+    public SignalRConnectionManager? ConnectionManager { get; set; }
 
     public Plugin()
     {
@@ -37,6 +42,7 @@ public class Plugin : ILabelPlugin, IStripPlugin
             ConfigureServices();
             ConfigureTheme();
             AddToolbarItems();
+            LoadConfiguration();
 
             Network.Connected += NetworkConnected;
             Network.Disconnected += NetworkDisconnected;
@@ -47,9 +53,27 @@ public class Plugin : ILabelPlugin, IStripPlugin
         }
     }
 
+    void LoadConfiguration()
+    {
+        var (serverEndpoint, apiKey, stationIdentifier) = Configuration.ConfigurationStorage.Load();
+
+        // Initialize with default server endpoint on first load
+        ServerEndpoint = serverEndpoint ?? "https://acars.eoinmotherway.dev/hubs/controller";
+        ServerApiKey = apiKey ?? string.Empty;
+        StationIdentifier = stationIdentifier ?? string.Empty;
+    }
+
+    public void UpdateConfiguration(string serverEndpoint, string apiKey, string stationIdentifier)
+    {
+        ServerEndpoint = serverEndpoint;
+        ServerApiKey = apiKey;
+        StationIdentifier = stationIdentifier;
+    }
+
     void ConfigureServices()
     {
         ServiceProvider = new ServiceCollection()
+            .AddSingleton(this) // TODO: Ick... Whatever we're relying on this for, move it into a separate service please.
             .AddSingleton<MessageRepository>()
             .AddMediatR(c => c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly))
             .BuildServiceProvider();
@@ -57,34 +81,35 @@ public class Plugin : ILabelPlugin, IStripPlugin
 
     private async void NetworkConnected(object sender, EventArgs e)
     {
-        try
-        {
-            if (ConnectionManager is not null)
-                ConnectionManager.Dispose();
+        // TODO: Connect if auto-connect enabled
         
-            var mediator =  ServiceProvider.GetRequiredService<IMediator>();
-            var @delegate = new MediatorMessageHandler(mediator);
-            
-            ConnectionManager = new SignalRConnectionManager(@delegate);
-            await ConnectionManager.InitializeAsync("YBBB", Network.Callsign);
-            await ConnectionManager.StartAsync();
-        }
-        catch (Exception ex)
-        {
-            Errors.Add(ex, Name);
-        }
+        // try
+        // {
+        //     if (ConnectionManager is not null)
+        //         ConnectionManager.Dispose();
+        //
+        //     var mediator =  ServiceProvider.GetRequiredService<IMediator>();
+        //     var @delegate = new MediatorMessageHandler(mediator);
+        //     
+        //     ConnectionManager = new SignalRConnectionManager(ServerEndpoint, ServerApiKey, @delegate);
+        //     await ConnectionManager.InitializeAsync(StationIdentifier, Network.Callsign);
+        //     await ConnectionManager.StartAsync();
+        // }
+        // catch (Exception ex)
+        // {
+        //     Errors.Add(ex, Name);
+        // }
     }
 
     private async void NetworkDisconnected(object sender, EventArgs e)
     {
         try
         {
-            if (ConnectionManager is null)
+            var mediator =  ServiceProvider.GetService<IMediator>();
+            if (mediator is null)
                 return;
 
-            await ConnectionManager.StopAsync();
-            ConnectionManager.Dispose();
-            ConnectionManager = null;
+            await mediator.Send(new DisconnectRequest());
         }
         catch (Exception ex)
         {
@@ -291,7 +316,40 @@ public class Plugin : ILabelPlugin, IStripPlugin
         IsCurrentDataAuthority = true
     };
 
-    void OpenSetupWindow() => throw new NotImplementedException();
+    SetupWindow? _setupWindow = null;
+
+    void OpenSetupWindow()
+    {
+        // If the setup window is already open, close it
+        if (_setupWindow is not null)
+        {
+            _setupWindow.Close();
+            _setupWindow = null;
+            return;
+        }
+
+        // Get the mediator from the service provider
+        var mediator = ServiceProvider.GetRequiredService<IMediator>();
+
+        // Create the view model with current configuration and connection state
+        var isConnected = ConnectionManager?.IsConnected ?? false;
+        var viewModel = new SetupViewModel(
+            mediator,
+            ServerEndpoint,
+            ServerApiKey,
+            StationIdentifier,
+            isConnected);
+
+        // Create and show the window
+        var window = new SetupWindow { DataContext = viewModel };
+        window.Closed += (_, _) => _setupWindow = null;
+
+        ElementHost.EnableModelessKeyboardInterop(window);
+
+        _setupWindow = window;
+        window.Show();
+    }
+
     void OpenHistoryWindow() => throw new NotImplementedException();
 
     // TODO: Close the window if the aircraft disconnects from CPDLC, or if the connection to the ACARS Server fails.
