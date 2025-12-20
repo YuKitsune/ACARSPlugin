@@ -5,6 +5,8 @@ public class CurrentMessagesConfiguration
     public int MaxCurrentMessages { get; init; } = 50;
     public int HistoryTransferDelaySeconds { get; init; } = 10;
     public int PilotResponseTimeoutSeconds { get; init; } = 120;
+    public int ControllerResponseTimeoutSeconds { get; init; } = 180;
+    public int TimeoutCheckIntervalSeconds { get; init; } = 5;
     public int MaxDisplayMessageLength { get; init; } = 40;
     public int MaxExtendedMessageLength { get; init; } = 80;
 }

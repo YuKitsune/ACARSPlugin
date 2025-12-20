@@ -27,10 +27,9 @@ public partial class MessageViewModel : ObservableObject
         FullContent = newMessage.Content;
         Content = GetDisplayContent(newMessage.Content);
         Prefix = CalculatePrefix(newMessage);
-        State = GetMessageState(newMessage);
         IsDownlink = newMessage is DownlinkMessage;
-        ForegroundColor = GetColorForState(State, IsDownlink);
-        BackgroundColor = GetBackgroundColorForMessage(State, IsDownlink);
+        ForegroundColor = GetForegroundColor();
+        BackgroundColor = GetBackgroundColor();
     }
 
     [ObservableProperty]
@@ -47,9 +46,6 @@ public partial class MessageViewModel : ObservableObject
 
     [ObservableProperty]
     private string fullContent = string.Empty;
-
-    [ObservableProperty]
-    private MessageState state;
 
     [ObservableProperty]
     private bool isExtended;
@@ -109,44 +105,36 @@ public partial class MessageViewModel : ObservableObject
         return string.Empty;
     }
 
-    private MessageState GetMessageState(IAcarsMessageModel message)
-    {
-        return message switch
-        {
-            DownlinkMessage dl => dl.State,
-            UplinkMessage ul => ul.State,
-            _ => MessageState.Normal
-        };
-    }
-
     private bool IsMessageAcknowledged()
     {
         return OriginalMessage switch
         {
             DownlinkMessage dl => dl.IsAcknowledged,
+            UplinkMessage ul => ul.IsAcknowledged,
             _ => false
         };
     }
 
-    private SolidColorBrush GetMessageColor(MessageState state, bool isDownlink)
+    private SolidColorBrush GetMessageColor()
     {
-        return state switch
+        return OriginalMessage switch
         {
-            MessageState.Normal when isDownlink => Theme.CPDLCDownlinkColor,
-            MessageState.Normal => Theme.CPDLCUplinkColor,
-            MessageState.WaitingForResponse => Theme.CPDLCUplinkColor,
-            MessageState.Urgent => Theme.CPDLCUrgentColor,
-            MessageState.PilotAnswerLate => Theme.CPDLCPilotLateColor,
-            MessageState.ControllerLate => Theme.CPDLCControllerLateColor,
-            MessageState.TransmissionFailure => Theme.CPDLCFailedColor,
-            MessageState.Closed => Theme.CPDLCClosedColor,
+            UplinkMessage ul when ul.IsUrgent => Theme.CPDLCUrgentColor,
+            UplinkMessage ul when ul.IsTransmissionFailed => Theme.CPDLCFailedColor,
+            UplinkMessage ul when ul.IsPilotLate => Theme.CPDLCPilotLateColor,
+            UplinkMessage => Theme.CPDLCUplinkColor,
+
+            DownlinkMessage dl when dl.IsUrgent => Theme.CPDLCUrgentColor,
+            DownlinkMessage dl when dl.IsControllerLate => Theme.CPDLCControllerLateColor,
+            DownlinkMessage => Theme.CPDLCDownlinkColor,
+
             _ => Theme.GenericTextColor
         };
     }
 
-    private SolidColorBrush GetColorForState(MessageState state, bool isDownlink)
+    private SolidColorBrush GetForegroundColor()
     {
-        var messageColor = GetMessageColor(state, isDownlink);
+        var messageColor = GetMessageColor();
         var isAcknowledged = IsMessageAcknowledged();
 
         // Inverse video (before acknowledgement): foreground = CPDLCBackgroundColor
@@ -154,24 +142,27 @@ public partial class MessageViewModel : ObservableObject
         return isAcknowledged ? Theme.CPDLCBackgroundColor : messageColor;
     }
 
-    private SolidColorBrush GetBackgroundColorForMessage(MessageState state, bool isDownlink)
+    private SolidColorBrush GetBackgroundColor()
     {
-        var messageColor = GetMessageColor(state, isDownlink);
+        var messageColor = GetMessageColor();
         var isAcknowledged = IsMessageAcknowledged();
 
         // Inverse video (before acknowledgement): background = message color
         // Normal video (after acknowledgement): background = CPDLCBackgroundColor
         // Exception: Failed and timeout messages use CPDLCClosedColor as background after ack (Note 3)
-        if (isAcknowledged && IsFailedOrTimeoutState(state))
+        if (isAcknowledged && IsFailedOrTimeoutMessage())
             return Theme.CPDLCClosedColor;
 
         return isAcknowledged ? messageColor : Theme.CPDLCBackgroundColor;
     }
 
-    private static bool IsFailedOrTimeoutState(MessageState state)
+    private bool IsFailedOrTimeoutMessage()
     {
-        return state is MessageState.TransmissionFailure
-                     or MessageState.PilotAnswerLate
-                     or MessageState.ControllerLate;
+        return OriginalMessage switch
+        {
+            UplinkMessage ul => ul.IsTransmissionFailed || ul.IsPilotLate,
+            DownlinkMessage dl => dl.IsControllerLate,
+            _ => false
+        };
     }
 }

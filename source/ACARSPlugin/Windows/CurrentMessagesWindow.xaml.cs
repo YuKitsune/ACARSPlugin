@@ -84,19 +84,15 @@ public partial class CurrentMessagesWindow : Window
             UnableTrafficButton.Visibility = Visibility.Visible;
             UnableAirspaceButton.Visibility = Visibility.Visible;
         }
-        else if (message is { IsDownlink: false, State: MessageState.PilotAnswerLate })
+        else if (message is { IsDownlink: false, OriginalMessage: UplinkMessage { IsPilotLate: true } })
         {
             ManualAckButton.Visibility = Visibility.Visible;
             HistoryButton.Visibility = Visibility.Visible;
         }
-        else if (message.State == MessageState.TransmissionFailure)
+        else if (message.OriginalMessage is UplinkMessage { IsTransmissionFailed: true })
         {
             HistoryButton.Visibility = Visibility.Visible;
             ReissueButton.Visibility = Visibility.Visible;
-        }
-        else if (message.State == MessageState.Closed)
-        {
-            HistoryButton.Visibility = Visibility.Visible;
         }
     }
 
@@ -125,10 +121,10 @@ public partial class CurrentMessagesWindow : Window
 
     private void Popup_MouseDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ChangedButton == MouseButton.Middle)
-        {
-            ActionPopup.IsOpen = false;
-            e.Handled = true;
-        }
+        if (e.ChangedButton != MouseButton.Middle)
+            return;
+
+        ActionPopup.IsOpen = false;
+        e.Handled = true;
     }
 }

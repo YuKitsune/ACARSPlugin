@@ -53,12 +53,12 @@
             </Popup>
 
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <ItemsControl ItemsSource="{Binding DialogueGroups}">
+                <ItemsControl ItemsSource="{Binding Dialogues}">
                     <!-- Each DialogueGroupViewModel -->
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="{x:Type viewModels:DialogueGroupViewModel}">
+                        <DataTemplate DataType="{x:Type viewModels:DialogueViewModel}">
                             <StackPanel>
-                                <!-- Display all messages for this dialogue group -->
+                                <!-- Display all messages for this dialogue -->
                                 <ItemsControl ItemsSource="{Binding Messages}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate DataType="{x:Type viewModels:MessageViewModel}">

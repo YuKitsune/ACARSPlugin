@@ -2,12 +2,6 @@
 
 namespace ACARSPlugin.Model;
 
-public interface IAcarsMessageModel
-{
-    int Id { get; }
-    string Content { get; }
-}
-
 public class DownlinkMessage(int id, string sender, CpdlcDownlinkResponseType responseType, string content, DateTimeOffset received, int? replyToUplinkId = null) : IAcarsMessageModel
 {
     public int Id { get; } = id;
@@ -17,6 +11,11 @@ public class DownlinkMessage(int id, string sender, CpdlcDownlinkResponseType re
     public string Content { get; } = content;
     public DateTimeOffset Received { get; } = received;
 
-    public MessageState State { get; set; } = MessageState.Normal;
+    // Boolean state properties
+    public bool IsClosed { get; set; }
     public bool IsAcknowledged { get; set; }
+    public bool IsUrgent { get; set; }
+    public bool IsControllerLate { get; set; }
+    
+    DateTimeOffset IAcarsMessageModel.Time => Received;
 }

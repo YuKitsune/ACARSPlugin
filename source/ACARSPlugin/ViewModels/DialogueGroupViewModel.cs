@@ -4,11 +4,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ACARSPlugin.ViewModels;
 
-public partial class DialogueGroupViewModel : ObservableObject
+public partial class DialogueViewModel : ObservableObject
 {
-    [ObservableProperty]
-    private string callsign = string.Empty;
-
     [ObservableProperty]
     private ObservableCollection<MessageViewModel> messages = [];
 

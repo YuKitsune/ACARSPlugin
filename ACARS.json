@@ -1,0 +1,17 @@
+{
+  "Server": {
+    "ServerEndpoint": "https://acars.eoinmotherway.dev/hubs/controller",
+    "ServerApiKey": ""
+  },
+  "CurrentMessages": {
+    "MaxCurrentMessages": 50,
+    "HistoryTransferDelaySeconds": 10,
+    "PilotResponseTimeoutSeconds": 180,
+    "MaxDisplayMessageLength": 40,
+    "MaxExtendedMessageLength": 80
+  },
+  "ControllerLateSeconds": 120,
+  "PilotLateSeconds": 120,
+  "SpecialUplinkMessages": ["STANDBY", "REQUEST DEFERRED"],
+  "SpecialDownlinkMessages": ["STANDBY"]
+}

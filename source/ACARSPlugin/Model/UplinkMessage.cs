@@ -11,6 +11,12 @@ public class UplinkMessage(int id, string recipient, CpdlcUplinkResponseType res
     public string Content { get; } = content;
     public DateTimeOffset Sent { get; } = sent;
 
-    public MessageState State { get; set; } = MessageState.Normal;
-    public DateTimeOffset? ResponseTimeoutAt { get; set; }
+    // Boolean state properties
+    public bool IsClosed { get; set; }
+    public bool IsAcknowledged { get; set; }
+    public bool IsUrgent { get; set; }
+    public bool IsPilotLate { get; set; }
+    public bool IsTransmissionFailed { get; set; }
+    
+    DateTimeOffset IAcarsMessageModel.Time => Sent;
 }

@@ -2,7 +2,6 @@
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
-using System.Windows.Forms.VisualStyles;
 using System.Windows.Media;
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
@@ -421,7 +420,7 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
         try
         {
             var repository = ServiceProvider.GetRequiredService<MessageRepository>();
-            var currentDialogues = await repository.GetCurrentDialogueGroups();
+            var currentDialogues = await repository.GetCurrentDialogues();
             var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
             
             if (currentDialogues.Any())
@@ -467,17 +466,16 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
 
             var repository = ServiceProvider.GetRequiredService<MessageRepository>();
 
-            // Get current dialogue groups to access response information
-            var dialogueGroups = await repository.GetCurrentDialogueGroups();
-            var dialogue = dialogueGroups.FirstOrDefault(g => g.Callsign == callsign);
+            // Get current dialogues to access response information
+            var dialogues = await repository.GetCurrentDialogues();
+            var dialogue = dialogues.FirstOrDefault(g => g.Callsign == callsign);
 
             var downlinkMessages = await repository.GetDownlinkMessagesFrom(callsign, cancellationToken);
             var downlinkMessageViewModels = downlinkMessages
-                .Where(m => m.State != MessageState.Closed)
                 .Select(m => new DownlinkMessageViewModel(
                     m,
-                    standbySent: dialogue?.Dialogues.Any(d => d.HasStandbyResponse(m.Id)) ?? false,
-                    deferred: dialogue?.Dialogues.Any(d => d.HasDeferredResponse(m.Id)) ?? false))
+                    standbySent: dialogue?.HasStandbyResponse(m.Id) ?? false,
+                    deferred: dialogue?.HasDeferredResponse(m.Id) ?? false))
                 .ToArray();
 
             var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels);

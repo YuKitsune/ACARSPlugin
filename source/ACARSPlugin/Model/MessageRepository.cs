@@ -1,46 +1,14 @@
 using ACARSPlugin.Configuration;
-using ACARSPlugin.Messages;
-using ACARSPlugin.Server;
 using ACARSPlugin.Server.Contracts;
 using MediatR;
 
 namespace ACARSPlugin.Model;
 
-public interface IClock
+public class MessageRepository(IClock clock, AcarsConfiguration configuration)
+    : IDisposable
 {
-    DateTimeOffset UtcNow();
-}
-
-public class SystemClock : IClock
-{
-    public DateTimeOffset UtcNow() => DateTimeOffset.UtcNow;
-}
-
-public class MessageRepository : IDisposable
-{
-    private readonly Dictionary<string, DialogueGroup> _currentDialogueGroups = new();
-    private readonly Dictionary<string, DialogueGroup> _historyDialogueGroups = new();
+    private readonly List<Dialogue> _dialogues = [];
     private readonly SemaphoreSlim _semaphore = new(1, 1);
-    private readonly IClock _clock;
-    private readonly AcarsConfiguration _configuration;
-    private readonly IPublisher _publisher;
-    private readonly Timer _historyTransferTimer;
-
-    public SignalRConnectionManager? ConnectionManager { get; set; }
-
-    public MessageRepository(IClock clock, AcarsConfiguration configuration, IPublisher publisher)
-    {
-        _clock = clock;
-        _configuration = configuration;
-        _publisher = publisher;
-
-        // Check every 10 seconds for dialogues that should be transferred to history
-        _historyTransferTimer = new Timer(
-            callback: _ => TransferCompletedDialoguesToHistory(),
-            state: null,
-            dueTime: TimeSpan.FromSeconds(10),
-            period: TimeSpan.FromSeconds(10));
-    }
 
     public async Task AddDownlinkMessage(ICpdlcDownlink downlinkMessage, CancellationToken cancellationToken)
     {
@@ -55,13 +23,13 @@ public class MessageRepository : IDisposable
                     cpdlcDownlink.Sender,
                     cpdlcDownlink.ResponseType,
                     cpdlcDownlink.Content,
-                    _clock.UtcNow()),
+                    clock.UtcNow()),
                 CpdlcDownlinkReply cpdlcDownlinkReply => new DownlinkMessage(
                     cpdlcDownlinkReply.MessageId,
                     cpdlcDownlinkReply.Sender,
                     cpdlcDownlinkReply.ResponseType,
                     cpdlcDownlinkReply.Content,
-                    _clock.UtcNow(),
+                    clock.UtcNow(),
                     cpdlcDownlinkReply.ReplyToMessageId),
                 _ => throw new ArgumentOutOfRangeException(nameof(downlinkMessage), downlinkMessage, $"Unexpected downlink message type: {downlinkMessage.GetType().Namespace}")
             };
@@ -79,6 +47,7 @@ public class MessageRepository : IDisposable
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
+            // TODO: move DTO to Model conversion into handler
             var model = uplinkMessage switch
             {
                 CpdlcUplink cpdlcUplink => new UplinkMessage(
@@ -86,24 +55,14 @@ public class MessageRepository : IDisposable
                     cpdlcUplink.Recipient,
                     cpdlcUplink.ResponseType,
                     cpdlcUplink.Content,
-                    _clock.UtcNow())
-                {
-                    ResponseTimeoutAt = cpdlcUplink.ResponseType != CpdlcUplinkResponseType.NoResponse
-                        ? _clock.UtcNow().AddSeconds(_configuration.CurrentMessages.PilotResponseTimeoutSeconds)
-                        : null
-                },
+                    clock.UtcNow()),
                 CpdlcUplinkReply cpdlcUplinkReply => new UplinkMessage(
                     cpdlcUplinkReply.MessageId,
                     cpdlcUplinkReply.Recipient,
                     cpdlcUplinkReply.ResponseType,
                     cpdlcUplinkReply.Content,
-                    _clock.UtcNow(),
-                    cpdlcUplinkReply.ReplyToMessageId)
-                {
-                    ResponseTimeoutAt = cpdlcUplinkReply.ResponseType != CpdlcUplinkResponseType.NoResponse
-                        ? _clock.UtcNow().AddSeconds(_configuration.CurrentMessages.PilotResponseTimeoutSeconds)
-                        : null
-                },
+                    clock.UtcNow(),
+                    cpdlcUplinkReply.ReplyToMessageId),
                 _ => throw new ArgumentOutOfRangeException(nameof(uplinkMessage), uplinkMessage, $"Unexpected uplink message type: {uplinkMessage.GetType().Namespace}")
             };
 
@@ -117,22 +76,15 @@ public class MessageRepository : IDisposable
 
     private void AddMessageToDialogue(IAcarsMessageModel message, string callsign)
     {
-        // Get or create dialogue group for this aircraft
-        if (!_currentDialogueGroups.TryGetValue(callsign, out var dialogueGroup))
-        {
-            dialogueGroup = new DialogueGroup(callsign);
-            _currentDialogueGroups[callsign] = dialogueGroup;
-        }
-
         // Find which dialogue this message belongs to
         var rootMessageId = FindRootMessageId(message);
-        var dialogue = dialogueGroup.Dialogues.FirstOrDefault(d => d.RootMessageId == rootMessageId);
+        var dialogue = _dialogues.FirstOrDefault(d => d.Callsign == callsign && d.RootMessageId == rootMessageId);
 
         if (dialogue == null)
         {
             // Create new dialogue
             dialogue = new Dialogue(rootMessageId, callsign, message);
-            dialogueGroup.AddDialogue(dialogue);
+            _dialogues.Add(dialogue);
         }
         else
         {
@@ -140,10 +92,61 @@ public class MessageRepository : IDisposable
             dialogue.AddMessage(message);
         }
 
-        // Check if dialogue is complete and close it
-        if (dialogue.IsComplete() && dialogue.State == DialogueState.Open)
+        // Apply message closure rules
+        ApplyMessageClosureRules(message, dialogue);
+    }
+
+    void ApplyMessageClosureRules(IAcarsMessageModel message, Dialogue dialogue)
+    {
+        switch (message)
         {
-            dialogue.Close();
+            case UplinkMessage uplink:
+                // Rule 1: Uplink requiring no response is closed immediately
+                if (uplink.ResponseType == CpdlcUplinkResponseType.NoResponse)
+                {
+                    uplink.IsClosed = true;
+                }
+                // Rule 4: When uplink reply is sent, close the downlink it's replying to
+                else if (uplink.ReplyToDownlinkId.HasValue)
+                {
+                    // TODO: Store this info on the message model itself
+                    // If the uplink is a special uplink (i.e. STANDBY or REQUEST DEFERRED), don't close the downlink
+                    if (configuration.SpecialUplinkMessages.Contains(uplink.Content))
+                        return;
+                    
+                    var downlink = dialogue.Messages.OfType<DownlinkMessage>()
+                        .FirstOrDefault(dl => dl.Id == uplink.ReplyToDownlinkId.Value);
+                    if (downlink != null)
+                    {
+                        downlink.IsClosed = true;
+                        downlink.IsAcknowledged = true; // Auto-acknowledge when replying
+                    }
+                }
+                break;
+
+            case DownlinkMessage downlink:
+                // Rule 3: Downlink requiring no response is closed immediately
+                if (downlink.ResponseType != CpdlcDownlinkResponseType.ResponseRequired)
+                {
+                    downlink.IsClosed = true;
+                }
+                // Rule 2: When downlink reply is received, close the uplink it's replying to
+                else if (downlink.ReplyToUplinkId.HasValue)
+                {
+                    // TODO: Store this info on the message model itself
+                    // If the downlink is a special downlink (i.e. STANDBY), don't close the uplink
+                    if (configuration.SpecialDownlinkMessages.Contains(downlink.Content))
+                        return;
+                    
+                    var uplink = dialogue.Messages.OfType<UplinkMessage>()
+                        .FirstOrDefault(ul => ul.Id == downlink.ReplyToUplinkId.Value);
+                    if (uplink != null)
+                    {
+                        uplink.IsClosed = true;
+                        uplink.IsAcknowledged = true; // Auto-acknowledge when pilot responds
+                    }
+                }
+                break;
         }
     }
 
@@ -193,28 +196,25 @@ public class MessageRepository : IDisposable
 
     private IAcarsMessageModel? FindMessageById(int id)
     {
-        // Search all dialogue groups (current and history)
-        foreach (var group in _currentDialogueGroups.Values.Concat(_historyDialogueGroups.Values))
+        // Search all dialogues
+        foreach (var dialogue in _dialogues)
         {
-            foreach (var dialogue in group.Dialogues)
-            {
-                var message = dialogue.Messages.FirstOrDefault(m => m.Id == id);
-                if (message != null)
-                    return message;
-            }
+            var message = dialogue.Messages.FirstOrDefault(m => m.Id == id);
+            if (message != null)
+                return message;
         }
 
         return null;
     }
 
-    public async Task<IReadOnlyList<DialogueGroup>> GetCurrentDialogueGroups()
+    public async Task<IReadOnlyList<Dialogue>> GetCurrentDialogues()
     {
         await _semaphore.WaitAsync();
         try
         {
-            return _currentDialogueGroups.Values
-                .Where(g => g.HasCurrentMessages())
-                .OrderBy(g => g.FirstMessageTime)
+            return _dialogues
+                .Where(d => !d.IsInHistory)
+                .OrderBy(d => d.Opened)
                 .ToArray();
         }
         finally
@@ -223,13 +223,14 @@ public class MessageRepository : IDisposable
         }
     }
 
-    public async Task<IReadOnlyList<DialogueGroup>> GetHistoryDialogueGroups()
+    public async Task<IReadOnlyList<Dialogue>> GetHistoryDialogues()
     {
         await _semaphore.WaitAsync();
         try
         {
-            return _historyDialogueGroups.Values
-                .OrderByDescending(g => g.FirstMessageTime)
+            return _dialogues
+                .Where(d => d.IsInHistory)
+                .OrderBy(d => d.Opened)
                 .ToArray();
         }
         finally
@@ -237,146 +238,6 @@ public class MessageRepository : IDisposable
             _semaphore.Release();
         }
     }
-
-    private void TransferCompletedDialoguesToHistory()
-    {
-        _semaphore.Wait();
-        try
-        {
-            var now = _clock.UtcNow();
-            var toTransfer = new List<(string Callsign, Dialogue Dialogue)>();
-
-            foreach (var kvp in _currentDialogueGroups)
-            {
-                var callsign = kvp.Key;
-                var dialogueGroup = kvp.Value;
-                foreach (var dialogue in dialogueGroup.Dialogues)
-                {
-                    if (dialogue.ShouldTransferToHistory(now, _configuration.CurrentMessages.HistoryTransferDelaySeconds))
-                    {
-                        toTransfer.Add((callsign, dialogue));
-                    }
-                }
-            }
-
-            foreach (var (callsign, dialogue) in toTransfer)
-            {
-                MoveDialogueToHistoryInternal(callsign, dialogue);
-            }
-
-            if (toTransfer.Any())
-            {
-                _publisher.Publish(new CurrentMessagesChanged());
-            }
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
-
-    private void MoveDialogueToHistoryInternal(string callsign, Dialogue dialogue)
-    {
-        // Move dialogue from current to history
-        if (_currentDialogueGroups.TryGetValue(callsign, out var currentGroup))
-        {
-            currentGroup.RemoveDialogue(dialogue);
-
-            // Remove group if empty
-            if (currentGroup.Dialogues.Count == 0)
-            {
-                _currentDialogueGroups.Remove(callsign);
-            }
-        }
-
-        // Add to history
-        if (!_historyDialogueGroups.TryGetValue(callsign, out var historyGroup))
-        {
-            historyGroup = new DialogueGroup(callsign);
-            _historyDialogueGroups[callsign] = historyGroup;
-        }
-
-        dialogue.State = DialogueState.InHistory;
-        historyGroup.AddDialogue(dialogue);
-    }
-
-    // public async Task SendStandby(DownlinkMessage message, CancellationToken cancellationToken)
-    // {
-    //     if (ConnectionManager == null)
-    //         throw new InvalidOperationException("Connection manager not set");
-    //
-    //     var uplink = new CpdlcUplink(
-    //         MessageId: GenerateMessageId(),
-    //         Recipient: message.Sender,
-    //         ResponseType: CpdlcUplinkResponseType.Roger,
-    //         Content: "STANDBY");
-    //
-    //     await ConnectionManager.SendUplink(uplink, cancellationToken);
-    //     await AddUplinkMessage(uplink, CancellationToken.None);
-    // }
-    //
-    // public async Task SendDeferred(DownlinkMessage message, CancellationToken cancellationToken)
-    // {
-    //     if (ConnectionManager == null)
-    //         throw new InvalidOperationException("Connection manager not set");
-    //
-    //     var uplink = new CpdlcUplink(
-    //         MessageId: GenerateMessageId(),
-    //         Recipient: message.Sender,
-    //         ResponseType: CpdlcUplinkResponseType.Roger,
-    //         Content: "REQUEST DEFERRED");
-    //
-    //     await ConnectionManager.SendUplink(uplink, cancellationToken);
-    //     await AddUplinkMessage(uplink, CancellationToken.None);
-    // }
-    //
-    // public async Task SendUnable(DownlinkMessage message, CancellationToken cancellationToken)
-    // {
-    //     if (ConnectionManager == null)
-    //         throw new InvalidOperationException("Connection manager not set");
-    //
-    //     var uplink = new CpdlcUplink(
-    //         MessageId: GenerateMessageId(),
-    //         Recipient: message.Sender,
-    //         ResponseType: CpdlcUplinkResponseType.NoResponse,
-    //         Content: "UNABLE");
-    //
-    //     await ConnectionManager.SendUplink(uplink, cancellationToken);
-    //     await AddUplinkMessage(uplink, CancellationToken.None);
-    //     message.Complete(unable: true);
-    // }
-    //
-    // public async Task SendUnableDueTraffic(DownlinkMessage message, CancellationToken cancellationToken)
-    // {
-    //     if (ConnectionManager == null)
-    //         throw new InvalidOperationException("Connection manager not set");
-    //
-    //     var uplink = new CpdlcUplink(
-    //         MessageId: GenerateMessageId(),
-    //         Recipient: message.Sender,
-    //         ResponseType: CpdlcUplinkResponseType.NoResponse,
-    //         Content: "UNABLE DUE TO TRAFFIC");
-    //
-    //     await ConnectionManager.SendUplink(uplink, cancellationToken);
-    //     await AddUplinkMessage(uplink, CancellationToken.None);
-    //     message.Complete(unable: true);
-    // }
-    //
-    // public async Task SendUnableDueAirspace(DownlinkMessage message, CancellationToken cancellationToken)
-    // {
-    //     if (ConnectionManager == null)
-    //         throw new InvalidOperationException("Connection manager not set");
-    //
-    //     var uplink = new CpdlcUplink(
-    //         MessageId: GenerateMessageId(),
-    //         Recipient: message.Sender,
-    //         ResponseType: CpdlcUplinkResponseType.NoResponse,
-    //         Content: "UNABLE DUE TO AIRSPACE RESTRICTION");
-    //
-    //     await ConnectionManager.SendUplink(uplink, cancellationToken);
-    //     await AddUplinkMessage(uplink, CancellationToken.None);
-    //     message.Complete(unable: true);
-    // }
 
     internal async Task AcknowledgeDownlink(int messageId)
     {
@@ -404,42 +265,14 @@ public class MessageRepository : IDisposable
             if (message is not UplinkMessage uplinkMessage)
                 return;
 
-            uplinkMessage.State = MessageState.Closed;
+            uplinkMessage.IsAcknowledged = true;
+            uplinkMessage.IsClosed = true; // Manually acknowledged messages are closed
         }
         finally
         {
             _semaphore.Release();
         }
     }
-
-    internal async Task MoveToHistory(Dialogue dialogue)
-    {
-        await _semaphore.WaitAsync();
-        try
-        {
-            MoveDialogueToHistoryInternal(dialogue.Callsign, dialogue);
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
-
-    // public async Task ReissueMessage(UplinkMessage message, CancellationToken cancellationToken)
-    // {
-    //     if (ConnectionManager == null)
-    //         throw new InvalidOperationException("Connection manager not set");
-    //
-    //     // Create a new message with the same content
-    //     var uplink = new CpdlcUplink(
-    //         MessageId: GenerateMessageId(),
-    //         Recipient: message.Recipient,
-    //         ResponseType: message.ResponseType,
-    //         Content: message.Content);
-    //
-    //     await ConnectionManager.SendUplink(uplink, cancellationToken);
-    //     await AddUplinkMessage(uplink, CancellationToken.None);
-    // }
 
     // Legacy methods for backward compatibility
     public async Task<IReadOnlyList<DownlinkMessage>> GetDownlinkMessagesFrom(string sender, CancellationToken cancellationToken)
@@ -447,35 +280,11 @@ public class MessageRepository : IDisposable
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            var messages = new List<DownlinkMessage>();
-
-            foreach (var group in _currentDialogueGroups.Values)
-            {
-                if (group.Callsign == sender)
-                {
-                    messages.AddRange(group.GetAllMessagesSortedByTime().OfType<DownlinkMessage>());
-                }
-            }
-
-            return messages.OrderBy(m => m.Received).ToArray();
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
-
-    public async Task<IReadOnlyList<IAcarsMessageModel>> GetMessagesFor(string sender, CancellationToken cancellationToken)
-    {
-        await _semaphore.WaitAsync(cancellationToken);
-        try
-        {
-            if (_currentDialogueGroups.TryGetValue(sender, out var group))
-            {
-                return group.GetAllMessagesSortedByTime().ToArray();
-            }
-
-            return Array.Empty<IAcarsMessageModel>();
+            return _dialogues.Where(d => d.Callsign == sender)
+                .SelectMany(d => d.Messages)
+                .OfType<DownlinkMessage>()
+                .OrderBy(d => d.Received)
+                .ToArray();
         }
         finally
         {
@@ -485,7 +294,6 @@ public class MessageRepository : IDisposable
 
     public void Dispose()
     {
-        _historyTransferTimer?.Dispose();
-        _semaphore?.Dispose();
+        _semaphore.Dispose();
     }
 }

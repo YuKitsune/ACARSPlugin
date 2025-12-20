@@ -1,3 +1,5 @@
+using ACARSPlugin.Server.Contracts;
+
 namespace ACARSPlugin.Model;
 
 /// <summary>
@@ -14,49 +16,48 @@ public class Dialogue
         Callsign = callsign;
         Opened = GetMessageTime(firstMessage);
         _messages.Add(firstMessage);
-        State = DialogueState.Open;
     }
 
     public int RootMessageId { get; }
     public string Callsign { get; }
     public IReadOnlyList<IAcarsMessageModel> Messages => _messages.AsReadOnly();
-    public DialogueState State { get; set; }
+    public bool IsInHistory { get; set; }
     public DateTimeOffset Opened { get; }
-    public DateTimeOffset? Closed { get; private set; }
+    public DateTimeOffset? Closed => CalculateClosedTime();
+    public bool IsClosed => Closed.HasValue;
 
     /// <summary>
     /// Adds a message to this dialogue.
     /// </summary>
     public void AddMessage(IAcarsMessageModel message)
     {
+        // TODO: Calculate if this will close the dialogue
+        
         _messages.Add(message);
     }
 
     /// <summary>
-    /// Marks this dialogue as closed.
+    /// Checks if the dialogue is terminated (all messages closed and acknowledged).
     /// </summary>
-    public void Close()
+    public bool IsTerminated()
     {
-        State = DialogueState.ClosedPending;
-        Closed = DateTimeOffset.UtcNow;
-
-        // Update all message states to Closed
-        foreach (var message in _messages)
+        // All non-special messages must be closed
+        bool allNonSpecialMessagesClosed = _messages.All(m => m switch
         {
-            switch (message)
-            {
-                case UplinkMessage uplink:
-                    uplink.State = MessageState.Closed;
-                    break;
-                case DownlinkMessage downlink:
-                    downlink.State = MessageState.Closed;
-                    break;
-            }
-        }
+            UplinkMessage ul when !IsSpecialMessage(ul) => ul.IsClosed,
+            UplinkMessage ul when IsSpecialMessage(ul) => true, // Special messages don't count
+            DownlinkMessage dl => dl.IsClosed,
+            _ => false
+        });
+
+        // All downlink messages must be acknowledged
+        bool allDownlinksAcknowledged = _messages.OfType<DownlinkMessage>().All(dl => dl.IsAcknowledged);
+
+        return allNonSpecialMessagesClosed && allDownlinksAcknowledged;
     }
 
     /// <summary>
-    /// Checks if the dialogue is complete (all messages are closed, no responses pending).
+    /// Checks if the dialogue is complete (no responses pending).
     /// </summary>
     public bool IsComplete()
     {
@@ -65,19 +66,18 @@ public class Dialogue
         {
             switch (message)
             {
-                case UplinkMessage uplink when uplink.ResponseType != Server.Contracts.CpdlcUplinkResponseType.NoResponse:
+                case UplinkMessage uplink when uplink.ResponseType != CpdlcUplinkResponseType.NoResponse:
                     // Uplink requires response - check if we got one
-                    var hasResponse = _messages.OfType<DownlinkMessage>()
-                        .Any(dl => dl.ReplyToUplinkId == uplink.Id);
-                    if (!hasResponse && uplink.State != MessageState.Closed)
+                    var hasReceivedResponse = _messages.OfType<DownlinkMessage>()
+                        .Any(dl => !IsSpecialMessage(dl) && dl.ReplyToUplinkId == uplink.Id && dl.ResponseType != CpdlcDownlinkResponseType.NoResponse);
+                    if (!hasReceivedResponse)
                         return false;
-                    break;
+                    return hasReceivedResponse;
 
-                case DownlinkMessage downlink when downlink.ResponseType == Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired:
+                case DownlinkMessage downlink when downlink.ResponseType == CpdlcDownlinkResponseType.ResponseRequired:
                     // Downlink requires response - check if we sent one (excluding interim responses)
                     var hasSentResponse = _messages.OfType<UplinkMessage>()
-                        .Any(ul => ul.ReplyToDownlinkId == downlink.Id &&
-                                   !IsInterimResponse(ul.Content));
+                        .Any(ul => !IsSpecialMessage(ul) && ul.ReplyToDownlinkId == downlink.Id);
                     if (!hasSentResponse)
                         return false;
                     break;
@@ -85,24 +85,6 @@ public class Dialogue
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Checks if this dialogue should be transferred to history.
-    /// </summary>
-    /// <param name="now">The current time</param>
-    /// <param name="historyTransferDelaySeconds">Number of seconds to wait after closing before transferring to history</param>
-    public bool ShouldTransferToHistory(DateTimeOffset now, int historyTransferDelaySeconds)
-    {
-        if (State != DialogueState.ClosedPending || !Closed.HasValue)
-            return false;
-
-        // All messages must be acknowledged before transferring to history
-        if (!AreAllMessagesAcknowledged())
-            return false;
-
-        var transferTime = Closed.Value.AddSeconds(historyTransferDelaySeconds);
-        return now >= transferTime;
     }
 
     /// <summary>
@@ -114,14 +96,49 @@ public class Dialogue
         {
             switch (message)
             {
-                case DownlinkMessage downlink when !downlink.IsAcknowledged:
-                    return false;
-                case UplinkMessage uplink when uplink.State != MessageState.Closed:
+                case DownlinkMessage { IsAcknowledged: false }:
+                case UplinkMessage { IsAcknowledged: false }:
                     return false;
             }
         }
 
         return true;
+    }
+
+    /// <summary>
+    /// Calculates when the dialogue was closed based on the last closed message timestamp.
+    /// </summary>
+    private DateTimeOffset? CalculateClosedTime()
+    {
+        // Find the latest timestamp among all closed messages
+        DateTimeOffset? latestClosedTime = null;
+
+        foreach (var message in _messages)
+        {
+            bool isClosed = message switch
+            {
+                UplinkMessage ul => ul.IsClosed,
+                DownlinkMessage dl => dl.IsClosed,
+                _ => false
+            };
+
+            if (!isClosed)
+                continue;
+
+            var messageTime = message switch
+            {
+                UplinkMessage ul => ul.Sent,
+                DownlinkMessage dl => dl.Received,
+                _ => (DateTimeOffset?)null
+            };
+
+            if (messageTime.HasValue && (!latestClosedTime.HasValue || messageTime.Value > latestClosedTime.Value))
+            {
+                latestClosedTime = messageTime;
+            }
+        }
+
+        return latestClosedTime;
     }
 
     /// <summary>
@@ -144,15 +161,23 @@ public class Dialogue
                        ul.Content.Contains("DEFERRED", StringComparison.OrdinalIgnoreCase));
     }
 
-    /// <summary>
-    /// Checks if a message content is an interim response (STANDBY or DEFERRED).
-    /// </summary>
-    private static bool IsInterimResponse(string content)
+    static bool IsSpecialMessage(DownlinkMessage downlinkMessage)
     {
-        return content.Contains("STANDBY", StringComparison.OrdinalIgnoreCase) ||
-               content.Contains("DEFERRED", StringComparison.OrdinalIgnoreCase);
+        // TODO: Source from configuration
+        // Some messages that don't require a response shouldn't contribute to marking a dialogue as complete
+        
+        return downlinkMessage.Content.Equals("STANDBY", StringComparison.OrdinalIgnoreCase);
     }
 
+    static bool IsSpecialMessage(UplinkMessage downlinkMessage)
+    {
+        // TODO: Source from configuration
+        // Some messages that don't require a response shouldn't contribute to marking a dialogue as complete
+        
+        return downlinkMessage.Content.Equals("STANDBY", StringComparison.OrdinalIgnoreCase) ||
+               downlinkMessage.Content.Contains("DEFERRED", StringComparison.OrdinalIgnoreCase);
+    }
+    
     private static DateTimeOffset GetMessageTime(IAcarsMessageModel message)
     {
         return message switch

@@ -24,7 +24,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         WeakReferenceMessenger.Default.Register(this);
 
         // Initial load
-        _ = LoadDialogueGroupsAsync();
+        _ = LoadDialoguesAsync();
     }
 
 #if DEBUG
@@ -33,13 +33,12 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         var currentMessagesConfiguration = new CurrentMessagesConfiguration();
 
-        // Create test dialogue groups with sample messages
-        var testGroups = new ObservableCollection<DialogueGroupViewModel>();
+        // Create test dialogues with sample messages
+        var testGroups = new ObservableCollection<DialogueViewModel>();
 
         // First dialogue group - QFA123
-        var qfa123Group = new DialogueGroupViewModel
+        var qfa123Group = new DialogueViewModel
         {
-            Callsign = "QFA123",
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-10),
             Messages = new ObservableCollection<MessageViewModel>()
         };
@@ -47,13 +46,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         // Add some test messages for QFA123
         var uplinkMsg1 = new Model.UplinkMessage(
             1, "QFA123", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-            "UPLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-10))
-        { State = Model.MessageState.Normal };
+            "UPLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-10));
 
         var downlinkMsg1 = new Model.DownlinkMessage(
             2, "QFA123", Server.Contracts.CpdlcDownlinkResponseType.NoResponse,
-            "DOWNLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-9), 1)
-        { State = Model.MessageState.Normal };
+            "DOWNLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-9), 1);
 
         qfa123Group.Messages.Add(new MessageViewModel(uplinkMsg1, currentMessagesConfiguration));
         qfa123Group.Messages.Add(new MessageViewModel(downlinkMsg1, currentMessagesConfiguration));
@@ -61,9 +58,8 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         testGroups.Add(qfa123Group);
 
         // Second dialogue group - UAL456
-        var ual456Group = new DialogueGroupViewModel
+        var ual456Group = new DialogueViewModel
         {
-            Callsign = "UAL456",
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-5),
             Messages = new ObservableCollection<MessageViewModel>()
         };
@@ -72,12 +68,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var uplinkMsg2 = new Model.UplinkMessage(
             3, "UAL456", Server.Contracts.CpdlcUplinkResponseType.Roger,
             "UPLINK PILOT ANSWER LATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-5))
-        { State = Model.MessageState.PilotAnswerLate };
+        { IsPilotLate = true };
 
         var downlinkMsg2 = new Model.DownlinkMessage(
             4, "UAL456", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-            "DOWNLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-3))
-        { State = Model.MessageState.Normal };
+            "DOWNLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-3));
 
         ual456Group.Messages.Add(new MessageViewModel(uplinkMsg2, currentMessagesConfiguration));
         ual456Group.Messages.Add(new MessageViewModel(downlinkMsg2, currentMessagesConfiguration));
@@ -85,9 +80,8 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         testGroups.Add(ual456Group);
 
         // Third dialogue group - DAL789 with overflow message
-        var dal789Group = new DialogueGroupViewModel
+        var dal789Group = new DialogueViewModel
         {
-            Callsign = "DAL789",
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-2),
             Messages = new ObservableCollection<MessageViewModel>()
         };
@@ -95,37 +89,30 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var downlinkMsg3 = new Model.DownlinkMessage(
             5, "DAL789", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
             "DOWNLINK OVERFLOW MESSAGE SHOWING ASTERISK PREFIX NOT ACKNOWLEDGED VERY LONG TEXT",
-            DateTimeOffset.UtcNow.AddMinutes(-2))
-        { State = Model.MessageState.Normal };
+            DateTimeOffset.UtcNow.AddMinutes(-2));
 
         dal789Group.Messages.Add(new MessageViewModel(downlinkMsg3, currentMessagesConfiguration));
 
         testGroups.Add(dal789Group);
 
         // Fourth dialogue group - AAL123 with WaitingForResponse state
-        var aal123Group = new DialogueGroupViewModel
+        var aal123Group = new DialogueViewModel
         {
-            Callsign = "AAL123",
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-8),
             Messages = new ObservableCollection<MessageViewModel>()
         };
 
         var uplinkMsg3 = new Model.UplinkMessage(
             6, "AAL123", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-            "UPLINK WAITING FOR RESPONSE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-8))
-        {
-            State = Model.MessageState.WaitingForResponse,
-            ResponseTimeoutAt = DateTimeOffset.UtcNow.AddSeconds(30)
-        };
+            "UPLINK WAITING FOR RESPONSE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-8));
 
         aal123Group.Messages.Add(new MessageViewModel(uplinkMsg3, currentMessagesConfiguration));
 
         testGroups.Add(aal123Group);
 
         // Fifth dialogue group - SWA456 with TransmissionFailure state
-        var swa456Group = new DialogueGroupViewModel
+        var swa456Group = new DialogueViewModel
         {
-            Callsign = "SWA456",
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-6),
             Messages = new ObservableCollection<MessageViewModel>()
         };
@@ -133,16 +120,15 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var uplinkMsg4 = new Model.UplinkMessage(
             7, "SWA456", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
             "UPLINK TRANSMISSION FAILURE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-6))
-        { State = Model.MessageState.TransmissionFailure };
+        { IsTransmissionFailed = true };
 
         swa456Group.Messages.Add(new MessageViewModel(uplinkMsg4, currentMessagesConfiguration));
 
         testGroups.Add(swa456Group);
 
         // Sixth dialogue group - JBU789 with Acknowledged messages
-        var jbu789Group = new DialogueGroupViewModel
+        var jbu789Group = new DialogueViewModel
         {
-            Callsign = "JBU789",
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-12),
             Messages = new ObservableCollection<MessageViewModel>()
         };
@@ -159,24 +145,19 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         testGroups.Add(jbu789Group);
 
         // Seventh dialogue group - VIR101 with Closed messages
-        var vir101Group = new DialogueGroupViewModel
+        var vir101Group = new DialogueViewModel
         {
-            Callsign = "VIR101",
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-15),
             Messages = new ObservableCollection<MessageViewModel>()
         };
 
         var uplinkMsg6 = new Model.UplinkMessage(
             10, "VIR101", Server.Contracts.CpdlcUplinkResponseType.Roger,
-            "UPLINK CLOSED STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-15))
-        { State = Model.MessageState.Closed };
+            "UPLINK CLOSED STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-15));
 
         var downlinkMsg5 = new Model.DownlinkMessage(
             11, "VIR101", Server.Contracts.CpdlcDownlinkResponseType.NoResponse,
-            "DOWNLINK CLOSED STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-14), 10)
-        {
-            State = Model.MessageState.Closed
-        };
+            "DOWNLINK CLOSED STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-14), 10);
 
         vir101Group.Messages.Add(new MessageViewModel(uplinkMsg6, currentMessagesConfiguration));
         vir101Group.Messages.Add(new MessageViewModel(downlinkMsg5, currentMessagesConfiguration));
@@ -184,9 +165,8 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         testGroups.Add(vir101Group);
 
         // Eighth dialogue group - EZY202 with acknowledged Closed messages
-        var ezy202Group = new DialogueGroupViewModel
+        var ezy202Group = new DialogueViewModel
         {
-            Callsign = "EZY202",
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-1),
             Messages = new ObservableCollection<MessageViewModel>()
         };
@@ -195,7 +175,6 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
             13, "EZY202", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
             "DOWNLINK NORMAL CLOSED ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-1))
         {
-            State = Model.MessageState.Closed,
             IsAcknowledged = true
         };
 
@@ -203,34 +182,32 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 
         testGroups.Add(ezy202Group);
 
-        DialogueGroups = testGroups;
+        Dialogues = testGroups;
     }
 #endif
 
     [ObservableProperty]
-    private ObservableCollection<DialogueGroupViewModel> dialogueGroups = [];
+    private ObservableCollection<DialogueViewModel> dialogues = [];
 
     [ObservableProperty]
     private MessageViewModel? currentlyExtendedMessage;
 
-    private async Task LoadDialogueGroupsAsync()
+    private async Task LoadDialoguesAsync()
     {
-        var response = await _mediator.Send(new GetCurrentDialogueGroupsRequest());
+        var response = await _mediator.Send(new GetCurrentDialoguesRequest());
 
-        // Clear and rebuild
-        DialogueGroups.Clear();
-        foreach (var group in response.DialogueGroups)
-        {
-            var groupViewModel = new DialogueGroupViewModel
+        Dialogues.Clear();
+        var dialogueViewModels = response.Dialogues
+            .Select(d => new DialogueViewModel
             {
-                Callsign = group.Callsign,
-                FirstMessageTime = group.FirstMessageTime,
-                Messages = new ObservableCollection<MessageViewModel>(
-                    group.GetAllMessagesSortedByTime()
-                        .Select(m => new MessageViewModel(m, _configuration.CurrentMessages))
-                )
-            };
-            DialogueGroups.Add(groupViewModel);
+                Messages = new ObservableCollection<MessageViewModel>(d.Messages.Select(m =>
+                    new MessageViewModel(m, _configuration.CurrentMessages))),
+                FirstMessageTime = d.Messages.OrderBy(m => m.Time).First().Time
+            });
+        
+        foreach (var dialogueViewModel in dialogueViewModels)
+        {
+            Dialogues.Add(dialogueViewModel);
         }
     }
 
@@ -240,7 +217,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         {
             try
             {
-                await LoadDialogueGroupsAsync();
+                await LoadDialoguesAsync();
             }
             catch (Exception ex)
             {
