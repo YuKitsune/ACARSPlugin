@@ -200,6 +200,7 @@ public class SignalRConnectionManager(
     private void OnConnectionError(Exception error)
     {
         ConnectionError?.Invoke(this, error);
+        downlinkHandlerDelegate.Error(error);
     }
 
     /// <summary>

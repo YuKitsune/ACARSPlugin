@@ -94,7 +94,7 @@ public class MessageMonitorService : IAsyncDisposable
         }
     }
 
-    private async Task ArchiveCompletedDialogues(CancellationToken cancellationToken)
+    async Task ArchiveCompletedDialogues(CancellationToken cancellationToken)
     {
         var now = _clock.UtcNow();
         var anyChanges = false;
@@ -102,8 +102,9 @@ public class MessageMonitorService : IAsyncDisposable
 
         foreach (var dialogue in dialogues)
         {
-            if (!dialogue.IsTerminated() || !dialogue.IsClosed)
+            if (!dialogue.IsClosed || !dialogue.Messages.All(m => m.IsAcknowledged))
                 continue;
+            
             var archiveTime = dialogue.Closed.Value.AddSeconds(_configuration.CurrentMessages.HistoryTransferDelaySeconds);
             if (now < archiveTime)
                 continue;

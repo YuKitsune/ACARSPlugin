@@ -1,8 +1,5 @@
 {
-  "Server": {
-    "ServerEndpoint": "https://acars.eoinmotherway.dev/hubs/controller",
-    "ServerApiKey": ""
-  },
+  "ServerEndpoint": "https://acars.eoinmotherway.dev/hubs/controller",
   "CurrentMessages": {
     "MaxCurrentMessages": 50,
     "HistoryTransferDelaySeconds": 10,

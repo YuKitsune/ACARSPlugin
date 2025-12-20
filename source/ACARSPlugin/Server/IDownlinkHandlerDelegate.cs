@@ -5,4 +5,5 @@ namespace ACARSPlugin.Server;
 public interface IDownlinkHandlerDelegate
 {
     Task DownlinkReceived(IDownlinkMessage downlink, CancellationToken cancellationToken);
+    void Error(Exception exception);
 }

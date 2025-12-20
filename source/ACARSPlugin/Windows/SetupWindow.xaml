@@ -27,12 +27,6 @@
             </Style>
 
             <Style TargetType="TextBlock" BasedOn="{StaticResource GenericTextStyle}" />
-
-            <Style TargetType="TextBox">
-                <Setter Property="Height" Value="28"/>
-                <Setter Property="Padding" Value="4,0"/>
-                <Setter Property="VerticalContentAlignment" Value="Center"/>
-            </Style>
         </ResourceDictionary>
     </Window.Resources>
 
@@ -67,9 +61,10 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Text="API Key" Margin="0,0,0,4"/>
-            <TextBox
+            <PasswordBox
                 Grid.Row="1"
-                Text="{Binding ApiKey, UpdateSourceTrigger=PropertyChanged}"
+                x:Name="ApiKeyPasswordBox"
+                PasswordChanged="ApiKeyPasswordBox_OnPasswordChanged"
                 IsEnabled="{Binding Connected, Converter={StaticResource BoolInversionConverter}}"/>
         </Grid>
 

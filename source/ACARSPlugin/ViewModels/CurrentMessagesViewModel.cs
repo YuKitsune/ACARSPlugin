@@ -48,11 +48,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         // Add some test messages for QFA123
         var uplinkMsg1 = new Model.UplinkMessage(
             1, "QFA123", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-            "UPLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-10));
+            "UPLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-10), false);
 
         var downlinkMsg1 = new Model.DownlinkMessage(
             2, "QFA123", Server.Contracts.CpdlcDownlinkResponseType.NoResponse,
-            "DOWNLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-9), 1);
+            "DOWNLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-9), false, 1);
 
         qfa123Group.Messages.Add(new MessageViewModel(uplinkMsg1, currentMessagesConfiguration));
         qfa123Group.Messages.Add(new MessageViewModel(downlinkMsg1, currentMessagesConfiguration));
@@ -69,12 +69,12 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         // Add test messages for UAL456 with a pilot late response
         var uplinkMsg2 = new Model.UplinkMessage(
             3, "UAL456", Server.Contracts.CpdlcUplinkResponseType.Roger,
-            "UPLINK PILOT ANSWER LATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-5))
+            "UPLINK PILOT ANSWER LATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-5), false)
         { IsPilotLate = true };
 
         var downlinkMsg2 = new Model.DownlinkMessage(
             4, "UAL456", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-            "DOWNLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-3));
+            "DOWNLINK NORMAL STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-3), false);
 
         ual456Group.Messages.Add(new MessageViewModel(uplinkMsg2, currentMessagesConfiguration));
         ual456Group.Messages.Add(new MessageViewModel(downlinkMsg2, currentMessagesConfiguration));
@@ -91,7 +91,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var downlinkMsg3 = new Model.DownlinkMessage(
             5, "DAL789", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
             "DOWNLINK OVERFLOW MESSAGE SHOWING ASTERISK PREFIX NOT ACKNOWLEDGED VERY LONG TEXT",
-            DateTimeOffset.UtcNow.AddMinutes(-2));
+            DateTimeOffset.UtcNow.AddMinutes(-2), false);
 
         dal789Group.Messages.Add(new MessageViewModel(downlinkMsg3, currentMessagesConfiguration));
 
@@ -106,7 +106,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 
         var uplinkMsg3 = new Model.UplinkMessage(
             6, "AAL123", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-            "UPLINK WAITING FOR RESPONSE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-8));
+            "UPLINK WAITING FOR RESPONSE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-8), false);
 
         aal123Group.Messages.Add(new MessageViewModel(uplinkMsg3, currentMessagesConfiguration));
 
@@ -121,7 +121,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 
         var uplinkMsg4 = new Model.UplinkMessage(
             7, "SWA456", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-            "UPLINK TRANSMISSION FAILURE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-6))
+            "UPLINK TRANSMISSION FAILURE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-6), false)
         { IsTransmissionFailed = true };
 
         swa456Group.Messages.Add(new MessageViewModel(uplinkMsg4, currentMessagesConfiguration));
@@ -137,7 +137,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 
         var downlinkMsg4 = new Model.DownlinkMessage(
             9, "JBU789", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-            "DOWNLINK NORMAL STATE ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-11))
+            "DOWNLINK NORMAL STATE ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-11), false)
         {
             IsAcknowledged = true
         };
@@ -155,11 +155,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 
         var uplinkMsg6 = new Model.UplinkMessage(
             10, "VIR101", Server.Contracts.CpdlcUplinkResponseType.Roger,
-            "UPLINK CLOSED STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-15));
+            "UPLINK CLOSED STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-15), false);
 
         var downlinkMsg5 = new Model.DownlinkMessage(
             11, "VIR101", Server.Contracts.CpdlcDownlinkResponseType.NoResponse,
-            "DOWNLINK CLOSED STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-14), 10);
+            "DOWNLINK CLOSED STATE NOT ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-14), false, 10);
 
         vir101Group.Messages.Add(new MessageViewModel(uplinkMsg6, currentMessagesConfiguration));
         vir101Group.Messages.Add(new MessageViewModel(downlinkMsg5, currentMessagesConfiguration));
@@ -175,7 +175,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 
         var downlinkMsg6 = new Model.DownlinkMessage(
             13, "EZY202", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-            "DOWNLINK NORMAL CLOSED ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-1))
+            "DOWNLINK NORMAL CLOSED ACKNOWLEDGED", DateTimeOffset.UtcNow.AddMinutes(-1), false)
         {
             IsAcknowledged = true
         };

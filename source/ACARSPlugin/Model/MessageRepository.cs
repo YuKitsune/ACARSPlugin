@@ -23,13 +23,15 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
                     cpdlcDownlink.Sender,
                     cpdlcDownlink.ResponseType,
                     cpdlcDownlink.Content,
-                    clock.UtcNow()),
+                    clock.UtcNow(),
+                    configuration.SpecialDownlinkMessages.Contains(cpdlcDownlink.Content)),
                 CpdlcDownlinkReply cpdlcDownlinkReply => new DownlinkMessage(
                     cpdlcDownlinkReply.MessageId,
                     cpdlcDownlinkReply.Sender,
                     cpdlcDownlinkReply.ResponseType,
                     cpdlcDownlinkReply.Content,
                     clock.UtcNow(),
+                    configuration.SpecialDownlinkMessages.Contains(cpdlcDownlinkReply.Content),
                     cpdlcDownlinkReply.ReplyToMessageId),
                 _ => throw new ArgumentOutOfRangeException(nameof(downlinkMessage), downlinkMessage, $"Unexpected downlink message type: {downlinkMessage.GetType().Namespace}")
             };
@@ -55,13 +57,15 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
                     cpdlcUplink.Recipient,
                     cpdlcUplink.ResponseType,
                     cpdlcUplink.Content,
-                    clock.UtcNow()),
+                    clock.UtcNow(),
+                    configuration.SpecialUplinkMessages.Contains(cpdlcUplink.Content)),
                 CpdlcUplinkReply cpdlcUplinkReply => new UplinkMessage(
                     cpdlcUplinkReply.MessageId,
                     cpdlcUplinkReply.Recipient,
                     cpdlcUplinkReply.ResponseType,
                     cpdlcUplinkReply.Content,
                     clock.UtcNow(),
+                    configuration.SpecialUplinkMessages.Contains(cpdlcUplinkReply.Content),
                     cpdlcUplinkReply.ReplyToMessageId),
                 _ => throw new ArgumentOutOfRangeException(nameof(uplinkMessage), uplinkMessage, $"Unexpected uplink message type: {uplinkMessage.GetType().Namespace}")
             };
@@ -82,71 +86,14 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
 
         if (dialogue == null)
         {
-            // Create new dialogue
+            // Create new dialogue (closure rules are applied within the constructor)
             dialogue = new Dialogue(rootMessageId, callsign, message);
             _dialogues.Add(dialogue);
         }
         else
         {
-            // Add to existing dialogue
+            // Add to existing dialogue (closure rules are applied within AddMessage)
             dialogue.AddMessage(message);
-        }
-
-        // Apply message closure rules
-        ApplyMessageClosureRules(message, dialogue);
-    }
-
-    void ApplyMessageClosureRules(IAcarsMessageModel message, Dialogue dialogue)
-    {
-        switch (message)
-        {
-            case UplinkMessage uplink:
-                // Rule 1: Uplink requiring no response is closed immediately
-                if (uplink.ResponseType == CpdlcUplinkResponseType.NoResponse)
-                {
-                    uplink.IsClosed = true;
-                }
-                // Rule 4: When uplink reply is sent, close the downlink it's replying to
-                else if (uplink.ReplyToDownlinkId.HasValue)
-                {
-                    // TODO: Store this info on the message model itself
-                    // If the uplink is a special uplink (i.e. STANDBY or REQUEST DEFERRED), don't close the downlink
-                    if (configuration.SpecialUplinkMessages.Contains(uplink.Content))
-                        return;
-                    
-                    var downlink = dialogue.Messages.OfType<DownlinkMessage>()
-                        .FirstOrDefault(dl => dl.Id == uplink.ReplyToDownlinkId.Value);
-                    if (downlink != null)
-                    {
-                        downlink.IsClosed = true;
-                        downlink.IsAcknowledged = true; // Auto-acknowledge when replying
-                    }
-                }
-                break;
-
-            case DownlinkMessage downlink:
-                // Rule 3: Downlink requiring no response is closed immediately
-                if (downlink.ResponseType != CpdlcDownlinkResponseType.ResponseRequired)
-                {
-                    downlink.IsClosed = true;
-                }
-                // Rule 2: When downlink reply is received, close the uplink it's replying to
-                else if (downlink.ReplyToUplinkId.HasValue)
-                {
-                    // TODO: Store this info on the message model itself
-                    // If the downlink is a special downlink (i.e. STANDBY), don't close the uplink
-                    if (configuration.SpecialDownlinkMessages.Contains(downlink.Content))
-                        return;
-                    
-                    var uplink = dialogue.Messages.OfType<UplinkMessage>()
-                        .FirstOrDefault(ul => ul.Id == downlink.ReplyToUplinkId.Value);
-                    if (uplink != null)
-                    {
-                        uplink.IsClosed = true;
-                        uplink.IsAcknowledged = true; // Auto-acknowledge when pilot responds
-                    }
-                }
-                break;
         }
     }
 

@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
 using MediatR;
+using vatsys;
 
 namespace ACARSPlugin.ViewModels;
 
@@ -33,14 +34,28 @@ public partial class SetupViewModel : ObservableObject,
     [RelayCommand]
     async Task Connect()
     {
-        await _mediator.Send(new ChangeConfigurationRequest(ServerEndpoint, ApiKey, StationIdentifier));
-        await _mediator.Send(new ConnectRequest(ServerEndpoint, ApiKey, StationIdentifier));
+        try
+        {
+            await _mediator.Send(new ChangeConfigurationRequest(ServerEndpoint, ApiKey, StationIdentifier));
+            await _mediator.Send(new ConnectRequest(ServerEndpoint, ApiKey, StationIdentifier));
+        }
+        catch (Exception e)
+        {
+            Errors.Add(e, Plugin.Name);
+        }
     }
 
     [RelayCommand]
     async Task Disconnect()
     {
-        await _mediator.Send(new DisconnectRequest());
+        try
+        {
+            await _mediator.Send(new DisconnectRequest());
+        }
+        catch (Exception e)
+        {
+            Errors.Add(e, Plugin.Name);
+        }
     }
 
     public void Receive(ConnectedNotification message)

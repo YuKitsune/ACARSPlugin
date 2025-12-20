@@ -24,9 +24,7 @@ public class ConnectRequestHandler(Plugin plugin, IMediator mediator, IPublisher
 
         if (!Network.IsConnected)
         {
-            // TODO: Throw the exception and handle it somewhere else
-            Errors.Add(new Exception("Not connected to VATSIM"), Plugin.Name);
-            return;
+            throw new Exception("Not connected to VATSIM");
         }
 
         var downlinkHandler = new MediatorMessageHandler(mediator);

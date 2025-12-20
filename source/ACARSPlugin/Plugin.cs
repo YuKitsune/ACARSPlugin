@@ -31,10 +31,6 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
 
     public IServiceProvider ServiceProvider { get; private set; }
 
-    public string ServerEndpoint { get; private set; } = string.Empty;
-    public string ServerApiKey { get; private set; } = string.Empty;
-    public string StationIdentifier { get; private set; } = string.Empty;
-
     public SignalRConnectionManager? ConnectionManager { get; set; }
 
     public Plugin()
@@ -59,22 +55,22 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
 
     AcarsConfiguration LoadConfiguration()
     {
-        // Load configuration from ACARS.json
-        return ConfigurationLoader.Load();
+        var configuration = ConfigurationLoader.Load();
+        return configuration;
     }
 
-    public void UpdateConfiguration(string serverEndpoint, string apiKey, string stationIdentifier)
+    ServerConfiguration CreateServerConfiguration(string serverEndpoint)
     {
-        ServerEndpoint = serverEndpoint;
-        ServerApiKey = apiKey;
-        StationIdentifier = stationIdentifier;
+        return new ServerConfiguration { ServerEndpoint = serverEndpoint, ServerApiKey = ConfigurationStorage.LoadApiKey() };
     }
 
     void ConfigureServices(AcarsConfiguration acarsConfiguration)
     {
+        var serverConfiguration = CreateServerConfiguration(acarsConfiguration.ServerEndpoint);
         ServiceProvider = new ServiceCollection()
             .AddSingleton(this) // TODO: Ick... Whatever we're relying on this for, move it into a separate service please.
             .AddSingleton(acarsConfiguration)
+            .AddSingleton(serverConfiguration)
             .AddSingleton<IClock>(new SystemClock())
             .AddSingleton<MessageRepository>()
             .AddSingleton<IMessageIdProvider, TestMessageIdProvider>()
@@ -336,20 +332,20 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
             return;
         }
 
-        // Get the mediator from the service provider
+        var serverConfiguration = ServiceProvider.GetRequiredService<ServerConfiguration>();
         var mediator = ServiceProvider.GetRequiredService<IMediator>();
 
         // Create the view model with current configuration and connection state
         var isConnected = ConnectionManager?.IsConnected ?? false;
         var viewModel = new SetupViewModel(
             mediator,
-            ServerEndpoint,
-            ServerApiKey,
-            StationIdentifier,
+            serverConfiguration.ServerEndpoint,
+            serverConfiguration.ServerApiKey,
+            serverConfiguration.StationId,
             isConnected);
 
         // Create and show the window
-        var window = new SetupWindow { DataContext = viewModel };
+        var window = new SetupWindow(viewModel);
         window.Closed += (_, _) => _setupWindow = null;
 
         ElementHost.EnableModelessKeyboardInterop(window);
@@ -357,7 +353,6 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
         _setupWindow = window;
         window.Show();
     }
-
 
     HistoryWindow? _historyWindow = null;
     CurrentMessagesWindow? _currentMessagesWindow = null;
@@ -470,6 +465,7 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
             var dialogues = await repository.GetCurrentDialogues();
             var dialogue = dialogues.FirstOrDefault(g => g.Callsign == callsign);
 
+            // TODO: Move this into the ViewModel so it can be re-calculated as message updates are received
             var downlinkMessages = await repository.GetDownlinkMessagesFrom(callsign, cancellationToken);
             var downlinkMessageViewModels = downlinkMessages
                 .Select(m => new DownlinkMessageViewModel(

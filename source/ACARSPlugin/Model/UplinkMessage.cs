@@ -4,7 +4,14 @@ namespace ACARSPlugin.Model;
 
 // TODO: Separate formatted and plaintext contents.
 
-public class UplinkMessage(int id, string recipient, CpdlcUplinkResponseType responseType, string content, DateTimeOffset sent, int? replyToDownlinkId = null) : IAcarsMessageModel
+public class UplinkMessage(int id,
+    string recipient,
+    CpdlcUplinkResponseType responseType,
+    string content,
+    DateTimeOffset sent,
+    bool isSpecial,
+    int? replyToDownlinkId = null)
+    : IAcarsMessageModel
 {
     public int Id { get; } = id;
     public string Recipient { get; } = recipient;
@@ -12,6 +19,7 @@ public class UplinkMessage(int id, string recipient, CpdlcUplinkResponseType res
     public CpdlcUplinkResponseType ResponseType { get; } = responseType;
     public string Content { get; } = content;
     public DateTimeOffset Sent { get; } = sent;
+    public bool IsSpecial { get; } = isSpecial;
 
     // Boolean state properties
     public bool IsClosed { get; set; }
@@ -19,6 +27,6 @@ public class UplinkMessage(int id, string recipient, CpdlcUplinkResponseType res
     public bool IsUrgent { get; set; }
     public bool IsPilotLate { get; set; }
     public bool IsTransmissionFailed { get; set; }
-    
+
     DateTimeOffset IAcarsMessageModel.Time => Sent;
 }
