@@ -1,5 +1,6 @@
 using ACARSPlugin.Server.Contracts;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace ACARSPlugin.Server;
 
@@ -53,6 +54,11 @@ public class SignalRConnectionManager(
             .WithUrl(url, options =>
             {
                 options.Headers.Add(AuthHeaderName, serverApiKey);
+            })
+            .AddJsonProtocol(options =>
+            {
+                // Configure JSON to handle polymorphic types
+                options.PayloadSerializerOptions.TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver();
             })
             .WithAutomaticReconnect()
             .Build();
@@ -114,7 +120,15 @@ public class SignalRConnectionManager(
     {
         if (_connection == null) return;
 
-        _connection.On("DownlinkReceived", WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived));
+        // Register handlers for concrete downlink types
+        _connection.On<CpdlcDownlink>("DownlinkReceived", downlink =>
+            WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived)(downlink));
+
+        _connection.On<CpdlcDownlinkReply>("DownlinkReceived", downlink =>
+            WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived)(downlink));
+
+        _connection.On<TelexDownlink>("DownlinkReceived", downlink =>
+            WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived)(downlink));
     }
 
     Func<T, Task> WithCancellationToken<T>(Func<T, CancellationToken, Task> action)
@@ -129,10 +143,17 @@ public class SignalRConnectionManager(
     /// <summary>
     /// Sends a generic message to the server.
     /// </summary>
-    public async Task SendUplink(IUplinkMessage uplinkMessage)
+    public async Task SendUplink(IUplinkMessage uplinkMessage, CancellationToken cancellationToken)
     {
         EnsureConnected();
-        await _connection!.InvokeAsync("SendUplink", uplinkMessage);
+        if (uplinkMessage is ICpdlcReply)
+        {
+            await _connection!.InvokeAsync("SendUplinkReply", uplinkMessage, cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await _connection!.InvokeAsync("SendUplink", uplinkMessage, cancellationToken: cancellationToken);
+        }
     }
 
     /// <summary>

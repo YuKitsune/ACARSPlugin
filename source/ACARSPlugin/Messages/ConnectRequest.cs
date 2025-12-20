@@ -1,5 +1,4 @@
 ﻿using ACARSPlugin.Server;
-using CommunityToolkit.Mvvm.Messaging;
 using MediatR;
 using vatsys;
 
@@ -7,7 +6,7 @@ namespace ACARSPlugin.Messages;
 
 public record ConnectRequest(string ServerEndpoint, string ServerApiKey, string StationId) : IRequest;
 
-public class ConnectRequestHandler(Plugin plugin, IMediator mediator) : IRequestHandler<ConnectRequest>
+public class ConnectRequestHandler(Plugin plugin, IMediator mediator, IPublisher publisher) : IRequestHandler<ConnectRequest>
 {
     public async Task Handle(ConnectRequest request, CancellationToken cancellationToken)
     {
@@ -41,7 +40,7 @@ public class ConnectRequestHandler(Plugin plugin, IMediator mediator) : IRequest
 
         // Start the connection
         await plugin.ConnectionManager.StartAsync();
-        
-        WeakReferenceMessenger.Default.Send(new ConnectedNotification(request.StationId));
+
+        await publisher.Publish(new ConnectedNotification(request.StationId), cancellationToken);
     }
 }

@@ -2,12 +2,15 @@
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Forms.Integration;
+using System.Windows.Forms.VisualStyles;
 using System.Windows.Media;
+using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
 using ACARSPlugin.Model;
 using ACARSPlugin.Server;
 using ACARSPlugin.ViewModels;
 using ACARSPlugin.Windows;
+using CommunityToolkit.Mvvm.Messaging;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using vatsys;
@@ -17,7 +20,7 @@ using DownlinkMessage = ACARSPlugin.Controls.DownlinkMessage;
 namespace ACARSPlugin;
 
 [Export(typeof(IPlugin))]
-public class Plugin : ILabelPlugin, IStripPlugin
+public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChanged>
 {
 #if DEBUG
     public const string Name = "ACARS Plugin - Debug";
@@ -39,13 +42,15 @@ public class Plugin : ILabelPlugin, IStripPlugin
     {
         try
         {
-            ConfigureServices();
+            var configuration = LoadConfiguration();
+            ConfigureServices(configuration);
             ConfigureTheme();
             AddToolbarItems();
-            LoadConfiguration();
 
             Network.Connected += NetworkConnected;
             Network.Disconnected += NetworkDisconnected;
+            
+            WeakReferenceMessenger.Default.Register(this);
         }
         catch (Exception ex)
         {
@@ -53,14 +58,10 @@ public class Plugin : ILabelPlugin, IStripPlugin
         }
     }
 
-    void LoadConfiguration()
+    AcarsConfiguration LoadConfiguration()
     {
-        var (serverEndpoint, apiKey, stationIdentifier) = Configuration.ConfigurationStorage.Load();
-
-        // Initialize with default server endpoint on first load
-        ServerEndpoint = serverEndpoint ?? "https://acars.eoinmotherway.dev/hubs/controller";
-        ServerApiKey = apiKey ?? string.Empty;
-        StationIdentifier = stationIdentifier ?? string.Empty;
+        // Load configuration from ACARS.json
+        return ConfigurationLoader.Load();
     }
 
     public void UpdateConfiguration(string serverEndpoint, string apiKey, string stationIdentifier)
@@ -70,11 +71,15 @@ public class Plugin : ILabelPlugin, IStripPlugin
         StationIdentifier = stationIdentifier;
     }
 
-    void ConfigureServices()
+    void ConfigureServices(AcarsConfiguration acarsConfiguration)
     {
         ServiceProvider = new ServiceCollection()
             .AddSingleton(this) // TODO: Ick... Whatever we're relying on this for, move it into a separate service please.
+            .AddSingleton(acarsConfiguration)
+            .AddSingleton<IClock>(new SystemClock())
             .AddSingleton<MessageRepository>()
+            .AddSingleton<IMessageIdProvider, TestMessageIdProvider>()
+            .AddSingleton<IGuiInvoker, GuiInvoker>()
             .AddMediatR(c => c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly))
             .BuildServiceProvider();
     }
@@ -82,7 +87,7 @@ public class Plugin : ILabelPlugin, IStripPlugin
     private async void NetworkConnected(object sender, EventArgs e)
     {
         // TODO: Connect if auto-connect enabled
-        
+
         // try
         // {
         //     if (ConnectionManager is not null)
@@ -90,10 +95,14 @@ public class Plugin : ILabelPlugin, IStripPlugin
         //
         //     var mediator =  ServiceProvider.GetRequiredService<IMediator>();
         //     var @delegate = new MediatorMessageHandler(mediator);
-        //     
+        //
         //     ConnectionManager = new SignalRConnectionManager(ServerEndpoint, ServerApiKey, @delegate);
         //     await ConnectionManager.InitializeAsync(StationIdentifier, Network.Callsign);
         //     await ConnectionManager.StartAsync();
+        //
+        //     // Set ConnectionManager on repository
+        //     var repository = ServiceProvider.GetRequiredService<MessageRepository>();
+        //     repository.ConnectionManager = ConnectionManager;
         // }
         // catch (Exception ex)
         // {
@@ -352,6 +361,8 @@ public class Plugin : ILabelPlugin, IStripPlugin
 
 
     HistoryWindow? _historyWindow = null;
+    CurrentMessagesWindow? _currentMessagesWindow = null;
+
     void OpenHistoryWindow()
     {
         // If the history window is already open, close it
@@ -375,6 +386,58 @@ public class Plugin : ILabelPlugin, IStripPlugin
 
         _historyWindow = window;
         window.Show();
+    }
+
+    void OpenCurrentMessagesWindow()
+    {
+        if (_currentMessagesWindow is not null)
+            return; // Already open
+
+        var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
+        var mediator = ServiceProvider.GetRequiredService<IMediator>();
+        var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
+        var viewModel = new CurrentMessagesViewModel(configuration, mediator, guiInvoker);
+
+        var window = new CurrentMessagesWindow(viewModel);
+        window.Closed += (_, _) => _currentMessagesWindow = null;
+
+        ElementHost.EnableModelessKeyboardInterop(window);
+
+        _currentMessagesWindow = window;
+        window.Show();
+    }
+
+    void CloseCurrentMessagesWindow()
+    {
+        if (_currentMessagesWindow is null)
+            return;
+
+        _currentMessagesWindow.Close();
+        _currentMessagesWindow = null;
+    }
+
+    public async void Receive(CurrentMessagesChanged _)
+    {
+        try
+        {
+            var repository = ServiceProvider.GetRequiredService<MessageRepository>();
+            var currentDialogues = await repository.GetCurrentDialogueGroups();
+            var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
+            
+            if (currentDialogues.Any())
+            {
+                if (_currentMessagesWindow is null)
+                    guiInvoker.InvokeOnGUI(OpenCurrentMessagesWindow);
+            }
+            else
+            {
+                guiInvoker.InvokeOnGUI(CloseCurrentMessagesWindow);
+            }
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(ex, Name);
+        }
     }
 
     // TODO: Close the window if the aircraft disconnects from CPDLC, or if the connection to the ACARS Server fails.
@@ -404,10 +467,17 @@ public class Plugin : ILabelPlugin, IStripPlugin
 
             var repository = ServiceProvider.GetRequiredService<MessageRepository>();
 
+            // Get current dialogue groups to access response information
+            var dialogueGroups = await repository.GetCurrentDialogueGroups();
+            var dialogue = dialogueGroups.FirstOrDefault(g => g.Callsign == callsign);
+
             var downlinkMessages = await repository.GetDownlinkMessagesFrom(callsign, cancellationToken);
             var downlinkMessageViewModels = downlinkMessages
-                .Where(m => !m.Completed)
-                .Select(m => new DownlinkMessageViewModel(m))
+                .Where(m => m.State != MessageState.Closed)
+                .Select(m => new DownlinkMessageViewModel(
+                    m,
+                    standbySent: dialogue?.Dialogues.Any(d => d.HasStandbyResponse(m.Id)) ?? false,
+                    deferred: dialogue?.Dialogues.Any(d => d.HasDeferredResponse(m.Id)) ?? false))
                 .ToArray();
 
             var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels);

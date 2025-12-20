@@ -10,4 +10,7 @@ public class UplinkMessage(int id, string recipient, CpdlcUplinkResponseType res
     public CpdlcUplinkResponseType ResponseType { get; } = responseType;
     public string Content { get; } = content;
     public DateTimeOffset Sent { get; } = sent;
+
+    public MessageState State { get; set; } = MessageState.Normal;
+    public DateTimeOffset? ResponseTimeoutAt { get; set; }
 }

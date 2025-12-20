@@ -1,5 +1,4 @@
-﻿using ACARSPlugin.Configuration;
-using MediatR;
+﻿using MediatR;
 
 namespace ACARSPlugin.Messages;
 
@@ -9,7 +8,7 @@ public class ChangeConfigurationRequestHandler(Plugin plugin) : IRequestHandler<
 {
     public Task Handle(ChangeConfigurationRequest request, CancellationToken cancellationToken)
     {
-        ConfigurationStorage.Save(request.ServerEndpoint, request.ApiKey, request.StationIdentifier);
+        // ConfigurationStorage.Save(request.ServerEndpoint, request.ApiKey, request.StationIdentifier);
         plugin.UpdateConfiguration(request.ServerEndpoint, request.ApiKey, request.StationIdentifier);
         return Task.CompletedTask;
     }

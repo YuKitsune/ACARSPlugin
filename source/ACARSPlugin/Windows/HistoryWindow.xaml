@@ -5,7 +5,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:local="clr-namespace:ACARSPlugin.Windows"
         mc:Ignorable="d"
-        Title="HistoryWindow" Height="450" Width="800"
+        Title="CPDLC History" Height="450" Width="800"
         Topmost="True">
     <Grid>
         <TextBox Text="Under construction"/>

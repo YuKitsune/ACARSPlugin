@@ -5,11 +5,11 @@ namespace ACARSPlugin.ViewModels;
 
 public partial class DownlinkMessageViewModel : ObservableObject
 {
-    public DownlinkMessageViewModel(DownlinkMessage message)
+    public DownlinkMessageViewModel(DownlinkMessage message, bool standbySent = false, bool deferred = false)
     {
         Received = message.Received;
-        StandbySent = message.StoodBy;
-        Deferred = message.Deferred;
+        StandbySent = standbySent;
+        Deferred = deferred;
         Message = message.Content;
     }
 

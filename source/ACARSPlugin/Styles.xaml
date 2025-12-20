@@ -55,6 +55,7 @@
         <Setter Property="VerticalContentAlignment" Value="Center" />
         <Setter Property="HorizontalContentAlignment" Value="Center" />
 
+        <Setter Property="TextBlock.TextWrapping" Value="Wrap"/>
         <Setter Property="TextBlock.LineStackingStrategy" Value="BlockLineHeight"/>
         <Setter Property="TextBlock.LineHeight" Value="{Binding Source={x:Static local:Theme.FontSize}, Converter={StaticResource FontSizeToLineHeightConverter}}" />
         <Setter Property="TextBlock.TextAlignment" Value="Center" />

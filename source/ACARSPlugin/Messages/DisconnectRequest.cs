@@ -1,12 +1,10 @@
-﻿using System.Windows;
-using CommunityToolkit.Mvvm.Messaging;
-using MediatR;
+﻿using MediatR;
 
 namespace ACARSPlugin.Messages;
 
 public record DisconnectRequest : IRequest;
 
-public class DisconnectRequestHandler(Plugin plugin) : IRequestHandler<DisconnectRequest>
+public class DisconnectRequestHandler(Plugin plugin, IPublisher publisher) : IRequestHandler<DisconnectRequest>
 {
     public async Task Handle(DisconnectRequest request, CancellationToken cancellationToken)
     {
@@ -22,7 +20,7 @@ public class DisconnectRequestHandler(Plugin plugin) : IRequestHandler<Disconnec
 
         plugin.ConnectionManager.Dispose();
         plugin.ConnectionManager = null;
-        
-        WeakReferenceMessenger.Default.Send(new DisconnectedNotification());
+
+        await publisher.Publish(new DisconnectedNotification(), cancellationToken);
     }
 }

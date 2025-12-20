@@ -15,13 +15,13 @@ public static class Theme
     public static SolidColorBrush NonInteractiveTextColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 90, 90, 90).ToWindowsColor());
     public static SolidColorBrush SelectedButtonColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 0, 0, 96).ToWindowsColor());
 
-    public static SolidColorBrush CPDLCUplinkBackgroundColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 000, 000, 096).ToWindowsColor());
+    public static SolidColorBrush CPDLCBackgroundColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 230, 210, 190).ToWindowsColor());
+    public static SolidColorBrush CPDLCUplinkColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 000, 000, 096).ToWindowsColor());
     public static SolidColorBrush CPDLCDownlinkColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 000,105,000).ToWindowsColor());
     public static SolidColorBrush CPDLCSelectedDownlinkBackgroundColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 255, 255, 230).ToWindowsColor());
     public static SolidColorBrush CPDLCClosedColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 000, 000, 000).ToWindowsColor());
     public static SolidColorBrush CPDLCControllerLateColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 000,000,255).ToWindowsColor());
     public static SolidColorBrush CPDLCPilotLateColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 255 ,000, 105).ToWindowsColor());
-    public static SolidColorBrush CPDLCBackgroundColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 230, 210, 190).ToWindowsColor());
     public static SolidColorBrush CPDLCUrgentColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 255,000, 000).ToWindowsColor());
     public static SolidColorBrush CPDLCFailedColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 255,000, 255).ToWindowsColor());
     public static SolidColorBrush CPDLCHotButtonBackgroundColor { get; set; } = new(System.Drawing.Color.FromArgb(255, 101,101,255).ToWindowsColor());
