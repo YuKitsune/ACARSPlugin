@@ -478,7 +478,8 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
                     deferred: dialogue?.HasDeferredResponse(m.Id) ?? false))
                 .ToArray();
 
-            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels);
+            var mediator = ServiceProvider.GetRequiredService<IMediator>();
+            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels, mediator);
             var window = new EditorWindow(viewModel);
             ElementHost.EnableModelessKeyboardInterop(window);
             

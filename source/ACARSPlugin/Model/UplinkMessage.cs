@@ -2,6 +2,8 @@ using ACARSPlugin.Server.Contracts;
 
 namespace ACARSPlugin.Model;
 
+// TODO: Separate formatted and plaintext contents.
+
 public class UplinkMessage(int id, string recipient, CpdlcUplinkResponseType responseType, string content, DateTimeOffset sent, int? replyToDownlinkId = null) : IAcarsMessageModel
 {
     public int Id { get; } = id;

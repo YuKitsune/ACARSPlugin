@@ -9,6 +9,8 @@ using MediatR;
 
 namespace ACARSPlugin.ViewModels;
 
+// TODO: Extended view.
+
 public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<CurrentMessagesChanged>
 {
     readonly AcarsConfiguration _configuration;

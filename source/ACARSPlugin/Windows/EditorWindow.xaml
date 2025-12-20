@@ -323,7 +323,12 @@
                     <Button Content="Suspend" Style="{StaticResource ActionButton}" Margin="4,0,0,0"/>
                 </WrapPanel>
                 
-                <Button Grid.Column="1" Content="Send" Style="{StaticResource SendButton}" HorizontalAlignment="Right"/>
+                <Button Grid.Column="1" Style="{StaticResource SendButton}" HorizontalAlignment="Right" Command="{Binding SendUplinkMessageCommand}">
+                    <TextBlock Foreground="White">
+                        <Run Text="Send"/>
+                        <Run Text="{Binding Callsign}"/>
+                    </TextBlock>
+                </Button>
             </Grid>
         </Border>
     </Grid>

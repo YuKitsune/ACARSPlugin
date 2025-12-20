@@ -1,17 +1,28 @@
 using System.Text;
+using System.Windows.Forms.VisualStyles;
 using ACARSPlugin.Configuration;
+using ACARSPlugin.Messages;
+using ACARSPlugin.Server.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MediatR;
+using vatsys;
 
 namespace ACARSPlugin.ViewModels;
 
 // TODO: Associate downlink messages with uplink classes.
+// TODO: Listen for message updates.
+// TODO: ESCAPE function
+// TODO: RESTORE function
+// TODO: SUSPEND function
 
 public partial class EditorViewModel : ObservableObject
 {
     // TODO: Source these from configuration
     private readonly string _permanentMessageClassName = Testing.PermanentMessageClassName;
     readonly UplinkMessageTemplates _uplinkMessageTemplates = Testing.UplinkMessageTemplates;
+
+    readonly IMediator _mediator;
 
 #if DEBUG
     
@@ -32,14 +43,16 @@ public partial class EditorViewModel : ObservableObject
     ];
     
     // For testing in the designer
-    public EditorViewModel() : this("QFA1", _testDownlinkMessages)
+    public EditorViewModel() : this("QFA1", _testDownlinkMessages, null!)
     {
     }
     
 #endif
 
-    public EditorViewModel(string callsign, DownlinkMessageViewModel[] downlinkMessages)
+    public EditorViewModel(string callsign, DownlinkMessageViewModel[] downlinkMessages, IMediator mediator)
     {
+        _mediator = mediator;
+
         Callsign = callsign;
         DownlinkMessages = downlinkMessages;
 
@@ -96,7 +109,7 @@ public partial class EditorViewModel : ObservableObject
 
     public bool ShowMessageClassButtons => !ShowHotButtons;
 
-    // TODO: Populate with relevent messages in Mode 2
+    // TODO: Populate with relevant messages in Mode 2
     [ObservableProperty]
     private List<string> messageClasses = new();
 
@@ -144,26 +157,33 @@ public partial class EditorViewModel : ObservableObject
             : _uplinkMessageTemplates.Messages[value]; 
     }
 
-    [RelayCommand]
-    void SendStandbyUplinkMessage()
+    bool DownlinkIsSelected()
     {
-        // TODO: Send the "STANDBY" uplink message
-        // TODO: De-select the downlink message
-        // TODO: Transition to Mode1
-        // TODO: Show Permanent message elements
-        ClearConstructionArea();
-        throw new NotImplementedException();
+        return SelectedDownlinkMessage is not null;
     }
 
-    [RelayCommand]
-    void Defer()
+    [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
+    async Task SendStandbyUplinkMessage()
     {
-        // TODO: Send the "REQUEST DEFERRED" uplink message
-        // TODO: De-select the downlink message
-        // TODO: Transition to Mode1
-        // TODO: Show Permanent message elements
+        // Send the "STANDBY" uplink message
+        await _mediator.Send(new SendStandbyUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign));
+        
+        // De-select the downlink message (transition to Mode 1)
+        SelectedDownlinkMessage = null;
+        
         ClearConstructionArea();
-        throw new NotImplementedException();
+    }
+
+    [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
+    async Task Defer()
+    {
+        // Send the "REQUEST DEFERRED" uplink message
+        await _mediator.Send(new SendDeferredUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign));
+        
+        // De-select the downlink message (transition to Mode 1)
+        SelectedDownlinkMessage = null;
+        
+        ClearConstructionArea();
     }
 
     [RelayCommand]
@@ -172,26 +192,32 @@ public partial class EditorViewModel : ObservableObject
         ShowHotButtons = false;
     }
     
-    [RelayCommand]
-    void SendUnableDueTrafficUplinkMessage()
+    [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
+    async Task SendUnableDueTrafficUplinkMessage()
     {
-        // TODO: Send the "UNABLE" and "DUE TO TRAFFIC" uplink messages
+        // Send the "UNABLE" and "DUE TO TRAFFIC" uplink messages
+        await _mediator.Send(new SendUnableUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign, "DUE TO TRAFFIC."));
+        
         // TODO: Downlink message removed, and moved to History
-        // TODO: Transition to Mode1
-        // TODO: Show Permanent message elements
+        
+        // De-select the downlink message (transition to Mode 1)
+        SelectedDownlinkMessage = null;
+
         ClearConstructionArea();
-        throw new NotImplementedException();
     }
     
-    [RelayCommand]
-    void SendUnableDueAirspaceUplinkMessage()
+    [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
+    async Task SendUnableDueAirspaceUplinkMessage()
     {
-        // TODO: Send the "UNABLE" and "DUE TO AIRSPACE RESTRICTION" uplink messages
+        // Send the "UNABLE" and "DUE TO AIRSPACE RESTRICTION" uplink messages
+        await _mediator.Send(new SendUnableUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign, "DUE TO AIRSPACE RESTRICTION."));
+        
         // TODO: Downlink message removed, and moved to History
-        // TODO: Transition to Mode1
-        // TODO: Show Permanent message elements
+        
+        // De-select the downlink message (transition to Mode 1)
+        SelectedDownlinkMessage = null;
+
         ClearConstructionArea();
-        throw new NotImplementedException();
     }
 
     [RelayCommand]
@@ -277,6 +303,52 @@ public partial class EditorViewModel : ObservableObject
         // Do nothing if this is the last element, and it's already blank
     }
 
+    [RelayCommand]
+    async Task SendUplinkMessage()
+    {
+        try
+        {
+            var (uplinkMessageContent, uplinkMessageResponseType) = ConstructUplinkMessage();
+
+            ICpdlcUplink uplink;
+            if (SelectedDownlinkMessage is not null)
+            {
+                uplink = new CpdlcUplinkReply(
+                    -1, // TODO: Figure out message IDs
+                    Callsign,
+                    SelectedDownlinkMessage.OriginalMessage.Id,
+                    uplinkMessageResponseType,
+                    uplinkMessageContent);
+
+                // Remove the selected downlink message
+                var newDownlinkMessages = DownlinkMessages.ToList();
+                newDownlinkMessages.Remove(SelectedDownlinkMessage);
+                DownlinkMessages = newDownlinkMessages.ToArray();
+            }
+            else
+            {
+                uplink = new CpdlcUplink(
+                    -1, // TODO: Figure out message IDs
+                    Callsign,
+                    uplinkMessageResponseType,
+                    uplinkMessageContent); 
+            }
+
+            await _mediator.Send(new SendUplinkRequest(uplink));
+        
+            ClearConstructionArea();
+        
+            // TODO: If any open downlinks have been received since the window was opened, select the next one.
+            
+            // TODO: Close the window.
+        }
+        catch (Exception ex)
+        {
+            // TODO: Use error tracker
+            Errors.Add(ex, Plugin.Name);
+        }
+    }
+
     void ClearConstructionArea()
     {
         UplinkMessageElements = [new UplinkMessageElementViewModel()];
@@ -338,6 +410,61 @@ public partial class EditorViewModel : ObservableObject
 
         return parts.ToArray();
     }
+
+    (string, CpdlcUplinkResponseType) ConstructUplinkMessage()
+    {
+        var content = string.Empty;
+        var responseType = CpdlcUplinkResponseType.NoResponse;
+        
+        foreach (var uplinkMessageElement in UplinkMessageElements)
+        {
+            foreach (var uplinkMessageElementPart in uplinkMessageElement.Parts)
+            {
+                if (uplinkMessageElementPart is UplinkMessageTextPartViewModel textPart)
+                {
+                    content += textPart.Value;
+                    continue;
+                }
+
+                if (uplinkMessageElementPart is UplinkMessageTemplatePartViewModel templatePart)
+                {
+                    if (string.IsNullOrEmpty(templatePart.Value))
+                        throw new Exception("Uplink message is invalid");
+                    
+                    content += $"@{templatePart.Value}@";
+                }
+
+                // TODO: Error?
+            }
+            
+            // TODO: Find a better way to determine the response type.
+            //  What do the official docs say?
+            var currentResponseRank = responseTypeRank[responseType];
+            var newResponseRank = responseTypeRank[responseTypeMap[uplinkMessageElement.ResponseType]];
+            if (newResponseRank > currentResponseRank)
+                responseType = responseTypeMap[uplinkMessageElement.ResponseType];
+            
+            content += Environment.NewLine;
+        }
+
+        return (content.Trim(), responseType);
+    }
+
+    private readonly IDictionary<UplinkResponseType, CpdlcUplinkResponseType> responseTypeMap = new Dictionary<UplinkResponseType, CpdlcUplinkResponseType>
+    {
+        { UplinkResponseType.WilcoUnable, CpdlcUplinkResponseType.WilcoUnable },
+        { UplinkResponseType.AffirmativeNegative, CpdlcUplinkResponseType.AffirmativeNegative },
+        { UplinkResponseType.Roger, CpdlcUplinkResponseType.Roger },
+        { UplinkResponseType.NoResponse, CpdlcUplinkResponseType.NoResponse },
+    };
+
+    private readonly IDictionary<CpdlcUplinkResponseType, int> responseTypeRank = new Dictionary<CpdlcUplinkResponseType, int>
+    {
+        { CpdlcUplinkResponseType.WilcoUnable, 3 },
+        { CpdlcUplinkResponseType.AffirmativeNegative, 2 },
+        { CpdlcUplinkResponseType.Roger, 1 },
+        { CpdlcUplinkResponseType.NoResponse, 0 },
+    };
 }
 
 public partial class UplinkMessageElementViewModel : ObservableObject

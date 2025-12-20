@@ -7,6 +7,7 @@ public partial class DownlinkMessageViewModel : ObservableObject
 {
     public DownlinkMessageViewModel(DownlinkMessage message, bool standbySent = false, bool deferred = false)
     {
+        OriginalMessage = message;
         Received = message.Received;
         StandbySent = standbySent;
         Deferred = deferred;
@@ -17,6 +18,7 @@ public partial class DownlinkMessageViewModel : ObservableObject
     // Test constructor
     public DownlinkMessageViewModel()
     {
+        OriginalMessage = null!;
         Received = DateTimeOffset.Now;
         StandbySent = true;
         Deferred = false;
@@ -25,7 +27,10 @@ public partial class DownlinkMessageViewModel : ObservableObject
     }
 #endif
 
-    [ObservableProperty] private DateTimeOffset received;
+    public DownlinkMessage OriginalMessage { get; }
+    
+    [ObservableProperty]
+    private DateTimeOffset received;
 
     [ObservableProperty]
     private bool standbySent;
