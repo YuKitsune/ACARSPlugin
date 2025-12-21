@@ -102,7 +102,7 @@ public class MessageMonitorService : IAsyncDisposable
 
         foreach (var dialogue in dialogues)
         {
-            if (!dialogue.IsClosed || !dialogue.Messages.All(m => m.IsAcknowledged))
+            if (!dialogue.IsClosed || !dialogue.Messages.OfType<DownlinkMessage>().All(m => m.IsAcknowledged))
                 continue;
             
             var archiveTime = dialogue.Closed.Value.AddSeconds(_configuration.CurrentMessages.HistoryTransferDelaySeconds);
