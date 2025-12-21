@@ -14,15 +14,13 @@ public partial class SetupViewModel : ObservableObject,
     private readonly IMediator _mediator;
 
     [ObservableProperty] string serverEndpoint;
-    [ObservableProperty] string apiKey;
     [ObservableProperty] string stationIdentifier;
     [ObservableProperty] bool connected;
 
-    public SetupViewModel(IMediator mediator, string serverEndpoint, string apiKey, string stationIdentifier, bool connected)
+    public SetupViewModel(IMediator mediator, string serverEndpoint, string stationIdentifier, bool connected)
     {
         _mediator = mediator;
         ServerEndpoint = serverEndpoint;
-        ApiKey = apiKey;
         StationIdentifier = stationIdentifier;
         Connected = connected;
 
@@ -36,8 +34,8 @@ public partial class SetupViewModel : ObservableObject,
     {
         try
         {
-            await _mediator.Send(new ChangeConfigurationRequest(ServerEndpoint, ApiKey, StationIdentifier));
-            await _mediator.Send(new ConnectRequest(ServerEndpoint, ApiKey, StationIdentifier));
+            await _mediator.Send(new ChangeConfigurationRequest(ServerEndpoint, StationIdentifier));
+            await _mediator.Send(new ConnectRequest(ServerEndpoint, StationIdentifier));
         }
         catch (Exception e)
         {

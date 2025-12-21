@@ -310,31 +310,11 @@ public partial class EditorViewModel : ObservableObject
         {
             var (uplinkMessageContent, uplinkMessageResponseType) = ConstructUplinkMessage();
 
-            ICpdlcUplink uplink;
-            if (SelectedDownlinkMessage is not null)
-            {
-                uplink = new CpdlcUplinkReply(
-                    -1, // TODO: Figure out message IDs
-                    Callsign,
-                    SelectedDownlinkMessage.OriginalMessage.Id,
-                    uplinkMessageResponseType,
-                    uplinkMessageContent);
-
-                // Remove the selected downlink message
-                var newDownlinkMessages = DownlinkMessages.ToList();
-                newDownlinkMessages.Remove(SelectedDownlinkMessage);
-                DownlinkMessages = newDownlinkMessages.ToArray();
-            }
-            else
-            {
-                uplink = new CpdlcUplink(
-                    -1, // TODO: Figure out message IDs
-                    Callsign,
-                    uplinkMessageResponseType,
-                    uplinkMessageContent); 
-            }
-
-            await _mediator.Send(new SendUplinkRequest(uplink));
+            await _mediator.Send(new SendUplinkRequest(
+                Callsign,
+                SelectedDownlinkMessage?.OriginalMessage.Id,
+                uplinkMessageResponseType,
+                uplinkMessageContent));
         
             ClearConstructionArea();
         

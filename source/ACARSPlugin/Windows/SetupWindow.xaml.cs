@@ -19,10 +19,10 @@ public partial class SetupWindow : Window
         {
             DataContext = value;
             // Set initial password in PasswordBox
-            if (value != null)
-            {
-                ApiKeyPasswordBox.Password = value.ApiKey;
-            }
+            // if (value != null)
+            // {
+            //     ApiKeyPasswordBox.Password = value.ApiKey;
+            // }
         }
     }
 
@@ -31,11 +31,11 @@ public partial class SetupWindow : Window
         Close();
     }
 
-    private void ApiKeyPasswordBox_OnPasswordChanged(object sender, RoutedEventArgs e)
-    {
-        if (sender is not PasswordBox passwordBox)
-            return;
-
-        ViewModel.ApiKey = passwordBox.Password;
-    }
+    // private void ApiKeyPasswordBox_OnPasswordChanged(object sender, RoutedEventArgs e)
+    // {
+    //     if (sender is not PasswordBox passwordBox)
+    //         return;
+    //
+    //     ViewModel.ApiKey = passwordBox.Password;
+    // }
 }

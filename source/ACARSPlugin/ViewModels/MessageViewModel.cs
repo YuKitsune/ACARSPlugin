@@ -96,9 +96,10 @@ public partial class MessageViewModel : ObservableObject
     {
         if (message is not DownlinkMessage)
             return string.Empty;
-
-        // For now, only implement overflow detection (*)
-        // ! and P prefixes will be added when specification is provided
+        
+        // TODO: "!" for high priority messages (DL 29, 30, 80, off-line defined)
+        // TODO: "P" for free-text elements
+        
         if (message.Content.Length > _config.MaxDisplayMessageLength)
             return "*";
 
@@ -119,41 +120,67 @@ public partial class MessageViewModel : ObservableObject
     {
         return OriginalMessage switch
         {
-            UplinkMessage ul when ul.IsUrgent => Theme.CPDLCUrgentColor,
+            // Failed and timeout states have highest priority
             UplinkMessage ul when ul.IsTransmissionFailed => Theme.CPDLCFailedColor,
             UplinkMessage ul when ul.IsPilotLate => Theme.CPDLCPilotLateColor,
-            UplinkMessage => Theme.CPDLCUplinkColor,
-
-            DownlinkMessage dl when dl.IsUrgent => Theme.CPDLCUrgentColor,
             DownlinkMessage dl when dl.IsControllerLate => Theme.CPDLCControllerLateColor,
+
+            // Urgent state
+            UplinkMessage ul when ul.IsUrgent => Theme.CPDLCUrgentColor,
+            DownlinkMessage dl when dl.IsUrgent => Theme.CPDLCUrgentColor,
+
+            // Closed states
+            UplinkMessage ul when ul.IsClosed => Theme.CPDLCClosedColor,
+            DownlinkMessage dl when dl.IsClosed => Theme.CPDLCClosedColor,
+
+            // Regular states
+            UplinkMessage => Theme.CPDLCUplinkColor,
             DownlinkMessage => Theme.CPDLCDownlinkColor,
 
             _ => Theme.GenericTextColor
         };
     }
 
+    // Invert the colour of unacknowledged messages to draw the attention of the user (swap background and foreground)
+    private bool ShouldInvertColours()
+    {
+        var isAcknowledged = IsMessageAcknowledged();
+
+        // Special cases that use Normal colours before ack:
+        // 1. Closed uplink messages always normal colours
+        // 2. Special uplink that is pilot late (Special closed timeout) - Normal video before ack
+        if (!isAcknowledged)
+        {
+            if (OriginalMessage is UplinkMessage ul)
+            {
+                // Closed uplink or special timeout: use Normal video
+                if (ul.IsClosed || (ul.IsSpecial && ul.IsPilotLate))
+                    return false;
+            }
+        }
+
+        // Default: Invert before ack, normal after ack
+        return !isAcknowledged;
+    }
+
     private SolidColorBrush GetForegroundColor()
     {
         var messageColor = GetMessageColor();
-        var isAcknowledged = IsMessageAcknowledged();
-
-        // Inverse video (before acknowledgement): foreground = CPDLCBackgroundColor
-        // Normal video (after acknowledgement): foreground = message color
-        return isAcknowledged ? Theme.CPDLCBackgroundColor : messageColor;
+        var invert = ShouldInvertColours();
+        return invert ? Theme.CPDLCBackgroundColor : messageColor;
     }
 
     private SolidColorBrush GetBackgroundColor()
     {
         var messageColor = GetMessageColor();
         var isAcknowledged = IsMessageAcknowledged();
+        var invert = ShouldInvertColours();
 
-        // Inverse video (before acknowledgement): background = message color
-        // Normal video (after acknowledgement): background = CPDLCBackgroundColor
         // Exception: Failed and timeout messages use CPDLCClosedColor as background after ack (Note 3)
         if (isAcknowledged && IsFailedOrTimeoutMessage())
             return Theme.CPDLCClosedColor;
 
-        return isAcknowledged ? messageColor : Theme.CPDLCBackgroundColor;
+        return invert ? messageColor : Theme.CPDLCBackgroundColor;
     }
 
     private bool IsFailedOrTimeoutMessage()

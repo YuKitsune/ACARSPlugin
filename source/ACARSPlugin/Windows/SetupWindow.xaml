@@ -54,19 +54,19 @@
         </Grid>
 
         <!-- API Key -->
-        <Grid Grid.Row="1" Margin="0,0,0,8">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-            </Grid.RowDefinitions>
-
-            <TextBlock Grid.Row="0" Text="API Key" Margin="0,0,0,4"/>
-            <PasswordBox
-                Grid.Row="1"
-                x:Name="ApiKeyPasswordBox"
-                PasswordChanged="ApiKeyPasswordBox_OnPasswordChanged"
-                IsEnabled="{Binding Connected, Converter={StaticResource BoolInversionConverter}}"/>
-        </Grid>
+        <!-- <Grid Grid.Row="1" Margin="0,0,0,8"> -->
+        <!--     <Grid.RowDefinitions> -->
+        <!--         <RowDefinition Height="Auto"/> -->
+        <!--         <RowDefinition Height="Auto"/> -->
+        <!--     </Grid.RowDefinitions> -->
+        <!-- -->
+        <!--     <TextBlock Grid.Row="0" Text="API Key" Margin="0,0,0,4"/> -->
+        <!--     <PasswordBox -->
+        <!--         Grid.Row="1" -->
+        <!--         x:Name="ApiKeyPasswordBox" -->
+        <!--         PasswordChanged="ApiKeyPasswordBox_OnPasswordChanged" -->
+        <!--         IsEnabled="{Binding Connected, Converter={StaticResource BoolInversionConverter}}"/> -->
+        <!-- </Grid> -->
 
         <!-- Station Identifier -->
         <Grid Grid.Row="2" Margin="0,0,0,8">

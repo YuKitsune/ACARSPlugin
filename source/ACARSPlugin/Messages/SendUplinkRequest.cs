@@ -4,7 +4,12 @@ using MediatR;
 
 namespace ACARSPlugin.Messages;
 
-public record SendUplinkRequest(ICpdlcUplink Uplink) : IRequest;
+public record SendUplinkRequest(
+    string Recipient,
+    int? ReplyToDownlinkId,
+    CpdlcUplinkResponseType ResponseType,
+    string Content)
+    : IRequest;
 
 public class SendUplinkRequestHandler(Plugin plugin, MessageRepository messageRepository, IPublisher publisher)
     : IRequestHandler<SendUplinkRequest>
@@ -14,8 +19,14 @@ public class SendUplinkRequestHandler(Plugin plugin, MessageRepository messageRe
         if (plugin.ConnectionManager is null || !plugin.ConnectionManager.IsConnected)
             return;
 
-        await plugin.ConnectionManager.SendUplink(request.Uplink, cancellationToken);
-        await messageRepository.AddUplinkMessage(request.Uplink, cancellationToken);
+        var uplinkMessage = await plugin.ConnectionManager.SendUplink(
+            request.Recipient,
+            request.ReplyToDownlinkId,
+            request.ResponseType,
+            request.Content,
+            cancellationToken);
+
+        await messageRepository.AddUplinkMessage(uplinkMessage, cancellationToken);
         await publisher.Publish(new CurrentMessagesChanged(), cancellationToken);
     }
 }

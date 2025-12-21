@@ -12,7 +12,7 @@
         Title="Current Messages"
         Height="320" Width="480"
         MinHeight="24" MinWidth="320"
-        d:DesignHeight="320"
+        d:DesignHeight="640"
         Topmost="True"
         Background="{x:Static local:Theme.BackgroundColor}">
 

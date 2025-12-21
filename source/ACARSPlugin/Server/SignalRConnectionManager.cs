@@ -9,12 +9,9 @@ namespace ACARSPlugin.Server;
 /// </summary>
 public class SignalRConnectionManager(
     string serverEndpoint,
-    string serverApiKey,
     IDownlinkHandlerDelegate downlinkHandlerDelegate)
     : IDisposable
 {
-    private const string AuthHeaderName = "X-ACARS-ApiKey";
-
     private HubConnection? _connection;
     private bool _isDisposed;
 
@@ -51,10 +48,7 @@ public class SignalRConnectionManager(
         var url = $"{serverEndpoint}?network=VATSIM&stationId={stationId}&callsign={callsign}";
 
         _connection = new HubConnectionBuilder()
-            .WithUrl(url, options =>
-            {
-                options.Headers.Add(AuthHeaderName, serverApiKey);
-            })
+            .WithUrl(url)
             .AddJsonProtocol(options =>
             {
                 // Configure JSON to handle polymorphic types
@@ -123,12 +117,6 @@ public class SignalRConnectionManager(
         // Register handlers for concrete downlink types
         _connection.On<CpdlcDownlink>("DownlinkReceived", downlink =>
             WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived)(downlink));
-
-        _connection.On<CpdlcDownlinkReply>("DownlinkReceived", downlink =>
-            WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived)(downlink));
-
-        _connection.On<TelexDownlink>("DownlinkReceived", downlink =>
-            WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived)(downlink));
     }
 
     Func<T, Task> WithCancellationToken<T>(Func<T, CancellationToken, Task> action)
@@ -143,18 +131,25 @@ public class SignalRConnectionManager(
     /// <summary>
     /// Sends a generic message to the server.
     /// </summary>
-    public async Task SendUplink(IUplinkMessage uplinkMessage, CancellationToken cancellationToken)
+    public async Task<CpdlcUplink> SendUplink(
+        string recipient,
+        int? replyToDownlinkId,
+        CpdlcUplinkResponseType responseType,
+        string content,
+        CancellationToken cancellationToken)
     {
         EnsureConnected();
-        if (uplinkMessage is ICpdlcReply)
-        {
-            await _connection!.InvokeAsync("SendUplinkReply", uplinkMessage, cancellationToken: cancellationToken);
-        }
-        else
-        {
-            await _connection!.InvokeAsync("SendUplink", uplinkMessage, cancellationToken: cancellationToken);
-        }
+        var result = await _connection!.InvokeAsync<SendUplinkResult>(
+            "SendUplink",
+            recipient,
+            replyToDownlinkId,
+            responseType, content,
+            cancellationToken: cancellationToken);
+
+        return result.UplinkMessage;
     }
+    
+    public record SendUplinkResult(CpdlcUplink UplinkMessage);
 
     /// <summary>
     /// Registers connection lifecycle event handlers.

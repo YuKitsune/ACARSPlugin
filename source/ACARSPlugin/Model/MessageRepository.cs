@@ -1,6 +1,5 @@
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Server.Contracts;
-using MediatR;
 
 namespace ACARSPlugin.Model;
 
@@ -10,31 +9,20 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
     private readonly List<Dialogue> _dialogues = [];
     private readonly SemaphoreSlim _semaphore = new(1, 1);
 
-    public async Task AddDownlinkMessage(ICpdlcDownlink downlinkMessage, CancellationToken cancellationToken)
+    public async Task AddDownlinkMessage(CpdlcDownlink downlinkMessage, CancellationToken cancellationToken)
     {
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
             // TODO: move DTO to Model conversion into handler
-            var model = downlinkMessage switch
-            {
-                CpdlcDownlink cpdlcDownlink => new DownlinkMessage(
-                    cpdlcDownlink.MessageId,
-                    cpdlcDownlink.Sender,
-                    cpdlcDownlink.ResponseType,
-                    cpdlcDownlink.Content,
-                    clock.UtcNow(),
-                    configuration.SpecialDownlinkMessages.Contains(cpdlcDownlink.Content)),
-                CpdlcDownlinkReply cpdlcDownlinkReply => new DownlinkMessage(
-                    cpdlcDownlinkReply.MessageId,
-                    cpdlcDownlinkReply.Sender,
-                    cpdlcDownlinkReply.ResponseType,
-                    cpdlcDownlinkReply.Content,
-                    clock.UtcNow(),
-                    configuration.SpecialDownlinkMessages.Contains(cpdlcDownlinkReply.Content),
-                    cpdlcDownlinkReply.ReplyToMessageId),
-                _ => throw new ArgumentOutOfRangeException(nameof(downlinkMessage), downlinkMessage, $"Unexpected downlink message type: {downlinkMessage.GetType().Namespace}")
-            };
+            var model = new DownlinkMessage(
+                downlinkMessage.Id,
+                downlinkMessage.Sender,
+                downlinkMessage.ResponseType,
+                downlinkMessage.Content,
+                clock.UtcNow(),
+                configuration.SpecialDownlinkMessages.Contains(downlinkMessage.Content),
+                downlinkMessage.ReplyToUplinkId);
 
             AddMessageToDialogue(model, model.Sender);
         }
@@ -44,31 +32,20 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         }
     }
 
-    public async Task AddUplinkMessage(ICpdlcUplink uplinkMessage, CancellationToken cancellationToken)
+    public async Task AddUplinkMessage(CpdlcUplink uplinkMessage, CancellationToken cancellationToken)
     {
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
             // TODO: move DTO to Model conversion into handler
-            var model = uplinkMessage switch
-            {
-                CpdlcUplink cpdlcUplink => new UplinkMessage(
-                    cpdlcUplink.MessageId,
-                    cpdlcUplink.Recipient,
-                    cpdlcUplink.ResponseType,
-                    cpdlcUplink.Content,
-                    clock.UtcNow(),
-                    configuration.SpecialUplinkMessages.Contains(cpdlcUplink.Content)),
-                CpdlcUplinkReply cpdlcUplinkReply => new UplinkMessage(
-                    cpdlcUplinkReply.MessageId,
-                    cpdlcUplinkReply.Recipient,
-                    cpdlcUplinkReply.ResponseType,
-                    cpdlcUplinkReply.Content,
-                    clock.UtcNow(),
-                    configuration.SpecialUplinkMessages.Contains(cpdlcUplinkReply.Content),
-                    cpdlcUplinkReply.ReplyToMessageId),
-                _ => throw new ArgumentOutOfRangeException(nameof(uplinkMessage), uplinkMessage, $"Unexpected uplink message type: {uplinkMessage.GetType().Namespace}")
-            };
+            var model = new UplinkMessage(
+                uplinkMessage.Id,
+                uplinkMessage.Recipient,
+                uplinkMessage.ResponseType,
+                uplinkMessage.Content,
+                clock.UtcNow(),
+                configuration.SpecialUplinkMessages.Contains(uplinkMessage.Content),
+                uplinkMessage.ReplyToDownlinkId);
 
             AddMessageToDialogue(model, model.Recipient);
         }
@@ -152,6 +129,22 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         }
 
         return null;
+    }
+
+    public async Task<IReadOnlyList<Dialogue>> GetCurrentDialoguesFor(string callsign)
+    {
+        await _semaphore.WaitAsync();
+        try
+        {
+            return _dialogues
+                .Where(d => !d.IsInHistory && d.Callsign == callsign)
+                .OrderBy(d => d.Opened)
+                .ToArray();
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
     }
 
     public async Task<IReadOnlyList<Dialogue>> GetCurrentDialogues()

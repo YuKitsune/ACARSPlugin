@@ -18,6 +18,7 @@ public class UplinkMessage(int id,
     public int? ReplyToDownlinkId { get; } = replyToDownlinkId;
     public CpdlcUplinkResponseType ResponseType { get; } = responseType;
     public string Content { get; } = content;
+    public string FormattedContent => Content.Replace("@", string.Empty);
     public DateTimeOffset Sent { get; } = sent;
     public bool IsSpecial { get; } = isSpecial;
 

@@ -7,6 +7,7 @@ using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
 using ACARSPlugin.Model;
 using ACARSPlugin.Server;
+using ACARSPlugin.Services;
 using ACARSPlugin.ViewModels;
 using ACARSPlugin.Windows;
 using CommunityToolkit.Mvvm.Messaging;
@@ -14,12 +15,14 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using vatsys;
 using vatsys.Plugin;
-using DownlinkMessage = ACARSPlugin.Controls.DownlinkMessage;
 
 namespace ACARSPlugin;
 
+// TODO: Logon requests
+// TODO: Strip items
+
 [Export(typeof(IPlugin))]
-public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChanged>
+public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
 {
 #if DEBUG
     public const string Name = "ACARS Plugin - Debug";
@@ -61,22 +64,27 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
 
     ServerConfiguration CreateServerConfiguration(string serverEndpoint)
     {
-        return new ServerConfiguration { ServerEndpoint = serverEndpoint, ServerApiKey = ConfigurationStorage.LoadApiKey() };
+        return new ServerConfiguration { ServerEndpoint = serverEndpoint };
     }
 
     void ConfigureServices(AcarsConfiguration acarsConfiguration)
     {
         var serverConfiguration = CreateServerConfiguration(acarsConfiguration.ServerEndpoint);
+        
         ServiceProvider = new ServiceCollection()
             .AddSingleton(this) // TODO: Ick... Whatever we're relying on this for, move it into a separate service please.
             .AddSingleton(acarsConfiguration)
             .AddSingleton(serverConfiguration)
             .AddSingleton<IClock>(new SystemClock())
             .AddSingleton<MessageRepository>()
-            .AddSingleton<IMessageIdProvider, TestMessageIdProvider>()
             .AddSingleton<IGuiInvoker, GuiInvoker>()
+            .AddSingleton<MessageMonitorService>()
             .AddMediatR(c => c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly))
             .BuildServiceProvider();
+        
+        // Activate the monitor
+        // TODO: Do this a better way...
+        ServiceProvider.GetRequiredService<MessageMonitorService>();
     }
 
     private async void NetworkConnected(object sender, EventArgs e)
@@ -194,107 +202,104 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
         };
     }
 
-    public CustomStripItem? GetCustomStripItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
-    {
-        var customItem = GetCustomStripOrLabelItem(itemType, flightDataRecord);
-        if (customItem is null)
-            return null;
-
-        return new CustomStripItem
-        {
-            Text = customItem.Text,
-            CustomBackColour = customItem.BackgroundColour.HasValue
-                ? new CustomColour(
-                    customItem.BackgroundColour.Value.R,
-                    customItem.BackgroundColour.Value.G,
-                    customItem.BackgroundColour.Value.B)
-                : null,
-            CustomForeColour = customItem.ForegroundColour.HasValue
-                ? new CustomColour(
-                    customItem.ForegroundColour.Value.R,
-                    customItem.ForegroundColour.Value.G,
-                    customItem.ForegroundColour.Value.B)
-                : null,
-            OnMouseClick = args =>
-            {
-                var button = args.Button switch
-                {
-                    CustomLabelItemMouseButton.Left => ItemClickMouseButton.Left,
-                    CustomLabelItemMouseButton.Middle => ItemClickMouseButton.Middle,
-                    CustomLabelItemMouseButton.Right => ItemClickMouseButton.Right,
-                    _ => throw new ArgumentOutOfRangeException()
-                };
-
-                customItem.MouseClickCallback(new ItemClickEventArgs(button));
-            }
-        };
-    }
-
     CustomStripOrLabelItem? GetCustomStripOrLabelItem(string itemType, FDP2.FDR flightDataRecord)
     {
-        if (itemType is not ("ACARSPlugin_CPDLCStatus" or "LABEL_ITEM_CPDLC_STATUS" or "CPDLCStatus"))
-            return null;
+        try
+        {
+            if (itemType is not ("ACARSPlugin_CPDLCStatus" or "LABEL_ITEM_CPDLC_STATUS" or "CPDLCStatus"))
+                return null;
 
-        var text = " ";
-        Color? backgroundColour = null;
-        Color? foregroundColour = null;
-        Action<ItemClickEventArgs> action = _ => { };
-            
-        var info = FindAircraftInfo(flightDataRecord.Callsign);
-        if (info is null)
-        {
-            text = " ";
-        }
-        else  if (info is { Equipped: true, Connected: false })
-        {
-            text = ".";
-            // TODO: Left click will initiate a manual connection
-        }
-        else if (info is { Connected: true, IsCurrentDataAuthority: false })
-        {
-            text = "-";
-            action = args => 
+            var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
+
+            // Read Theme colors on the GUI thread before any async operations
+            Color downlinkColor = default;
+            Color unableDownlinkColor = default;
+            Color suspendedColor = default;
+
+            var colorReadEvent = new ManualResetEventSlim(false);
+            guiInvoker.InvokeOnGUI(() =>
             {
-                // TODO: Better async stuff here
-                if (args.MouseButton == ItemClickMouseButton.Left)
-                {
-                    OpenCpdlcWindow(info.Callsign, CancellationToken.None).GetAwaiter().GetResult();                    
-                }
-            };
-        }
+                downlinkColor = Theme.CPDLCDownlinkColor.Color;
+                unableDownlinkColor = Theme.CPDLCUnableDownlinkColor.Color;
+                suspendedColor = Theme.CPDLCSuspendedColor.Color;
+                colorReadEvent.Set();
+            });
+            colorReadEvent.Wait();
 
-        else if (info.Connected && info.IsCurrentDataAuthority)
-        {
-            text = "+";
-            action = args => 
+            var text = " ";
+            Color? backgroundColour = null;
+            Color? foregroundColour = null;
+            Action<ItemClickEventArgs> action = _ => { };
+
+            var info = FindAircraftInfo(flightDataRecord.Callsign, flightDataRecord);
+
+            if (info is null)
             {
-                // TODO: Better async stuff here
-                if (args.MouseButton == ItemClickMouseButton.Left)
-                {
-                    OpenCpdlcWindow(info.Callsign, CancellationToken.None).GetAwaiter().GetResult();                    
-                }
-            };
-
-            // Color only changes for the responsible controller
-            if (info.HasJurisdiction)
+                text = " ";
+            }
+            else if (info is { Equipped: true, Connected: false })
             {
-                if (info.DownlinkMessage is not null)
+                text = ".";
+                // TODO: Left click will initiate a manual connection
+            }
+            else if (info is { Connected: true, IsCurrentDataAuthority: false })
+            {
+                text = "-";
+                action = args =>
                 {
-                    backgroundColour = Theme.CPDLCDownlinkColor.Color;
-                }
-                else if (info.DownlinkMessage is not null && info.Unable && info.HasJurisdiction)
-                {
-                    backgroundColour = Theme.CPDLCUnableDownlinkColor.Color;
-                }
+                    // TODO: Better async stuff here
+                    if (args.MouseButton == ItemClickMouseButton.Left)
+                    {
+                        guiInvoker.InvokeOnGUI(() =>
+                        {
+                            OpenCpdlcWindow(info.Callsign, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+                        });
+                    }
+                };
+            }
 
-                if (info.HasSuspendedMessage)
+            else if (info.Connected && info.IsCurrentDataAuthority)
+            {
+                text = "+";
+                action = args =>
                 {
-                    foregroundColour = Theme.CPDLCSuspendedColor.Color;
+                    // TODO: Better async stuff here
+                    if (args.MouseButton == ItemClickMouseButton.Left)
+                    {
+                        guiInvoker.InvokeOnGUI(() =>
+                        {
+                            OpenCpdlcWindow(info.Callsign, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+                        });
+                    }
+                };
+
+                // Color only changes for the responsible controller
+                if (info.HasJurisdiction)
+                {
+                    if (info.HasActiveDownlinkMessages)
+                    {
+                        backgroundColour = downlinkColor;
+                    }
+                    else if (info.HasActiveDownlinkMessages && info.Unable)
+                    {
+                        backgroundColour = unableDownlinkColor;
+                    }
+
+                    // TODO: Verify this behaviour is correct
+                    if (info.HasSuspendedMessage)
+                    {
+                        foregroundColour = suspendedColor;
+                    }
                 }
             }
-        }
 
-        return new CustomStripOrLabelItem(text, backgroundColour, foregroundColour,  action);
+            return new CustomStripOrLabelItem(text, backgroundColour, foregroundColour, action);
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(ex, Name);
+            return null;
+        }
     }
 
     enum ItemClickMouseButton { Left, Middle, Right }
@@ -311,14 +316,41 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
 
     public CustomColour? SelectGroundTrackColour(Track track) => null;
 
-    AircraftInfo? FindAircraftInfo(string callsign) => new()
+    AircraftInfo FindAircraftInfo(string callsign, FDP2.FDR flightDataRecord)
     {
-        Callsign = callsign,
-        Connected = true,
-        Equipped = true,
-        HasJurisdiction = true,
-        IsCurrentDataAuthority = true
-    };
+        var repository = ServiceProvider.GetRequiredService<MessageRepository>();
+
+        // TODO: Consider maintaining a list of these locally so we don't need to perform lookups each time.
+        //  We can update the list as messages are sent and received.
+
+        var messages = repository.GetDownlinkMessagesFrom(callsign, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+
+        var isConnected = messages.Any(); // TODO: Check ACARS network for callsign.
+        var isEquipped = new[]
+        {
+            "J1",
+            "J2",
+            "J3",
+            "J4",
+            "J5",
+            "J6",
+            "J7",
+        }.Any(s => flightDataRecord.Remarks.Contains(s));
+
+        var unableReceived = messages.Any(m => !m.IsAcknowledged && m.Content.Contains("UNABLE")); // TODO: if dialog is open and messages contains UNABLE
+
+        return new AircraftInfo
+        {
+            Callsign = callsign,
+            Connected = isConnected,
+            Equipped = isEquipped,
+            HasJurisdiction = flightDataRecord.IsTrackedByMe,
+            IsCurrentDataAuthority = true, // TODO: Figure out how we're supposed to calculate this
+            HasActiveDownlinkMessages = messages.Any(m => !m.IsClosed),
+            HasSuspendedMessage = false, // TODO: Suspended messages.
+            Unable = unableReceived,
+        };
+    }
 
     SetupWindow? _setupWindow = null;
 
@@ -340,7 +372,6 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
         var viewModel = new SetupViewModel(
             mediator,
             serverConfiguration.ServerEndpoint,
-            serverConfiguration.ServerApiKey,
             serverConfiguration.StationId,
             isConnected);
 
@@ -498,7 +529,7 @@ public class Plugin : ILabelPlugin, IStripPlugin, IRecipient<CurrentMessagesChan
         public bool Connected { get; set; }
         public bool HasJurisdiction { get; set; }
         public bool IsCurrentDataAuthority { get; set; }
-        public DownlinkMessage? DownlinkMessage { get; set; }
+        public bool HasActiveDownlinkMessages { get; set; }
         public bool HasSuspendedMessage { get; set; }
         public bool Unable { get; set; }
     }

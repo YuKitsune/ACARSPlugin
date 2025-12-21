@@ -11,7 +11,7 @@ public class DownlinkMessageReceivedNotificationHandler(MessageRepository messag
 {
     public async Task Handle(DownlinkMessageReceivedNotification notification, CancellationToken cancellationToken)
     {
-        if (notification.DownlinkMessage is not ICpdlcDownlink cpdlcDownlink)
+        if (notification.DownlinkMessage is not CpdlcDownlink cpdlcDownlink)
             return;
 
         await messageRepository.AddDownlinkMessage(cpdlcDownlink, cancellationToken);
