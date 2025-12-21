@@ -1,3 +1,4 @@
+using System.Text;
 using System.Windows.Media;
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Model;
@@ -61,12 +62,15 @@ public partial class MessageViewModel : ObservableObject
 
     private string GetCallsignFromMessage(IAcarsMessageModel message)
     {
-        return message switch
+        var callsign = message switch
         {
             DownlinkMessage dl => dl.Sender,
             UplinkMessage ul => ul.Recipient,
             _ => string.Empty
         };
+
+        // Pad callsign to 8 characters so background extends to full width
+        return callsign.PadRight(8);
     }
 
     private DateTimeOffset GetTimeFromMessage(IAcarsMessageModel message)
@@ -86,24 +90,26 @@ public partial class MessageViewModel : ObservableObject
 
     private string GetDisplayContent(string fullContent)
     {
-        if (fullContent.Length <= _config.MaxDisplayMessageLength)
-            return fullContent;
+        if (fullContent.Length >= _config.MaxDisplayMessageLength)
+            return fullContent.Substring(0, _config.MaxDisplayMessageLength);
 
-        return fullContent.Substring(0, _config.MaxDisplayMessageLength);
+        // Pad with spaces to reach max length so background extends to full width
+        return fullContent.PadRight(_config.MaxDisplayMessageLength);
     }
 
     private string CalculatePrefix(IAcarsMessageModel message)
     {
-        if (message is not DownlinkMessage)
-            return string.Empty;
-        
-        // TODO: "!" for high priority messages (DL 29, 30, 80, off-line defined)
-        // TODO: "P" for free-text elements
-        
-        if (message.Content.Length > _config.MaxDisplayMessageLength)
-            return "*";
+        var sb = new StringBuilder();
 
-        return string.Empty;
+        sb.Append(message.Content.Length > _config.MaxDisplayMessageLength ? "*" : " ");
+
+        var isHighPriority = false;
+        sb.Append(isHighPriority ? "!" : " ");
+
+        var hasFreeText = false;
+        sb.Append(hasFreeText ? "P" : " ");
+
+        return sb.ToString();
     }
 
     private bool IsMessageAcknowledged()

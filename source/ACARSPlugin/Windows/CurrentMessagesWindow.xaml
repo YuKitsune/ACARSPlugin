@@ -10,8 +10,8 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=viewModels:CurrentMessagesViewModel}"
         Title="Current Messages"
-        Height="320" Width="480"
-        MinHeight="24" MinWidth="320"
+        Height="320" Width="Auto"
+        MinHeight="24" MinWidth="140"
         d:DesignHeight="640"
         Topmost="True"
         Background="{x:Static local:Theme.BackgroundColor}">
@@ -21,13 +21,13 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="/ACARSPlugin;component/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            
+
             <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
-        
+
             <Style x:Key="PopupButtonStyle" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
                 <Setter Property="Width" Value="120"/>
             </Style>
-            
+
         </ResourceDictionary>
     </Window.Resources>
 
@@ -64,63 +64,50 @@
                                         <DataTemplate DataType="{x:Type viewModels:MessageViewModel}">
                                             <Border x:Name="MessageBorder"
                                                     Background="{Binding BackgroundColor}"
+                                                    HorizontalAlignment="Left"
                                                     MouseLeftButtonDown="Message_MouseLeftButtonDown">
                                                 <StackPanel>
                                                     <!-- Main message line -->
                                                     <Grid Margin="2">
                                                         <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="48"/> <!-- Time -->
-                                                            <ColumnDefinition Width="64"/> <!-- Callsign -->
-                                                            <ColumnDefinition Width="4"/> <!-- Prefix -->
-                                                            <ColumnDefinition Width="*"/> <!-- Content -->
+                                                            <ColumnDefinition Width="Auto"/> <!-- Prefix -->
+                                                            <ColumnDefinition Width="Auto"/> <!-- Time -->
+                                                            <ColumnDefinition Width="Auto"/> <!-- Callsign -->
+                                                            <ColumnDefinition Width="Auto"/> <!-- Content -->
                                                         </Grid.ColumnDefinitions>
 
                                                         <TextBlock Grid.Column="0"
+                                                                   Text="{Binding Prefix}"
+                                                                   Foreground="{Binding ForegroundColor}"
+                                                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                                                   FontSize="{x:Static local:Theme.FontSize}"
+                                                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                                                   Margin="0,0,4,0"/>
+
+                                                        <TextBlock Grid.Column="1"
                                                                   Text="{Binding Time}"
                                                                   Foreground="{Binding ForegroundColor}"
                                                                   FontFamily="{x:Static local:Theme.FontFamily}"
                                                                   FontSize="{x:Static local:Theme.FontSize}"
                                                                   FontWeight="{x:Static local:Theme.FontWeight}"
-                                                                  Margin="0,0,8,0"/>
+                                                                  Margin="0,0,4,0"/>
 
-                                                        <TextBlock Grid.Column="1"
+                                                        <TextBlock Grid.Column="2"
                                                                   Text="{Binding Callsign}"
                                                                   Foreground="{Binding ForegroundColor}"
                                                                   FontFamily="{x:Static local:Theme.FontFamily}"
                                                                   FontSize="{x:Static local:Theme.FontSize}"
                                                                   FontWeight="{x:Static local:Theme.FontWeight}"
-                                                                  Margin="0,0,8,0"
-                                                                  MouseLeftButtonDown="Callsign_MouseLeftButtonDown"/>
-
-                                                        <TextBlock Grid.Column="2"
-                                                                  Text="{Binding Prefix}"
-                                                                  Foreground="{Binding ForegroundColor}"
-                                                                  FontFamily="{x:Static local:Theme.FontFamily}"
-                                                                  FontSize="{x:Static local:Theme.FontSize}"
-                                                                  FontWeight="{x:Static local:Theme.FontWeight}"
                                                                   Margin="0,0,4,0"
-                                                                  Visibility="{Binding IsDownlink, Converter={StaticResource InverseBoolToVisibilityConverter}, ConverterParameter=Collapsed}"/>
+                                                                  MouseLeftButtonDown="Callsign_MouseLeftButtonDown"/>
 
                                                         <TextBlock Grid.Column="3"
                                                                   Text="{Binding Content}"
                                                                   Foreground="{Binding ForegroundColor}"
                                                                   FontFamily="{x:Static local:Theme.FontFamily}"
                                                                   FontSize="{x:Static local:Theme.FontSize}"
-                                                                  FontWeight="{x:Static local:Theme.FontWeight}"
-                                                                  TextTrimming="CharacterEllipsis"/>
+                                                                  FontWeight="{x:Static local:Theme.FontWeight}"/>
                                                     </Grid>
-
-                                                    <!-- Extended display area (visible when IsExtended=true) -->
-                                                    <!-- <TextBlock Grid.Column="0" Grid.ColumnSpan="4" -->
-                                                    <!--           Text="{Binding FullContent}" -->
-                                                    <!--           Foreground="{Binding ForegroundColor}" -->
-                                                    <!--           FontFamily="{x:Static local:Theme.FontFamily}" -->
-                                                    <!--           FontSize="{x:Static local:Theme.FontSize}" -->
-                                                    <!--           FontWeight="{x:Static local:Theme.FontWeight}" -->
-                                                    <!--           TextWrapping="Wrap" -->
-                                                    <!--           MaxWidth="640" -->
-                                                    <!--           Margin="24,0,0,4" -->
-                                                    <!--           Visibility="{Binding IsExtended, Converter={StaticResource InverseBoolToVisibilityConverter}, ConverterParameter=Collapsed}"/> -->
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
