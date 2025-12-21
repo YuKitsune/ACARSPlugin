@@ -207,6 +207,11 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
 
             uplinkMessage.IsAcknowledged = true;
             uplinkMessage.IsClosed = true; // Manually acknowledged messages are closed
+
+            // TODO: should probably make this internal to the dialogue.
+            //  Like, make acknowledgement of uplink messages something that the dialogue does.
+            var dialogue = _dialogues.FirstOrDefault(d => d.Messages.Contains(uplinkMessage));
+            dialogue?.CheckIfDialogueCloses();
         }
         finally
         {

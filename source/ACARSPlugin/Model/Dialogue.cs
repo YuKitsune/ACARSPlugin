@@ -91,7 +91,7 @@ public class Dialogue
     /// <summary>
     /// Checks if all non-special messages are closed and sets the closed time if so.
     /// </summary>
-    private void CheckIfDialogueCloses()
+    internal void CheckIfDialogueCloses()
     {
         // Don't recalculate if already closed
         if (_closedTime.HasValue)
