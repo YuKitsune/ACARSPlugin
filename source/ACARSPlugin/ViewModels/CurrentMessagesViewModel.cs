@@ -16,12 +16,14 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     readonly AcarsConfiguration _configuration;
     readonly IMediator _mediator;
     readonly IGuiInvoker _guiInvoker;
+    readonly IErrorReporter _errorReporter;
 
-    public CurrentMessagesViewModel(AcarsConfiguration configuration, IMediator mediator, IGuiInvoker guiInvoker)
+    public CurrentMessagesViewModel(AcarsConfiguration configuration, IMediator mediator, IGuiInvoker guiInvoker, IErrorReporter errorReporter)
     {
         _configuration = configuration;
         _mediator = mediator;
         _guiInvoker = guiInvoker;
+        _errorReporter = errorReporter;
 
         WeakReferenceMessenger.Default.Register(this);
 
@@ -331,7 +333,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
             }
             catch (Exception ex)
             {
-                // TODO: Bubble up
+                _errorReporter.ReportError(ex);
             }
         });
     }
@@ -339,92 +341,163 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     [RelayCommand]
     private async Task SendStandby(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
-            return;
-        
-        await _mediator.Send(new SendStandbyUplinkRequest(downlink.Id, downlink.Sender));
+        try
+        {
+            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+                return;
+
+            await _mediator.Send(new SendStandbyUplinkRequest(downlink.Id, downlink.Sender));
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     private async Task SendDeferred(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
-            return;
+        try
+        {
+            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+                return;
 
-        await _mediator.Send(new SendDeferredUplinkRequest(downlink.Id, downlink.Sender));
+            await _mediator.Send(new SendDeferredUplinkRequest(downlink.Id, downlink.Sender));
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     private async Task SendUnable(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
-            return;
+        try
+        {
+            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+                return;
 
-        await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender));
+            await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender));
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     private async Task SendUnableDueTraffic(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
-            return;
+        try
+        {
+            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+                return;
 
-        await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO TRAFFIC"));
+            await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO TRAFFIC"));
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     private async Task SendUnableDueAirspace(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
-            return;
+        try
+        {
+            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+                return;
 
-        await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO AIRSPACE RESTRICTION"));
+            await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO AIRSPACE RESTRICTION"));
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     private async Task AcknowledgeDownlink(MessageViewModel messageViewModel)
     {
-        await _mediator.Send(new AcknowledgeDownlinkMessageRequest(messageViewModel.OriginalMessage.Id));
+        try
+        {
+            await _mediator.Send(new AcknowledgeDownlinkMessageRequest(messageViewModel.OriginalMessage.Id));
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     private async Task AcknowledgeUplink(MessageViewModel messageViewModel)
     {
-        await _mediator.Send(new AcknowledgeUplinkMessageRequest(messageViewModel.OriginalMessage.Id));
+        try
+        {
+            await _mediator.Send(new AcknowledgeUplinkMessageRequest(messageViewModel.OriginalMessage.Id));
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     private async Task MoveToHistory(MessageViewModel messageViewModel)
     {
-        await _mediator.Send(new MoveToHistoryRequest(messageViewModel.OriginalMessage.Id));
-        // TODO: Close if there are no more current messages
+        try
+        {
+            await _mediator.Send(new MoveToHistoryRequest(messageViewModel.OriginalMessage.Id));
+            // TODO: Close if there are no more current messages
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     private async Task ReissueMessage(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is UplinkMessage uplink)
+        try
         {
-            // TODO: await _mediator.Send(new ReissueMessageRequest(uplink.Id));
+            if (messageViewModel.OriginalMessage is UplinkMessage uplink)
+            {
+                // TODO: await _mediator.Send(new ReissueMessageRequest(uplink.Id));
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
         }
     }
 
     [RelayCommand]
     private void ToggleExtendedDisplay(MessageViewModel messageViewModel)
     {
-        // If this message is already extended, collapse it
-        if (CurrentlyExtendedMessage == messageViewModel)
+        try
         {
-            messageViewModel.IsExtended = false;
-            CurrentlyExtendedMessage = null;
-            return;
+            // If this message is already extended, collapse it
+            if (CurrentlyExtendedMessage == messageViewModel)
+            {
+                messageViewModel.IsExtended = false;
+                CurrentlyExtendedMessage = null;
+                return;
+            }
+
+            // Collapse previously extended message
+            if (CurrentlyExtendedMessage != null)
+                CurrentlyExtendedMessage.IsExtended = false;
+
+            // Extend this message
+            messageViewModel.IsExtended = true;
+            CurrentlyExtendedMessage = messageViewModel;
         }
-
-        // Collapse previously extended message
-        CurrentlyExtendedMessage?.IsExtended = false;
-
-        // Extend this message
-        messageViewModel.IsExtended = true;
-        CurrentlyExtendedMessage = messageViewModel;
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 }

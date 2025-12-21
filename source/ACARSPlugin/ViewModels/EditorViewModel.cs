@@ -23,6 +23,7 @@ public partial class EditorViewModel : ObservableObject
     readonly UplinkMessageTemplates _uplinkMessageTemplates = Testing.UplinkMessageTemplates;
 
     readonly IMediator _mediator;
+    readonly IErrorReporter _errorReporter;
 
 #if DEBUG
     
@@ -43,15 +44,16 @@ public partial class EditorViewModel : ObservableObject
     ];
     
     // For testing in the designer
-    public EditorViewModel() : this("QFA1", _testDownlinkMessages, null!)
+    public EditorViewModel() : this("QFA1", _testDownlinkMessages, null!, null!)
     {
     }
     
 #endif
 
-    public EditorViewModel(string callsign, DownlinkMessageViewModel[] downlinkMessages, IMediator mediator)
+    public EditorViewModel(string callsign, DownlinkMessageViewModel[] downlinkMessages, IMediator mediator, IErrorReporter errorReporter)
     {
         _mediator = mediator;
+        _errorReporter = errorReporter;
 
         Callsign = callsign;
         DownlinkMessages = downlinkMessages;
@@ -147,7 +149,14 @@ public partial class EditorViewModel : ObservableObject
     [RelayCommand]
     void SelectMessageClass(string? messageClass)
     {
-        SelectedMessageClass = messageClass;
+        try
+        {
+            SelectedMessageClass = messageClass;
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     partial void OnSelectedMessageClassChanged(string? value)
@@ -165,142 +174,205 @@ public partial class EditorViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
     async Task SendStandbyUplinkMessage()
     {
-        // Send the "STANDBY" uplink message
-        await _mediator.Send(new SendStandbyUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign));
-        
-        // De-select the downlink message (transition to Mode 1)
-        SelectedDownlinkMessage = null;
-        
-        ClearConstructionArea();
+        try
+        {
+            // Send the "STANDBY" uplink message
+            await _mediator.Send(new SendStandbyUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign));
+
+            // De-select the downlink message (transition to Mode 1)
+            SelectedDownlinkMessage = null;
+
+            ClearConstructionArea();
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
     async Task Defer()
     {
-        // Send the "REQUEST DEFERRED" uplink message
-        await _mediator.Send(new SendDeferredUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign));
-        
-        // De-select the downlink message (transition to Mode 1)
-        SelectedDownlinkMessage = null;
-        
-        ClearConstructionArea();
+        try
+        {
+            // Send the "REQUEST DEFERRED" uplink message
+            await _mediator.Send(new SendDeferredUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign));
+
+            // De-select the downlink message (transition to Mode 1)
+            SelectedDownlinkMessage = null;
+
+            ClearConstructionArea();
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     void Edit()
     {
-        ShowHotButtons = false;
+        try
+        {
+            ShowHotButtons = false;
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
     
     [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
     async Task SendUnableDueTrafficUplinkMessage()
     {
-        // Send the "UNABLE" and "DUE TO TRAFFIC" uplink messages
-        await _mediator.Send(new SendUnableUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign, "DUE TO TRAFFIC."));
-        
-        // TODO: Downlink message removed, and moved to History
-        
-        // De-select the downlink message (transition to Mode 1)
-        SelectedDownlinkMessage = null;
+        try
+        {
+            // Send the "UNABLE" and "DUE TO TRAFFIC" uplink messages
+            await _mediator.Send(new SendUnableUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign, "DUE TO TRAFFIC."));
 
-        ClearConstructionArea();
+            // TODO: Downlink message removed, and moved to History
+
+            // De-select the downlink message (transition to Mode 1)
+            SelectedDownlinkMessage = null;
+
+            ClearConstructionArea();
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
     
     [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
     async Task SendUnableDueAirspaceUplinkMessage()
     {
-        // Send the "UNABLE" and "DUE TO AIRSPACE RESTRICTION" uplink messages
-        await _mediator.Send(new SendUnableUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign, "DUE TO AIRSPACE RESTRICTION."));
-        
-        // TODO: Downlink message removed, and moved to History
-        
-        // De-select the downlink message (transition to Mode 1)
-        SelectedDownlinkMessage = null;
+        try
+        {
+            // Send the "UNABLE" and "DUE TO AIRSPACE RESTRICTION" uplink messages
+            await _mediator.Send(new SendUnableUplinkRequest(SelectedDownlinkMessage.OriginalMessage.Id, Callsign, "DUE TO AIRSPACE RESTRICTION."));
 
-        ClearConstructionArea();
+            // TODO: Downlink message removed, and moved to History
+
+            // De-select the downlink message (transition to Mode 1)
+            SelectedDownlinkMessage = null;
+
+            ClearConstructionArea();
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     void AddMessageElement(UplinkMessageTemplate template)
     {
-        var parts = ConvertToParts(template.Template);
-        
-        // TODO: If a message element is selected, replace it with this one
-        if (SelectedUplinkMessageElement is not null)
+        try
         {
-            SelectedUplinkMessageElement.Replace(parts, template.ResponseType);
-        }
-        else if (UplinkMessageElements.Count () < 5)
-        {
-            var firstBlankElement = UplinkMessageElements.FirstOrDefault(e => e.Parts.Length == 0);
-            if (firstBlankElement is not null)
-            {
-                firstBlankElement.Replace(parts, template.ResponseType);
-            }
-            else
-            {
-                var newMessageElements = UplinkMessageElements.ToList();
-                newMessageElements.Add(new UplinkMessageElementViewModel(parts, template.ResponseType));
+            var parts = ConvertToParts(template.Template);
 
-                UplinkMessageElements = newMessageElements.ToArray();
+            // TODO: If a message element is selected, replace it with this one
+            if (SelectedUplinkMessageElement is not null)
+            {
+                SelectedUplinkMessageElement.Replace(parts, template.ResponseType);
             }
+            else if (UplinkMessageElements.Count () < 5)
+            {
+                var firstBlankElement = UplinkMessageElements.FirstOrDefault(e => e.Parts.Length == 0);
+                if (firstBlankElement is not null)
+                {
+                    firstBlankElement.Replace(parts, template.ResponseType);
+                }
+                else
+                {
+                    var newMessageElements = UplinkMessageElements.ToList();
+                    newMessageElements.Add(new UplinkMessageElementViewModel(parts, template.ResponseType));
+
+                    UplinkMessageElements = newMessageElements.ToArray();
+                }
+            }
+
+            // TODO: Exceeded 5 elements, show an error
         }
-        
-        // TODO: Exceeded 5 elements, show an error
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
     
     [RelayCommand]
     void ToggleMessageElementSelection(UplinkMessageElementViewModel element)
     {
-        if (SelectedUplinkMessageElement == element)
+        try
         {
-            SelectedUplinkMessageElement = null;
+            if (SelectedUplinkMessageElement == element)
+            {
+                SelectedUplinkMessageElement = null;
+            }
+            else
+            {
+                SelectedUplinkMessageElement = element;
+            }
         }
-        else
+        catch (Exception ex)
         {
-            SelectedUplinkMessageElement = element;
+            _errorReporter.ReportError(ex);
         }
     }
 
     [RelayCommand]
     void InsertMessageElementAbove(UplinkMessageElementViewModel element)
     {
-        // Don't exceed 5 elements
-        if (UplinkMessageElements.Count() >= 5)
-            return;
+        try
+        {
+            // Don't exceed 5 elements
+            if (UplinkMessageElements.Count() >= 5)
+                return;
 
-        var elements = UplinkMessageElements.ToList();
-        var index = elements.IndexOf(element);
+            var elements = UplinkMessageElements.ToList();
+            var index = elements.IndexOf(element);
 
-        if (index < 0)
-            return;
-        
-        // Insert a new blank element above the clicked one
-        var newElement = new UplinkMessageElementViewModel();
-        elements.Insert(index, newElement);
+            if (index < 0)
+                return;
 
-        UplinkMessageElements = elements;
-        SelectedUplinkMessageElement = newElement;
+            // Insert a new blank element above the clicked one
+            var newElement = new UplinkMessageElementViewModel();
+            elements.Insert(index, newElement);
+
+            UplinkMessageElements = elements;
+            SelectedUplinkMessageElement = newElement;
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
     void ClearMessageElement(UplinkMessageElementViewModel element)
     {
-        if (element.Parts.Any())
+        try
         {
-            // If this element is not blank, clear it
-            element.Clear();
-        }
-        else if (UplinkMessageElements.Count() > 1)
-        {
-            // If this element is blank and there's more than one element, remove it
-            var newMessages = UplinkMessageElements.ToList();
-            newMessages.Remove(element);
+            if (element.Parts.Any())
+            {
+                // If this element is not blank, clear it
+                element.Clear();
+            }
+            else if (UplinkMessageElements.Count() > 1)
+            {
+                // If this element is blank and there's more than one element, remove it
+                var newMessages = UplinkMessageElements.ToList();
+                newMessages.Remove(element);
 
-            UplinkMessageElements = newMessages.ToArray();
+                UplinkMessageElements = newMessages.ToArray();
+            }
+
+            // Do nothing if this is the last element, and it's already blank
         }
-        
-        // Do nothing if this is the last element, and it's already blank
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
     }
 
     [RelayCommand]
@@ -324,8 +396,7 @@ public partial class EditorViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            // TODO: Use error tracker
-            Errors.Add(ex, Plugin.Name);
+            _errorReporter.ReportError(ex);
         }
     }
 
