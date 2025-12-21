@@ -79,6 +79,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
             .AddSingleton<MessageRepository>()
             .AddSingleton<IGuiInvoker, GuiInvoker>()
             .AddSingleton<MessageMonitorService>()
+            .AddSingleton<IErrorReporter, ErrorReporter>()
             .AddMediatR(c => c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly))
             .BuildServiceProvider();
         
@@ -399,8 +400,10 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
 
         // Create the view model with current configuration and connection state
         var isConnected = ConnectionManager?.IsConnected ?? false;
+        var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
         var viewModel = new SetupViewModel(
             mediator,
+            errorReporter,
             serverConfiguration.ServerEndpoint,
             serverConfiguration.StationId,
             isConnected);
@@ -451,7 +454,8 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
         var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
         var mediator = ServiceProvider.GetRequiredService<IMediator>();
         var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-        var viewModel = new CurrentMessagesViewModel(configuration, mediator, guiInvoker);
+        var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
+        var viewModel = new CurrentMessagesViewModel(configuration, mediator, guiInvoker, errorReporter);
 
         var window = new CurrentMessagesWindow(viewModel);
         window.Closed += (_, _) => _currentMessagesWindow = null;
@@ -536,7 +540,8 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
                 .ToArray();
 
             var mediator = ServiceProvider.GetRequiredService<IMediator>();
-            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels, mediator);
+            var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
+            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels, mediator, errorReporter);
             var window = new EditorWindow(viewModel);
             ElementHost.EnableModelessKeyboardInterop(window);
             
