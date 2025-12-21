@@ -121,12 +121,11 @@ public class MessageMonitorService : IAsyncDisposable
 
     bool CheckUplinkTimeout(UplinkMessage uplink, DateTimeOffset now)
     {
-        // Skip if already in timeout/failed state, or acknowledged
-        if (uplink.IsPilotLate || uplink.IsTransmissionFailed || uplink.IsAcknowledged)
-            return false;
-        
-        // No response required
-        if (uplink.ResponseType == CpdlcUplinkResponseType.NoResponse)
+        // Skip if already closed, in timeout/failed state, or doesn't require response 
+        if (uplink.IsClosed ||
+            uplink.IsPilotLate ||
+            uplink.IsTransmissionFailed ||
+            uplink.ResponseType == CpdlcUplinkResponseType.NoResponse)
             return false;
         
         // Check if timeout has been exceeded
@@ -140,12 +139,10 @@ public class MessageMonitorService : IAsyncDisposable
 
     bool CheckDownlinkTimeout(DownlinkMessage downlink, DateTimeOffset now)
     {
-        // Skip if already in timeout state or doesn't require response
-        if (downlink.IsControllerLate)
-            return false;
-        
-        // No response required
-        if (downlink.ResponseType == CpdlcDownlinkResponseType.NoResponse)
+        // Skip if already closed, in timeout state, or doesn't require response
+        if (downlink.IsClosed ||
+            downlink.IsControllerLate ||
+            downlink.ResponseType == CpdlcDownlinkResponseType.NoResponse)
             return false;
         
         // Check if timeout has been exceeded
