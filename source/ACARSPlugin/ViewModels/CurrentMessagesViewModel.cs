@@ -339,46 +339,46 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     [RelayCommand]
     private async Task SendStandby(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is DownlinkMessage downlink)
-        {
-            await _mediator.Send(new SendStandbyUplinkRequest(downlink.Id, downlink.Sender));
-        }
+        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            return;
+        
+        await _mediator.Send(new SendStandbyUplinkRequest(downlink.Id, downlink.Sender));
     }
 
     [RelayCommand]
     private async Task SendDeferred(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is DownlinkMessage downlink)
-        {
-            await _mediator.Send(new SendDeferredUplinkRequest(downlink.Id, downlink.Sender));
-        }
+        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            return;
+
+        await _mediator.Send(new SendDeferredUplinkRequest(downlink.Id, downlink.Sender));
     }
 
     [RelayCommand]
     private async Task SendUnable(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is DownlinkMessage downlink)
-        {
-            await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender));
-        }
+        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            return;
+
+        await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender));
     }
 
     [RelayCommand]
     private async Task SendUnableDueTraffic(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is DownlinkMessage downlink)
-        {
-            await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO TRAFFIC"));
-        }
+        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            return;
+
+        await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO TRAFFIC"));
     }
 
     [RelayCommand]
     private async Task SendUnableDueAirspace(MessageViewModel messageViewModel)
     {
-        if (messageViewModel.OriginalMessage is DownlinkMessage downlink)
-        {
-            await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO AIRSPACE RESTRICTION"));
-        }
+        if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            return;
+
+        await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO AIRSPACE RESTRICTION"));
     }
 
     [RelayCommand]
@@ -421,10 +421,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         }
 
         // Collapse previously extended message
-        if (CurrentlyExtendedMessage != null)
-        {
-            CurrentlyExtendedMessage.IsExtended = false;
-        }
+        CurrentlyExtendedMessage?.IsExtended = false;
 
         // Extend this message
         messageViewModel.IsExtended = true;

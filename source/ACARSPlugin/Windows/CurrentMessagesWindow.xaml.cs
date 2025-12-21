@@ -1,5 +1,7 @@
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 using ACARSPlugin.Model;
 using ACARSPlugin.Server.Contracts;
 using ACARSPlugin.ViewModels;
@@ -10,6 +12,7 @@ namespace ACARSPlugin.Windows;
 public partial class CurrentMessagesWindow : Window
 {
     private MessageViewModel? _selectedMessage;
+    private FrameworkElement? _extendedMessageAnchor;
 
     public CurrentMessagesWindow(CurrentMessagesViewModel viewModel)
     {
@@ -25,6 +28,23 @@ public partial class CurrentMessagesWindow : Window
         ManualAckButton.Click += (_, _) => ExecuteCommandAndClosePopup(vm => vm.AcknowledgeUplinkCommand);
         ReissueButton.Click += (_, _) => ExecuteCommandAndClosePopup(vm => vm.ReissueMessageCommand);
         HistoryButton.Click += (_, _) => ExecuteCommandAndClosePopup(vm => vm.MoveToHistoryCommand);
+
+        // Find ScrollViewer and attach scroll handler to close extended popup when scrolling
+        var scrollViewer = FindVisualChild<ScrollViewer>(this);
+        if (scrollViewer != null)
+        {
+            scrollViewer.ScrollChanged += (sender, args) =>
+            {
+                if (!ExtendedMessagePopup.IsOpen || args.VerticalChange == 0)
+                    return;
+
+                ExtendedMessagePopup.IsOpen = false;
+                if (DataContext is CurrentMessagesViewModel { CurrentlyExtendedMessage: not null } vm)
+                {
+                    vm.ToggleExtendedDisplayCommand.Execute(vm.CurrentlyExtendedMessage);
+                }
+            };
+        }
     }
 
     private void Message_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -61,6 +81,76 @@ public partial class CurrentMessagesWindow : Window
         {
             ActionPopup.IsOpen = true;
         }
+    }
+
+    private void Message_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement element ||
+            element.DataContext is not MessageViewModel messageViewModel ||
+            DataContext is not CurrentMessagesViewModel viewModel)
+            return;
+
+        // Store anchor and update popup placement
+        _extendedMessageAnchor = element;
+        ExtendedMessagePopup.PlacementTarget = _extendedMessageAnchor;
+
+        // Toggle extended display via ViewModel
+        viewModel.ToggleExtendedDisplayCommand.Execute(messageViewModel);
+
+        // Control popup visibility
+        ExtendedMessagePopup.IsOpen = viewModel.CurrentlyExtendedMessage != null;
+
+        e.Handled = true;
+    }
+
+    private void ExtendedMessage_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not CurrentMessagesViewModel viewModel)
+            return;
+
+        if (viewModel.CurrentlyExtendedMessage != null)
+        {
+            viewModel.ToggleExtendedDisplayCommand.Execute(viewModel.CurrentlyExtendedMessage);
+            ExtendedMessagePopup.IsOpen = false;
+        }
+
+        e.Handled = true;
+    }
+
+    private void ExtendedCallsign_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not CurrentMessagesViewModel viewModel ||
+            viewModel.CurrentlyExtendedMessage == null)
+            return;
+
+        var messageViewModel = viewModel.CurrentlyExtendedMessage;
+        _selectedMessage = messageViewModel;
+
+        // Acknowledge downlink if needed
+        if (messageViewModel.IsDownlink)
+            viewModel.AcknowledgeDownlinkCommand.Execute(messageViewModel);
+
+        // Show action popup
+        UpdateButtonVisibility(messageViewModel);
+        if (HasVisibleButtons())
+            ActionPopup.IsOpen = true;
+
+        e.Handled = true;
+    }
+
+    private void ExtendedContent_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (DataContext is not CurrentMessagesViewModel viewModel ||
+            viewModel.CurrentlyExtendedMessage == null)
+            return;
+
+        var messageViewModel = viewModel.CurrentlyExtendedMessage;
+
+        // Acknowledge downlink message
+        if (messageViewModel.IsDownlink)
+            viewModel.AcknowledgeDownlinkCommand.Execute(messageViewModel);
+
+        e.Handled = true;
     }
 
     private void UpdateButtonVisibility(MessageViewModel message)
@@ -126,5 +216,20 @@ public partial class CurrentMessagesWindow : Window
 
         ActionPopup.IsOpen = false;
         e.Handled = true;
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T typedChild)
+                return typedChild;
+
+            var result = FindVisualChild<T>(child);
+            if (result != null)
+                return result;
+        }
+        return null;
     }
 }

@@ -10,7 +10,7 @@
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=viewModels:CurrentMessagesViewModel}"
         Title="Current Messages"
-        Height="320" Width="Auto"
+        Height="320" Width="467"
         MinHeight="24" MinWidth="140"
         d:DesignHeight="640"
         Topmost="True"
@@ -52,6 +52,65 @@
                 </Border>
             </Popup>
 
+            <!-- Extended Message Popup -->
+            <Popup x:Name="ExtendedMessagePopup"
+                   StaysOpen="False"
+                   AllowsTransparency="True"
+                   Placement="Relative">
+                <Border Background="Transparent"
+                        MouseRightButtonDown="ExtendedMessage_MouseRightButtonDown">
+                    <StackPanel Background="{Binding CurrentlyExtendedMessage.BackgroundColor}">
+                        <Grid Margin="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/> <!-- Prefix -->
+                            <ColumnDefinition Width="Auto"/> <!-- Time -->
+                            <ColumnDefinition Width="Auto"/> <!-- Callsign -->
+                            <ColumnDefinition Width="Auto"/> <!-- Full Content -->
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Prefix TextBlock -->
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding CurrentlyExtendedMessage.Prefix}"
+                                   Foreground="{Binding CurrentlyExtendedMessage.ForegroundColor}"
+                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                   FontSize="{x:Static local:Theme.FontSize}"
+                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                   Margin="0,0,4,0"/>
+
+                        <!-- Time TextBlock -->
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding CurrentlyExtendedMessage.Time}"
+                                   Foreground="{Binding CurrentlyExtendedMessage.ForegroundColor}"
+                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                   FontSize="{x:Static local:Theme.FontSize}"
+                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                   Margin="0,0,4,0"/>
+
+                        <!-- Callsign TextBlock (clickable) -->
+                        <TextBlock Grid.Column="2"
+                                   Text="{Binding CurrentlyExtendedMessage.Callsign}"
+                                   Foreground="{Binding CurrentlyExtendedMessage.ForegroundColor}"
+                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                   FontSize="{x:Static local:Theme.FontSize}"
+                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                   Margin="0,0,4,0"
+                                   MouseLeftButtonDown="ExtendedCallsign_MouseLeftButtonDown"/>
+
+                        <!-- Full Content TextBlock (clickable, unlimited length) -->
+                        <TextBlock Grid.Column="3"
+                                   Text="{Binding CurrentlyExtendedMessage.FullContent}"
+                                   Foreground="{Binding CurrentlyExtendedMessage.ForegroundColor}"
+                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                   FontSize="{x:Static local:Theme.FontSize}"
+                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                   TextWrapping="NoWrap"
+                                   MaxWidth="800"
+                                   MouseLeftButtonDown="ExtendedContent_MouseLeftButtonDown"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Popup>
+
             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                 <ItemsControl ItemsSource="{Binding Dialogues}">
                     <!-- Each DialogueGroupViewModel -->
@@ -65,7 +124,8 @@
                                             <Border x:Name="MessageBorder"
                                                     Background="{Binding BackgroundColor}"
                                                     HorizontalAlignment="Left"
-                                                    MouseLeftButtonDown="Message_MouseLeftButtonDown">
+                                                    MouseLeftButtonDown="Message_MouseLeftButtonDown"
+                                                    MouseRightButtonDown="Message_MouseRightButtonDown">
                                                 <StackPanel>
                                                     <!-- Main message line -->
                                                     <Grid Margin="2">
