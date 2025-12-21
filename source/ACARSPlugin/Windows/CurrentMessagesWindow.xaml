@@ -75,7 +75,7 @@
                                    FontFamily="{x:Static local:Theme.FontFamily}"
                                    FontSize="{x:Static local:Theme.FontSize}"
                                    FontWeight="{x:Static local:Theme.FontWeight}"
-                                   Margin="0,0,4,0"/>
+                                   Margin="0,0,8,0"/>
 
                         <!-- Time TextBlock -->
                         <TextBlock Grid.Column="1"
@@ -84,7 +84,7 @@
                                    FontFamily="{x:Static local:Theme.FontFamily}"
                                    FontSize="{x:Static local:Theme.FontSize}"
                                    FontWeight="{x:Static local:Theme.FontWeight}"
-                                   Margin="0,0,4,0"/>
+                                   Margin="0,0,8,0"/>
 
                         <!-- Callsign TextBlock (clickable) -->
                         <TextBlock Grid.Column="2"
@@ -93,7 +93,7 @@
                                    FontFamily="{x:Static local:Theme.FontFamily}"
                                    FontSize="{x:Static local:Theme.FontSize}"
                                    FontWeight="{x:Static local:Theme.FontWeight}"
-                                   Margin="0,0,4,0"
+                                   Margin="0,0,8,0"
                                    MouseLeftButtonDown="ExtendedCallsign_MouseLeftButtonDown"/>
 
                         <!-- Full Content TextBlock (clickable, unlimited length) -->
@@ -104,7 +104,6 @@
                                    FontSize="{x:Static local:Theme.FontSize}"
                                    FontWeight="{x:Static local:Theme.FontWeight}"
                                    TextWrapping="NoWrap"
-                                   MaxWidth="800"
                                    MouseLeftButtonDown="ExtendedContent_MouseLeftButtonDown"/>
                         </Grid>
                     </StackPanel>
@@ -142,7 +141,7 @@
                                                                    FontFamily="{x:Static local:Theme.FontFamily}"
                                                                    FontSize="{x:Static local:Theme.FontSize}"
                                                                    FontWeight="{x:Static local:Theme.FontWeight}"
-                                                                   Margin="0,0,4,0"/>
+                                                                   Margin="0,0,8,0"/>
 
                                                         <TextBlock Grid.Column="1"
                                                                   Text="{Binding Time}"
@@ -150,7 +149,7 @@
                                                                   FontFamily="{x:Static local:Theme.FontFamily}"
                                                                   FontSize="{x:Static local:Theme.FontSize}"
                                                                   FontWeight="{x:Static local:Theme.FontWeight}"
-                                                                  Margin="0,0,4,0"/>
+                                                                  Margin="0,0,8,0"/>
 
                                                         <TextBlock Grid.Column="2"
                                                                   Text="{Binding Callsign}"
@@ -158,7 +157,7 @@
                                                                   FontFamily="{x:Static local:Theme.FontFamily}"
                                                                   FontSize="{x:Static local:Theme.FontSize}"
                                                                   FontWeight="{x:Static local:Theme.FontWeight}"
-                                                                  Margin="0,0,4,0"
+                                                                  Margin="0,0,8,0"
                                                                   MouseLeftButtonDown="Callsign_MouseLeftButtonDown"/>
 
                                                         <TextBlock Grid.Column="3"
