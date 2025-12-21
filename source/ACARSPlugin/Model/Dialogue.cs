@@ -46,8 +46,9 @@ public class Dialogue
                 {
                     uplink.IsClosed = true;
                 }
+
                 // Rule 4: When uplink reply is sent, close the downlink it's replying to
-                else if (uplink.ReplyToDownlinkId.HasValue)
+                if (uplink.ReplyToDownlinkId.HasValue)
                 {
                     // Special uplinks (STANDBY, REQUEST DEFERRED) don't close the downlink
                     if (uplink.IsSpecial)
@@ -68,8 +69,9 @@ public class Dialogue
                 {
                     downlink.IsClosed = true;
                 }
+
                 // Rule 2: When downlink reply is received, close the uplink it's replying to
-                else if (downlink.ReplyToUplinkId.HasValue)
+                if (downlink.ReplyToUplinkId.HasValue)
                 {
                     // Special downlinks (STANDBY) don't close the uplink
                     if (downlink.IsSpecial)
