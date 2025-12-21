@@ -25,8 +25,12 @@ public partial class MessageViewModel : ObservableObject
         // Recalculate all properties that depend on the message
         Callsign = GetCallsignFromMessage(newMessage);
         Time = FormatTime(GetTimeFromMessage(newMessage));
-        FullContent = newMessage.Content;
-        Content = GetDisplayContent(newMessage.Content);
+
+        var formattedContent = newMessage is UplinkMessage uplinkMessage
+            ? uplinkMessage.FormattedContent
+            : newMessage.Content;
+        FullContent = formattedContent;
+        Content = GetDisplayContent(formattedContent);
         Prefix = CalculatePrefix(newMessage);
         IsDownlink = newMessage is DownlinkMessage;
         ForegroundColor = GetForegroundColor();
