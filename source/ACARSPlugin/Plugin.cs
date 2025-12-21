@@ -154,6 +154,14 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
 
         MMI.AddCustomMenuItem(setupMenuItem);
         
+        var currentMessagesMenuItem = new CustomToolStripMenuItem(
+            CustomToolStripMenuItemWindowType.Main,
+            menuItemCategory,
+            new ToolStripMenuItem("Current Messages"));
+        currentMessagesMenuItem.Item.Click += (_, _) => OpenCurrentMessagesWindow();
+
+        MMI.AddCustomMenuItem(currentMessagesMenuItem);
+        
         var historyMenuItem = new CustomToolStripMenuItem(
             CustomToolStripMenuItemWindowType.Main,
             menuItemCategory,
