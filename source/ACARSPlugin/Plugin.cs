@@ -168,38 +168,54 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
     
     public CustomLabelItem? GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
     {
-        var customItem = GetCustomStripOrLabelItem(itemType, flightDataRecord);
-        if (customItem is null)
-            return null;
-
-        return new CustomLabelItem
+        try
         {
-            Text = customItem.Text,
-            CustomBackColour = customItem.BackgroundColour.HasValue
-                ? new CustomColour(
-                    customItem.BackgroundColour.Value.R,
-                    customItem.BackgroundColour.Value.G,
-                    customItem.BackgroundColour.Value.B)
-                : null,
-            CustomForeColour = customItem.ForegroundColour.HasValue
-                ? new CustomColour(
-                    customItem.ForegroundColour.Value.R,
-                    customItem.ForegroundColour.Value.G,
-                    customItem.ForegroundColour.Value.B)
-                : null,
-            OnMouseClick = args =>
-            {
-                var button = args.Button switch
-                {
-                    CustomLabelItemMouseButton.Left => ItemClickMouseButton.Left,
-                    CustomLabelItemMouseButton.Middle => ItemClickMouseButton.Middle,
-                    CustomLabelItemMouseButton.Right => ItemClickMouseButton.Right,
-                    _ => throw new ArgumentOutOfRangeException()
-                };
+            var customItem = GetCustomStripOrLabelItem(itemType, flightDataRecord);
+            if (customItem is null)
+                return null;
 
-                customItem.MouseClickCallback(new ItemClickEventArgs(button));
-            }
-        };
+            return new CustomLabelItem
+            {
+                Type = itemType,
+                Text = customItem.Text,
+                BackColourIdentity = customItem.BackgroundColour.HasValue
+                    ? Colours.Identities.Custom
+                    : Colours.Identities.Default,
+                CustomBackColour = customItem.BackgroundColour.HasValue
+                    ? new CustomColour(
+                        customItem.BackgroundColour.Value.R,
+                        customItem.BackgroundColour.Value.G,
+                        customItem.BackgroundColour.Value.B)
+                    : null,
+                ForeColourIdentity = customItem.ForegroundColour.HasValue
+                    ? Colours.Identities.Custom
+                    : Colours.Identities.Default,
+                CustomForeColour = customItem.ForegroundColour.HasValue
+                    ? new CustomColour(
+                        customItem.ForegroundColour.Value.R,
+                        customItem.ForegroundColour.Value.G,
+                        customItem.ForegroundColour.Value.B)
+                    : null,
+                OnMouseClick = args =>
+                {
+                    var action = args.Button switch
+                    {
+                        CustomLabelItemMouseButton.Left => customItem.LeftClickCallback,
+                        CustomLabelItemMouseButton.Middle => customItem.MiddleClickCallback,
+                        CustomLabelItemMouseButton.Right => customItem.RightClickCallback,
+                        _ => throw new ArgumentOutOfRangeException()
+                    };
+
+                    action();
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            var wrappedException = new Exception($"Failed to create custom label item: {ex.Message}", ex);
+            Errors.Add(ex, Name);
+            return null;
+        }
     }
 
     CustomStripOrLabelItem? GetCustomStripOrLabelItem(string itemType, FDP2.FDR flightDataRecord)
@@ -229,7 +245,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
             var text = " ";
             Color? backgroundColour = null;
             Color? foregroundColour = null;
-            Action<ItemClickEventArgs> action = _ => { };
+            Action leftClickAction = () => { };
+            Action middleClickAction = () => { };
+            Action rightClickAction = () => { };
 
             var info = FindAircraftInfo(flightDataRecord.Callsign, flightDataRecord);
 
@@ -245,15 +263,19 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
             else if (info is { Connected: true, IsCurrentDataAuthority: false })
             {
                 text = "-";
-                action = args =>
+                leftClickAction = () =>
                 {
-                    // TODO: Better async stuff here
-                    if (args.MouseButton == ItemClickMouseButton.Left)
+                    try
                     {
+                        // TODO: Better async stuff here
                         guiInvoker.InvokeOnGUI(() =>
                         {
                             OpenCpdlcWindow(info.Callsign, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
                         });
+                    }
+                    catch (Exception ex)
+                    {
+                        Errors.Add(ex, Name);
                     }
                 };
             }
@@ -261,15 +283,19 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
             else if (info.Connected && info.IsCurrentDataAuthority)
             {
                 text = "+";
-                action = args =>
+                leftClickAction = () =>
                 {
-                    // TODO: Better async stuff here
-                    if (args.MouseButton == ItemClickMouseButton.Left)
+                    try
                     {
+                        // TODO: Better async stuff here
                         guiInvoker.InvokeOnGUI(() =>
                         {
                             OpenCpdlcWindow(info.Callsign, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
                         });
+                    }
+                    catch (Exception ex)
+                    {
+                        Errors.Add(ex, Name);
                     }
                 };
 
@@ -293,7 +319,13 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
                 }
             }
 
-            return new CustomStripOrLabelItem(text, backgroundColour, foregroundColour, action);
+            return new CustomStripOrLabelItem(
+                text,
+                backgroundColour,
+                foregroundColour,
+                leftClickAction,
+                middleClickAction,
+                rightClickAction);
         }
         catch (Exception ex)
         {
@@ -301,16 +333,14 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
             return null;
         }
     }
-
-    enum ItemClickMouseButton { Left, Middle, Right }
-    
-    record ItemClickEventArgs(ItemClickMouseButton MouseButton);
     
     record CustomStripOrLabelItem(
         string Text,
         Color? BackgroundColour,
         Color? ForegroundColour,
-        Action<ItemClickEventArgs> MouseClickCallback);
+        Action LeftClickCallback,
+        Action MiddleClickCallback,
+        Action RightClickCallback);
 
     public CustomColour? SelectASDTrackColour(Track track) => null;
 
