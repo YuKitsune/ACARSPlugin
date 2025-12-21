@@ -1,5 +1,6 @@
 {
   "ServerEndpoint": "https://acars.eoinmotherway.dev/hubs/controller",
+  "Stations": ["YBBB", "YMMM"],
   "CurrentMessages": {
     "MaxCurrentMessages": 50,
     "HistoryTransferDelaySeconds": 10,

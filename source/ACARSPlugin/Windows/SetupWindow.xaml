@@ -76,10 +76,10 @@
             </Grid.RowDefinitions>
 
             <TextBlock Grid.Row="0" Text="Station Identifier" Margin="0,0,0,4"/>
-            <TextBox
-                Grid.Row="1"
-                Text="{Binding StationIdentifier, UpdateSourceTrigger=PropertyChanged}"
-                IsEnabled="{Binding Connected, Converter={StaticResource BoolInversionConverter}}"/>
+            <ComboBox Grid.Row="1"
+                      IsEnabled="{Binding Connected, Converter={StaticResource BoolInversionConverter}}"
+                      ItemsSource="{Binding AvailableStationIdentifiers}"
+                      SelectedItem="{Binding SelectedStationIdentifier}"/>
         </Grid>
 
         <!-- Buttons -->
@@ -91,7 +91,7 @@
 
             <Button
                 Grid.Column="0"
-                Command="{Binding ConnectCommand}"
+                Command="{Binding ConnectOrDisconnectCommand}"
                 HorizontalAlignment="Stretch"
                 Margin="0,0,4,0">
                 <Button.Style>
@@ -101,7 +101,6 @@
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding Connected}" Value="True">
                                 <Setter Property="Content" Value="Disconnect"/>
-                                <Setter Property="Command" Value="{Binding DisconnectCommand}"/>
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>

@@ -15,15 +15,23 @@ public partial class SetupViewModel : ObservableObject,
     private readonly IErrorReporter _errorReporter;
 
     [ObservableProperty] string serverEndpoint;
-    [ObservableProperty] string stationIdentifier;
+    [ObservableProperty] string[] availableStationIdentifiers;
+    [ObservableProperty] string selectedStationIdentifier;
     [ObservableProperty] bool connected;
 
-    public SetupViewModel(IMediator mediator, IErrorReporter errorReporter, string serverEndpoint, string stationIdentifier, bool connected)
+    public SetupViewModel(
+        IMediator mediator,
+        IErrorReporter errorReporter,
+        string serverEndpoint,
+        string[] availableStationIdentifiers,
+        string selectedStationIdentifier,
+        bool connected)
     {
         _mediator = mediator;
         _errorReporter = errorReporter;
         ServerEndpoint = serverEndpoint;
-        StationIdentifier = stationIdentifier;
+        AvailableStationIdentifiers = availableStationIdentifiers;
+        SelectedStationIdentifier = selectedStationIdentifier;
         Connected = connected;
 
         // Register for connection notifications
@@ -32,25 +40,19 @@ public partial class SetupViewModel : ObservableObject,
     }
 
     [RelayCommand]
-    async Task Connect()
+    async Task ConnectOrDisconnect()
     {
         try
         {
-            await _mediator.Send(new ChangeConfigurationRequest(ServerEndpoint, StationIdentifier));
-            await _mediator.Send(new ConnectRequest(ServerEndpoint, StationIdentifier));
-        }
-        catch (Exception e)
-        {
-            _errorReporter.ReportError(e);
-        }
-    }
-
-    [RelayCommand]
-    async Task Disconnect()
-    {
-        try
-        {
-            await _mediator.Send(new DisconnectRequest());
+            if (Connected)
+            {
+                await _mediator.Send(new DisconnectRequest());
+            }
+            else
+            {
+                await _mediator.Send(new ChangeConfigurationRequest(ServerEndpoint, SelectedStationIdentifier));
+                await _mediator.Send(new ConnectRequest(ServerEndpoint, SelectedStationIdentifier));
+            }
         }
         catch (Exception e)
         {

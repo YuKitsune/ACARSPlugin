@@ -403,7 +403,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
             return;
         }
 
-        var serverConfiguration = ServiceProvider.GetRequiredService<ServerConfiguration>();
+        var acarsConfiguration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
         var mediator = ServiceProvider.GetRequiredService<IMediator>();
 
         // Create the view model with current configuration and connection state
@@ -412,8 +412,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
         var viewModel = new SetupViewModel(
             mediator,
             errorReporter,
-            serverConfiguration.ServerEndpoint,
-            serverConfiguration.StationId,
+            acarsConfiguration.ServerEndpoint,
+            acarsConfiguration.Stations,
+            isConnected ? ConnectionManager!.StationIdentifier : acarsConfiguration.Stations.First(),
             isConnected);
 
         // Create and show the window

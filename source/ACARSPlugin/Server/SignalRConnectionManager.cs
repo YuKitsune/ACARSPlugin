@@ -35,6 +35,8 @@ public class SignalRConnectionManager(
     /// </summary>
     public event EventHandler<Exception>? ConnectionError;
 
+    public string StationIdentifier { get; private set; } = string.Empty;
+
     /// <summary>
     /// Initializes the SignalR connection.
     /// </summary>
@@ -59,6 +61,8 @@ public class SignalRConnectionManager(
 
         RegisterHandlers();
         RegisterConnectionEvents();
+
+        StationIdentifier = stationId;
     }
 
     /// <summary>
@@ -102,6 +106,8 @@ public class SignalRConnectionManager(
         {
             await _connection.StopAsync();
             OnConnectionStateChanged(HubConnectionState.Disconnected);
+
+            StationIdentifier = string.Empty;
         }
         catch (Exception ex)
         {
