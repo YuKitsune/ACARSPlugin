@@ -371,7 +371,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
             "J5",
             "J6",
             "J7",
-        }.Any(s => flightDataRecord.Remarks.Contains(s));
+        }.Any(s => flightDataRecord.AircraftEquip.Contains(s));
 
         var unableReceived = messages.Any(m => !m.IsAcknowledged && m.Content.Contains("UNABLE")); // TODO: if dialog is open and messages contains UNABLE
 
