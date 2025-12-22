@@ -16,6 +16,7 @@ public class UplinkMessage(int id,
     public int Id { get; } = id;
     public string Recipient { get; } = recipient;
     public int? ReplyToDownlinkId { get; } = replyToDownlinkId;
+    int? IAcarsMessageModel.ReplyToMessageId => ReplyToDownlinkId;
     public CpdlcUplinkResponseType ResponseType { get; } = responseType;
     public string Content { get; } = content;
     public string FormattedContent => Content.Replace("@", string.Empty);

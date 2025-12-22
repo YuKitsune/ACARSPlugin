@@ -66,6 +66,8 @@ public class MessageMonitorService : IAsyncDisposable
 
     async Task CheckForTimeouts(CancellationToken cancellationToken)
     {
+        // TODO: Verify if this is supposed to apply to message closures or acknowledgements.
+        
         var now = _clock.UtcNow();
         var anyChanges = false;
         var dialogues = await _repository.GetCurrentDialogues();

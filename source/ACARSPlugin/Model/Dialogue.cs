@@ -32,28 +32,23 @@ public class Dialogue
         _messages.Add(message);
 
         // Apply closure rules then check if dialogue closes
-        ApplyMessageClosureRules(message);
-        CheckIfDialogueCloses();
+        ProcessMessage(message);
     }
 
-    void ApplyMessageClosureRules(IAcarsMessageModel message)
+    void ProcessMessage(IAcarsMessageModel message)
     {
         switch (message)
         {
             case UplinkMessage uplink:
-                // Rule 1: Uplink requiring no response is closed immediately
+                // Uplink requiring no response are self-closing
                 if (uplink.ResponseType == CpdlcUplinkResponseType.NoResponse)
                 {
                     uplink.IsClosed = true;
                 }
 
-                // Rule 4: When uplink reply is sent, close the downlink it's replying to
+                // Close the corresponding downlink
                 if (uplink.ReplyToDownlinkId.HasValue)
                 {
-                    // Special uplinks (STANDBY, REQUEST DEFERRED) don't close the downlink
-                    if (uplink.IsSpecial)
-                        return;
-
                     var downlink = _messages.OfType<DownlinkMessage>().FirstOrDefault(dl => dl.Id == uplink.ReplyToDownlinkId.Value);
                     if (downlink != null)
                     {
@@ -61,10 +56,17 @@ public class Dialogue
                         downlink.IsAcknowledged = true; // Auto-acknowledge when replying
                     }
                 }
+                
+                // Close the dialogue if this message doesn't require a response, and it's not a special message (i.e. STANDBY or REQUEST DEFERRED)
+                if (!uplink.IsSpecial && uplink.ResponseType == CpdlcUplinkResponseType.NoResponse)
+                {
+                    Close(uplink.Sent);
+                }
+                
                 break;
 
             case DownlinkMessage downlink:
-                // Rule 3: Downlink requiring no response is closed immediately
+                // Downlink requiring no response are self-closing
                 if (downlink.ResponseType == CpdlcDownlinkResponseType.NoResponse)
                 {
                     downlink.IsClosed = true;
@@ -74,6 +76,7 @@ public class Dialogue
                 if (downlink.ReplyToUplinkId.HasValue)
                 {
                     // Special downlinks (STANDBY) don't close the uplink
+                    // TODO: Maybe they should? We need to stop the "Late" timer from kicking in if there's a special interim reply.
                     if (downlink.IsSpecial)
                         return;
 
@@ -84,56 +87,26 @@ public class Dialogue
                         uplink.IsAcknowledged = true; // Auto-acknowledge when pilot responds
                     }
                 }
+                
+                // Close the dialogue if this message doesn't require a response, and it's not a special message (i.e. STANDBY or REQUEST DEFERRED)
+                if (!downlink.IsSpecial && downlink.ResponseType == CpdlcDownlinkResponseType.NoResponse)
+                {
+                    Close(downlink.Received);
+                }
+
                 break;
         }
     }
 
-    /// <summary>
-    /// Checks if all non-special messages are closed and sets the closed time if so.
-    /// </summary>
-    internal void CheckIfDialogueCloses()
+    public void Close(DateTimeOffset now)
     {
-        // Don't recalculate if already closed
-        if (_closedTime.HasValue)
-            return;
-
-        // Check if all non-special messages are closed
-        var allNonSpecialMessagesClosed = _messages.All(m => m switch
-        {
-            UplinkMessage { IsSpecial: true } => true, // Special messages don't count
-            UplinkMessage ul => ul.IsClosed,
-            DownlinkMessage { IsSpecial: true } => true, // Special messages don't count
-            DownlinkMessage dl => dl.IsClosed,
-            _ => false
-        });
-
-        if (!allNonSpecialMessagesClosed)
-            return;
-
-        // All non-special messages are closed - find the latest closed message time
-        DateTimeOffset? latestClosedTime = null;
-
+        _closedTime = now;
+        
+        // Ensure all messages in the dialogue are also closed
         foreach (var message in _messages)
         {
-            var isClosed = message switch
-            {
-                UplinkMessage { IsSpecial: true } => false, // Don't consider special messages
-                UplinkMessage ul => ul.IsClosed,
-                DownlinkMessage { IsSpecial: true } => false, // Don't consider special messages
-                DownlinkMessage dl => dl.IsClosed,
-                _ => false
-            };
-
-            if (!isClosed)
-                continue;
-
-            if (!latestClosedTime.HasValue || message.Time > latestClosedTime.Value)
-            {
-                latestClosedTime = message.Time;
-            }
+            message.IsClosed = true;
         }
-
-        _closedTime = latestClosedTime;
     }
 
     /// <summary>

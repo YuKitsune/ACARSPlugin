@@ -15,6 +15,7 @@ public class DownlinkMessage(
     public int Id { get; } = id;
     public string Sender { get; } = sender;
     public int? ReplyToUplinkId { get; } = replyToUplinkId;
+    int? IAcarsMessageModel.ReplyToMessageId => ReplyToUplinkId;
     public CpdlcDownlinkResponseType ResponseType { get; } = responseType;
     public string Content { get; } = content;
     public DateTimeOffset Received { get; } = received;
