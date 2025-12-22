@@ -30,6 +30,13 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
     {
         // Unregister from notifications when window closes
         WeakReferenceMessenger.Default.Unregister<DisconnectedNotification>(this);
+
+        // Dispose the view model to unregister from message updates
+        if (DataContext is EditorViewModel viewModel)
+        {
+            viewModel.Dispose();
+        }
+
         base.OnClosed(e);
     }
 
@@ -134,5 +141,25 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
             return;
 
         templatePart.IsEditing = false;
+    }
+
+    private void DownlinkMessage_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement element ||
+            element.DataContext is not DownlinkMessageViewModel clickedMessage ||
+            DataContext is not EditorViewModel viewModel)
+            return;
+
+        // Toggle selection: if clicking on the already selected message, deselect it
+        if (viewModel.SelectedDownlinkMessage == clickedMessage)
+        {
+            viewModel.SelectedDownlinkMessage = null;
+        }
+        else
+        {
+            viewModel.SelectedDownlinkMessage = clickedMessage;
+        }
+
+        e.Handled = true;
     }
 }

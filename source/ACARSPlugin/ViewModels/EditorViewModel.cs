@@ -1,22 +1,20 @@
 using System.Text;
-using System.Windows.Forms.VisualStyles;
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
 using ACARSPlugin.Server.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using CommunityToolkit.Mvvm.Messaging;
 using MediatR;
-using vatsys;
 
 namespace ACARSPlugin.ViewModels;
 
 // TODO: Associate downlink messages with uplink classes.
-// TODO: Listen for message updates.
 // TODO: ESCAPE function
 // TODO: RESTORE function
 // TODO: SUSPEND function
 
-public partial class EditorViewModel : ObservableObject
+public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessagesChanged>, IDisposable
 {
     // TODO: Source these from configuration
     private readonly string _permanentMessageClassName = Testing.PermanentMessageClassName;
@@ -24,6 +22,7 @@ public partial class EditorViewModel : ObservableObject
 
     readonly IMediator _mediator;
     readonly IErrorReporter _errorReporter;
+    readonly IGuiInvoker _guiInvoker;
 
 #if DEBUG
     
@@ -32,28 +31,30 @@ public partial class EditorViewModel : ObservableObject
         new()
         {
             Received = DateTimeOffset.Now,
-            Message = "STINKY POO POO",
+            Message = "DEFERRED DOWNLINK",
             Deferred = true
         },
 
         new()
         {
             Received = DateTimeOffset.Now,
-            Message = "REQUEST CLIMB UP YOUR ASS"
+            Message = "STANDBY DOWNLINK",
+            StandbySent = true
         }
     ];
     
     // For testing in the designer
-    public EditorViewModel() : this("QFA1", _testDownlinkMessages, null!, null!)
+    public EditorViewModel() : this("QFA1", _testDownlinkMessages, null!, null!, null!)
     {
     }
     
 #endif
 
-    public EditorViewModel(string callsign, DownlinkMessageViewModel[] downlinkMessages, IMediator mediator, IErrorReporter errorReporter)
+    public EditorViewModel(string callsign, DownlinkMessageViewModel[] downlinkMessages, IMediator mediator, IErrorReporter errorReporter, IGuiInvoker guiInvoker)
     {
         _mediator = mediator;
         _errorReporter = errorReporter;
+        _guiInvoker = guiInvoker;
 
         Callsign = callsign;
         DownlinkMessages = downlinkMessages;
@@ -76,12 +77,15 @@ public partial class EditorViewModel : ObservableObject
         MessageClasses = _uplinkMessageTemplates.Messages.Keys
             .Where(s => s != _permanentMessageClassName)
             .ToList();
-        
+
         // Select the permanent class by default
         SelectMessageClass(Testing.PermanentMessageClassName);
 
         // Start with a blank line
         ClearConstructionArea();
+
+        // Register for message updates
+        WeakReferenceMessenger.Default.Register(this);
     }
     
     [ObservableProperty]
@@ -499,6 +503,56 @@ public partial class EditorViewModel : ObservableObject
         }
 
         return (content.Trim(), responseType);
+    }
+
+    public void Receive(CurrentMessagesChanged message)
+    {
+        _guiInvoker.InvokeOnGUI(async () => await LoadDownlinkMessagesAsync());
+    }
+
+    async Task LoadDownlinkMessagesAsync()
+    {
+        try
+        {
+            var response = await _mediator.Send(new GetCurrentDialoguesRequest());
+
+            var downlinkViewModels = new List<DownlinkMessageViewModel>();
+            
+            foreach (var dialogue in response.Dialogues)
+            {
+                var openDownlinks = dialogue.Messages
+                    .OfType<Model.DownlinkMessage>()
+                    .Where(d => !d.IsClosed)
+                    .OrderBy(d => d.Received)
+                    .Select(d => new DownlinkMessageViewModel(
+                        d,
+                        standbySent: dialogue.HasStandbyResponse(d.Id),
+                        deferred: dialogue.HasDeferredResponse(d.Id)))
+                    .ToArray();
+                
+                downlinkViewModels.AddRange(openDownlinks);
+            }
+
+            DownlinkMessages = downlinkViewModels.ToArray();
+
+            // Try to maintain the current selection if the message still exists
+            if (SelectedDownlinkMessage is not null)
+            {
+                var stillExists = downlinkViewModels.Any(vm => vm.OriginalMessage.Id == SelectedDownlinkMessage.OriginalMessage?.Id);
+                SelectedDownlinkMessage = stillExists
+                    ? downlinkViewModels.First(vm => vm.OriginalMessage.Id == SelectedDownlinkMessage.OriginalMessage.Id)
+                    : null;
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
+        }
+    }
+
+    public void Dispose()
+    {
+        WeakReferenceMessenger.Default.Unregister<CurrentMessagesChanged>(this);
     }
 
     private readonly IDictionary<UplinkResponseType, CpdlcUplinkResponseType> responseTypeMap = new Dictionary<UplinkResponseType, CpdlcUplinkResponseType>

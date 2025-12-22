@@ -535,24 +535,30 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
                 _editorWindowState = null;
             }
 
-            var repository = ServiceProvider.GetRequiredService<MessageRepository>();
-
-            // Get current dialogues to access response information
-            var dialogues = await repository.GetCurrentDialogues();
-            var dialogue = dialogues.FirstOrDefault(g => g.Callsign == callsign);
-
-            // TODO: Move this into the ViewModel so it can be re-calculated as message updates are received
-            var downlinkMessages = await repository.GetDownlinkMessagesFrom(callsign, cancellationToken);
-            var downlinkMessageViewModels = downlinkMessages
-                .Select(m => new DownlinkMessageViewModel(
-                    m,
-                    standbySent: dialogue?.HasStandbyResponse(m.Id) ?? false,
-                    deferred: dialogue?.HasDeferredResponse(m.Id) ?? false))
-                .ToArray();
-
             var mediator = ServiceProvider.GetRequiredService<IMediator>();
+
+            var response = await mediator.Send(new GetCurrentDialoguesRequest(), cancellationToken);
+
+            var downlinkMessageViewModels = new List<DownlinkMessageViewModel>();
+            
+            foreach (var dialogue in response.Dialogues)
+            {
+                var openDownlinks = dialogue.Messages
+                    .OfType<DownlinkMessage>()
+                    .Where(d => !d.IsClosed)
+                    .OrderBy(d => d.Received)
+                    .Select(d => new DownlinkMessageViewModel(
+                        d,
+                        standbySent: dialogue.HasStandbyResponse(d.Id),
+                        deferred: dialogue.HasDeferredResponse(d.Id)))
+                    .ToArray();
+                
+                downlinkMessageViewModels.AddRange(openDownlinks);
+            }
+
             var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
-            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels, mediator, errorReporter);
+            var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
+            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels.ToArray(), mediator, errorReporter, guiInvoker);
             var window = new EditorWindow(viewModel);
             ElementHost.EnableModelessKeyboardInterop(window);
             
