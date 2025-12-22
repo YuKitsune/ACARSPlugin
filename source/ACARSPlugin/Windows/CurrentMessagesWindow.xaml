@@ -25,7 +25,7 @@
             <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
 
             <Style x:Key="PopupButtonStyle" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
-                <Setter Property="Width" Value="120"/>
+                <Setter Property="MinWidth" Value="120"/>
             </Style>
 
         </ResourceDictionary>
