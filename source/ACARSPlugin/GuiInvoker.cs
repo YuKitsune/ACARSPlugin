@@ -15,13 +15,24 @@ public class GuiInvoker : IGuiInvoker
         if (mainForm == null)
             return;
 
+        // Check if the window handle is valid before invoking
+        if (mainForm.IsDisposed || !mainForm.IsHandleCreated)
+            return;
+
         // If already on UI thread, execute directly to avoid deadlock
         if (!mainForm.InvokeRequired)
         {
             action();
             return;
         }
-        
-        MMI.InvokeOnGUI(delegate { action(); });
+
+        try
+        {
+            MMI.InvokeOnGUI(delegate { action(); });
+        }
+        catch (InvalidOperationException)
+        {
+            // Window handle was destroyed during invocation - ignore during shutdown
+        }
     }
 }

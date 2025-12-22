@@ -6,7 +6,7 @@ namespace ACARSPlugin.Messages;
 
 public record ConnectRequest(string ServerEndpoint, string StationId) : IRequest;
 
-public class ConnectRequestHandler(Plugin plugin, IMediator mediator, IPublisher publisher) : IRequestHandler<ConnectRequest>
+public class ConnectRequestHandler(Plugin plugin, IMediator mediator) : IRequestHandler<ConnectRequest>
 {
     public async Task Handle(ConnectRequest request, CancellationToken cancellationToken)
     {
@@ -38,6 +38,8 @@ public class ConnectRequestHandler(Plugin plugin, IMediator mediator, IPublisher
         // Start the connection
         await plugin.ConnectionManager.StartAsync();
 
-        await publisher.Publish(new ConnectedNotification(request.StationId), cancellationToken);
+        await mediator.Publish(new ConnectedNotification(request.StationId), cancellationToken);
+
+        await mediator.Send(new RefreshAircraftConnectionTrackerRequest(), cancellationToken);
     }
 }

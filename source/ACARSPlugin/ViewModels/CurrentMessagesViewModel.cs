@@ -11,12 +11,13 @@ namespace ACARSPlugin.ViewModels;
 
 // TODO: Extended view.
 
-public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<CurrentMessagesChanged>
+public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<CurrentMessagesChanged>, IDisposable
 {
     readonly AcarsConfiguration _configuration;
     readonly IMediator _mediator;
     readonly IGuiInvoker _guiInvoker;
     readonly IErrorReporter _errorReporter;
+    private bool _disposed;
 
     public CurrentMessagesViewModel(AcarsConfiguration configuration, IMediator mediator, IGuiInvoker guiInvoker, IErrorReporter errorReporter)
     {
@@ -29,6 +30,15 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 
         // Initial load
         _ = LoadDialoguesAsync();
+    }
+
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+
+        WeakReferenceMessenger.Default.Unregister<CurrentMessagesChanged>(this);
+        _disposed = true;
     }
 
 #if DEBUG
@@ -325,8 +335,14 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 
     public void Receive(CurrentMessagesChanged message)
     {
+        if (_disposed)
+            return;
+
         _guiInvoker.InvokeOnGUI(async () =>
         {
+            if (_disposed)
+                return;
+
             try
             {
                 await LoadDialoguesAsync();

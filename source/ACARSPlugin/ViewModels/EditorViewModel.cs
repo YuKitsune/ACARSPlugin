@@ -1,6 +1,7 @@
 using System.Text;
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
+using ACARSPlugin.Model;
 using ACARSPlugin.Server.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -520,17 +521,16 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             
             foreach (var dialogue in response.Dialogues)
             {
-                var openDownlinks = dialogue.Messages
-                    .OfType<Model.DownlinkMessage>()
-                    .Where(d => !d.IsClosed)
-                    .OrderBy(d => d.Received)
-                    .Select(d => new DownlinkMessageViewModel(
-                        d,
-                        standbySent: dialogue.HasStandbyResponse(d.Id),
-                        deferred: dialogue.HasDeferredResponse(d.Id)))
-                    .ToArray();
+                var firstMessage = dialogue.Messages.First();
+                if (firstMessage is not DownlinkMessage downlinkMessage)
+                    continue;
+
+                var downlinkMessageViewModel = new DownlinkMessageViewModel(
+                    downlinkMessage,
+                    standbySent: dialogue.HasStandbyResponse(downlinkMessage.Id),
+                    deferred: dialogue.HasDeferredResponse(downlinkMessage.Id));
                 
-                downlinkViewModels.AddRange(openDownlinks);
+                downlinkViewModels.Add(downlinkMessageViewModel);
             }
 
             DownlinkMessages = downlinkViewModels.ToArray();

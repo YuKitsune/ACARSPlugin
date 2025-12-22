@@ -9,6 +9,8 @@ public class DisconnectedNotificationBridge : INotificationHandler<DisconnectedN
 {
     public Task Handle(DisconnectedNotification notification, CancellationToken cancellationToken)
     {
+        // TODO: Clear messages
+        
         WeakReferenceMessenger.Default.Send(notification);
         return Task.CompletedTask;
     }

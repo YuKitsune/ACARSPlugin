@@ -49,15 +49,29 @@ public class SignalRConnectionManager(
 
         var url = $"{serverEndpoint}?network=VATSIM&stationId={stationId}&callsign={callsign}";
 
-        _connection = new HubConnectionBuilder()
-            .WithUrl(url)
+        var hubConnectionBuilder = new HubConnectionBuilder()
+            .WithUrl(url, options =>
+            {
+#if DEBUG
+                // In DEBUG mode, bypass SSL certificate validation for local development
+                options.HttpMessageHandlerFactory = _ =>
+                {
+                    var handler = new System.Net.Http.HttpClientHandler
+                    {
+                        ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true
+                    };
+                    return handler;
+                };
+#endif
+            })
             .AddJsonProtocol(options =>
             {
                 // Configure JSON to handle polymorphic types
                 options.PayloadSerializerOptions.TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver();
             })
-            .WithAutomaticReconnect()
-            .Build();
+            .WithAutomaticReconnect();
+
+        _connection = hubConnectionBuilder.Build();
 
         RegisterHandlers();
         RegisterConnectionEvents();
@@ -120,9 +134,12 @@ public class SignalRConnectionManager(
     {
         if (_connection == null) return;
 
-        // Register handlers for concrete downlink types
         _connection.On<CpdlcDownlink>("DownlinkReceived", downlink =>
             WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived)(downlink));
+        _connection.On<ConnectedAircraftInfo>("AircraftConnected", connectedAircraftInfo =>
+            WithCancellationToken<ConnectedAircraftInfo>(downlinkHandlerDelegate.AircraftConnected)(connectedAircraftInfo));
+        _connection.On<string>("AircraftDisconnected", callsign =>
+            WithCancellationToken<string>(downlinkHandlerDelegate.AircraftDisconnected)(callsign));
     }
 
     Func<T, Task> WithCancellationToken<T>(Func<T, CancellationToken, Task> action)
@@ -156,6 +173,18 @@ public class SignalRConnectionManager(
     }
     
     public record SendUplinkResult(CpdlcUplink UplinkMessage);
+
+    public async Task<ConnectedAircraftInfo[]> GetConnectedAircraft(CancellationToken cancellationToken)
+    {
+        EnsureConnected();
+        var result = await _connection!.InvokeAsync<GetConnectedAircraftResult>(
+            "GetConnectedAircraft",
+            cancellationToken);
+
+        return result.Aircraft;
+    }
+    
+    record GetConnectedAircraftResult(ConnectedAircraftInfo[] Aircraft);
 
     /// <summary>
     /// Registers connection lifecycle event handlers.

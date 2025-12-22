@@ -9,6 +9,8 @@ public class ConnectedNotificationBridge : INotificationHandler<ConnectedNotific
 {
     public Task Handle(ConnectedNotification notification, CancellationToken cancellationToken)
     {
+        // TODO: Load all historical messages.
+        
         WeakReferenceMessenger.Default.Send(notification);
         return Task.CompletedTask;
     }

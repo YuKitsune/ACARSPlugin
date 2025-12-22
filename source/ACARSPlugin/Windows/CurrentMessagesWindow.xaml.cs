@@ -13,11 +13,16 @@ public partial class CurrentMessagesWindow : Window
 {
     private MessageViewModel? _selectedMessage;
     private FrameworkElement? _extendedMessageAnchor;
+    private readonly CurrentMessagesViewModel _viewModel;
 
     public CurrentMessagesWindow(CurrentMessagesViewModel viewModel)
     {
         InitializeComponent();
+        _viewModel = viewModel;
         DataContext = viewModel;
+
+        // Dispose view model when window closes
+        Closed += (_, _) => _viewModel.Dispose();
 
         // Wire up button click events
         StandbyButton.Click += (_, _) => ExecuteCommandAndClosePopup(vm => vm.SendStandbyCommand);
