@@ -132,14 +132,42 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
 
     void ConfigureTheme()
     {
-        Theme.BackgroundColor = new SolidColorBrush(Colours.GetColour(Colours.Identities.WindowBackground).ToWindowsColor());
-        Theme.GenericTextColor = new SolidColorBrush(Colours.GetColour(Colours.Identities.GenericText).ToWindowsColor());
-        Theme.InteractiveTextColor = new SolidColorBrush(Colours.GetColour(Colours.Identities.InteractiveText).ToWindowsColor());
-        Theme.NonInteractiveTextColor = new SolidColorBrush(Colours.GetColour(Colours.Identities.NonInteractiveText).ToWindowsColor());
-        Theme.SelectedButtonColor = new SolidColorBrush(Colours.GetColour(Colours.Identities.WindowButtonSelected).ToWindowsColor());
+        Theme.BackgroundColor = GetColour(Colours.Identities.WindowBackground);
+        Theme.GenericTextColor = GetColour(Colours.Identities.GenericText);
+        Theme.InteractiveTextColor = GetColour(Colours.Identities.InteractiveText);
+        Theme.NonInteractiveTextColor = GetColour(Colours.Identities.NonInteractiveText);
+        Theme.SelectedButtonColor = GetColour(Colours.Identities.WindowButtonSelected);
+
+        Theme.CPDLCBackgroundColor = GetColour(Colours.Identities.CPDLCMessageBackground);
+        Theme.CPDLCUplinkColor = GetColour(Colours.Identities.CPDLCUplink);
+        Theme.CPDLCDownlinkColor = GetColour(Colours.Identities.CPDLCDownlink);
+        Theme.CPDLCSendBackgroundColor = GetColour(Colours.Identities.CPDLCSendButton);
+        Theme.CPDLCHotButtonBackgroundColor = GetColour(Colours.Identities.CPDLCSendButton);
+        
         Theme.FontFamily = new FontFamily(MMI.eurofont_xsml.FontFamily.Name);
         Theme.FontSize = MMI.eurofont_xsml.Size;
         Theme.FontWeight = MMI.eurofont_xsml.Bold ? FontWeights.Bold : FontWeights.Regular;
+        
+        CacheLabelColours();
+
+        SolidColorBrush GetColour(Colours.Identities identity)
+        {
+            return new SolidColorBrush(Colours.GetColour(identity).ToWindowsColor());
+        }
+    }
+    
+    void CacheLabelColours()
+    {
+        // Need to cache these for thread-safe access
+        
+        var downlinkColor = Theme.CPDLCDownlinkColor.Color;
+        _cachedDownlinkColor = new CustomColour(downlinkColor.R, downlinkColor.G, downlinkColor.B);
+
+        var unableColor = Theme.CPDLCUnableDownlinkColor.Color;
+        _cachedUnableDownlinkColor = new CustomColour(unableColor.R, unableColor.G, unableColor.B);
+
+        var suspendedColor = Theme.CPDLCSuspendedColor.Color;
+        _cachedSuspendedColor = new CustomColour(suspendedColor.R, suspendedColor.G, suspendedColor.B);
     }
     
     void AddToolbarItems()
@@ -187,24 +215,8 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
             {
                 Type = itemType,
                 Text = customItem.Text,
-                BackColourIdentity = customItem.BackgroundColour.HasValue
-                    ? Colours.Identities.Custom
-                    : Colours.Identities.Default,
-                CustomBackColour = customItem.BackgroundColour.HasValue
-                    ? new CustomColour(
-                        customItem.BackgroundColour.Value.R,
-                        customItem.BackgroundColour.Value.G,
-                        customItem.BackgroundColour.Value.B)
-                    : null,
-                ForeColourIdentity = customItem.ForegroundColour.HasValue
-                    ? Colours.Identities.Custom
-                    : Colours.Identities.Default,
-                CustomForeColour = customItem.ForegroundColour.HasValue
-                    ? new CustomColour(
-                        customItem.ForegroundColour.Value.R,
-                        customItem.ForegroundColour.Value.G,
-                        customItem.ForegroundColour.Value.B)
-                    : null,
+                CustomBackColour = customItem.BackgroundColour, // BUG: Whi is this purple when null?
+                CustomForeColour = customItem.ForegroundColour,
                 OnMouseClick = args =>
                 {
                     var action = args.Button switch
@@ -222,7 +234,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
         catch (Exception ex)
         {
             var wrappedException = new Exception($"Failed to create custom label item: {ex.Message}", ex);
-            Errors.Add(ex, Name);
+            Errors.Add(wrappedException, Name);
             return null;
         }
     }
@@ -236,24 +248,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
 
             var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
 
-            // Read Theme colors on the GUI thread before any async operations
-            Color downlinkColor = default;
-            Color unableDownlinkColor = default;
-            Color suspendedColor = default;
-
-            var colorReadEvent = new ManualResetEventSlim(false);
-            guiInvoker.InvokeOnGUI(() =>
-            {
-                downlinkColor = Theme.CPDLCDownlinkColor.Color;
-                unableDownlinkColor = Theme.CPDLCUnableDownlinkColor.Color;
-                suspendedColor = Theme.CPDLCSuspendedColor.Color;
-                colorReadEvent.Set();
-            });
-            colorReadEvent.Wait();
-
             var text = " ";
-            Color? backgroundColour = null;
-            Color? foregroundColour = null;
+            CustomColour? backgroundColour = null;
+            CustomColour? foregroundColour = null;
             Action leftClickAction = () => { };
             Action middleClickAction = () => { };
             Action rightClickAction = () => { };
@@ -311,19 +308,19 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
                 // Color only changes for the responsible controller
                 if (info.HasJurisdiction)
                 {
-                    if (info.HasActiveDownlinkMessages)
+                    if (info.HasActiveDownlinkMessages && info.Unable)
                     {
-                        backgroundColour = downlinkColor;
+                        backgroundColour = _cachedUnableDownlinkColor;
                     }
-                    else if (info.HasActiveDownlinkMessages && info.Unable)
+                    else if (info.HasActiveDownlinkMessages)
                     {
-                        backgroundColour = unableDownlinkColor;
+                        backgroundColour = _cachedDownlinkColor;
                     }
 
                     // TODO: Verify this behaviour is correct
                     if (info.HasSuspendedMessage)
                     {
-                        foregroundColour = suspendedColor;
+                        foregroundColour = _cachedSuspendedColor;
                     }
                 }
             }
@@ -345,8 +342,8 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
     
     record CustomStripOrLabelItem(
         string Text,
-        Color? BackgroundColour,
-        Color? ForegroundColour,
+        CustomColour? BackgroundColour,
+        CustomColour? ForegroundColour,
         Action LeftClickCallback,
         Action MiddleClickCallback,
         Action RightClickCallback);
@@ -507,6 +504,11 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>
             Errors.Add(ex, Name);
         }
     }
+
+    // Cached theme colors to avoid deadlock when accessing from non-GUI threads
+    CustomColour _cachedDownlinkColor = new(0, 105, 0);
+    CustomColour _cachedUnableDownlinkColor = new(230, 127, 127);
+    CustomColour _cachedSuspendedColor = new(255, 255, 255);
 
     // TODO: Close the window if the aircraft disconnects from CPDLC, or if the connection to the ACARS Server fails.
     SemaphoreSlim _editorWindowStateSemaphore = new(1,1);

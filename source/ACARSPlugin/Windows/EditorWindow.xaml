@@ -26,10 +26,13 @@
                 <Setter Property="Margin" Value="1"/>
             </Style>
             
-            <Style x:Key="HotButton" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
+            <Style x:Key="Mode2Button" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
                 <Setter Property="Width" Value="48"/>
                 <Setter Property="Height" Value="32"/>
                 <Setter Property="Margin" Value="4"/>
+            </Style>
+            
+            <Style x:Key="HotButton" TargetType="Button" BasedOn="{StaticResource Mode2Button}">
                 <Setter Property="Foreground" Value="White"/>
                 <Setter Property="Background" Value="{x:Static local:Theme.CPDLCHotButtonBackgroundColor}"/>
             </Style>
@@ -79,7 +82,7 @@
             SelectedItem="{Binding SelectedDownlinkMessage}">
             <ListBox.ItemTemplate>
                 <DataTemplate DataType="{x:Type viewModels:DownlinkMessageViewModel}">
-                    <controls:DownlinkMessage DataContext="{Binding .}" Width="500"/>
+                    <controls:DownlinkMessage DataContext="{Binding .}" Width="500" MouseLeftButtonDown="DownlinkMessage_Click"/>
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
@@ -126,7 +129,7 @@
                 </WrapPanel>
             </Grid>
         
-            <controls:BeveledLine Grid.Column="1" Orientation="Vertical"/>
+            <controls:BeveledLine Grid.Column="1" Width="{x:Static local:Theme.BeveledLineWidth}" Orientation="Vertical"/>
         
             <!-- To Editor section -->
             <Grid Grid.Column="2">
@@ -138,11 +141,11 @@
                 <TextBlock Grid.Row="0" Text="To Editor" TextAlignment="Center"/>
         
                 <WrapPanel Grid.Row="1" HorizontalAlignment="Center">
-                    <Button Content="Edit" Style="{StaticResource HotButton}" Command="{Binding EditCommand}" />
+                    <Button Content="Edit" Style="{StaticResource Mode2Button}" Command="{Binding EditCommand}" />
                 </WrapPanel>
             </Grid>
         
-            <controls:BeveledLine Grid.Column="3" Orientation="Vertical"/>
+            <controls:BeveledLine Grid.Column="3" Width="{x:Static local:Theme.BeveledLineWidth}" Orientation="Vertical"/>
         
             <!-- Unable section -->
             <Grid Grid.Column="4">

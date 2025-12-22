@@ -33,8 +33,11 @@ public partial class MessageViewModel : ObservableObject
         Content = GetDisplayContent(formattedContent);
         Prefix = CalculatePrefix(newMessage);
         IsDownlink = newMessage is DownlinkMessage;
-        ForegroundColor = GetForegroundColor();
-        BackgroundColor = GetBackgroundColor();
+
+        // Get both colors together
+        var (background, foreground) = GetMessageColors();
+        BackgroundColor = background;
+        ForegroundColor = foreground;
     }
 
     [ObservableProperty]
@@ -116,90 +119,127 @@ public partial class MessageViewModel : ObservableObject
         return sb.ToString();
     }
 
-    private bool IsMessageAcknowledged()
+    private ColorPair GetMessageColors()
     {
-        return OriginalMessage switch
+        var background = Theme.CPDLCBackgroundColor;
+
+        if (IsUrgent(OriginalMessage))
         {
-            DownlinkMessage dl => dl.IsAcknowledged,
-            UplinkMessage ul => ul.IsAcknowledged,
-            _ => false
-        };
-    }
-
-    private SolidColorBrush GetMessageColor()
-    {
-        return OriginalMessage switch
-        {
-            // Failed and timeout states have highest priority
-            UplinkMessage ul when ul.IsTransmissionFailed => Theme.CPDLCFailedColor,
-            UplinkMessage ul when ul.IsPilotLate => Theme.CPDLCPilotLateColor,
-            DownlinkMessage dl when dl.IsControllerLate => Theme.CPDLCControllerLateColor,
-
-            // Urgent state
-            UplinkMessage ul when ul.IsUrgent => Theme.CPDLCUrgentColor,
-            DownlinkMessage dl when dl.IsUrgent => Theme.CPDLCUrgentColor,
-
-            // Closed states
-            UplinkMessage ul when ul.IsClosed => Theme.CPDLCClosedColor,
-            DownlinkMessage dl when dl.IsClosed => Theme.CPDLCClosedColor,
-
-            // Regular states
-            UplinkMessage => Theme.CPDLCUplinkColor,
-            DownlinkMessage => Theme.CPDLCDownlinkColor,
-
-            _ => Theme.GenericTextColor
-        };
-    }
-
-    // Invert the colour of unacknowledged messages to draw the attention of the user (swap background and foreground)
-    private bool ShouldInvertColours()
-    {
-        var isAcknowledged = IsMessageAcknowledged();
-
-        // Special cases that use Normal colours before ack:
-        // 1. Closed uplink messages always normal colours
-        // 2. Special uplink that is pilot late (Special closed timeout) - Normal video before ack
-        if (!isAcknowledged)
-        {
-            if (OriginalMessage is UplinkMessage ul)
-            {
-                // Closed uplink or special timeout: use Normal video
-                if (ul.IsClosed || (ul.IsSpecial && ul.IsPilotLate))
-                    return false;
-            }
+            return new ColorPair(background, Theme.CPDLCUrgentColor).InvertIf(!OriginalMessage.IsAcknowledged);
         }
 
-        // Default: Invert before ack, normal after ack
-        return !isAcknowledged;
-    }
-
-    private SolidColorBrush GetForegroundColor()
-    {
-        var messageColor = GetMessageColor();
-        var invert = ShouldInvertColours();
-        return invert ? Theme.CPDLCBackgroundColor : messageColor;
-    }
-
-    private SolidColorBrush GetBackgroundColor()
-    {
-        var messageColor = GetMessageColor();
-        var isAcknowledged = IsMessageAcknowledged();
-        var invert = ShouldInvertColours();
-
-        // Exception: Failed and timeout messages use CPDLCClosedColor as background after ack (Note 3)
-        if (isAcknowledged && IsFailedOrTimeoutMessage())
-            return Theme.CPDLCClosedColor;
-
-        return invert ? messageColor : Theme.CPDLCBackgroundColor;
-    }
-
-    private bool IsFailedOrTimeoutMessage()
-    {
-        return OriginalMessage switch
+        if (IsFailed(OriginalMessage))
         {
-            UplinkMessage ul => ul.IsTransmissionFailed || ul.IsPilotLate,
-            DownlinkMessage dl => dl.IsControllerLate,
-            _ => false
-        };
+            // Failed message background is CPDLCClosedColor.
+            return new ColorPair(Theme.CPDLCClosedColor, Theme.CPDLCFailedColor).InvertIf(!OriginalMessage.IsAcknowledged);
+        }
+        
+        if (IsClosed(OriginalMessage) && OriginalMessage is UplinkMessage)
+        {
+            return new ColorPair(background, Theme.CPDLCClosedColor);
+        }
+
+        if (IsClosed(OriginalMessage) && OriginalMessage is DownlinkMessage)
+        {
+            return new ColorPair(background, Theme.CPDLCClosedColor).InvertIf(!OriginalMessage.IsAcknowledged);
+        }
+
+        // Special closed timeout: Special uplink that timed out before acknowledgement
+        // Shows Normal video (not inverted) with pilot late color
+        if (OriginalMessage is UplinkMessage { IsSpecial: true, IsClosed: true, IsPilotLate: true, IsAcknowledged: false })
+        {
+            return new ColorPair(background, Theme.CPDLCPilotLateColor);
+        }
+
+        // Special Closed: For a special Uplink Message that is closed by itself
+        // After acknowledgement (even if it timed out), show Normal video with CPDLCClosedColor
+        // Before acknowledgement (and hasn't timed out), show Inverse video with CPDLCClosedColor
+        if (OriginalMessage is UplinkMessage { IsSpecial: true, IsClosed: true } ul)
+        {
+            return new ColorPair(background, Theme.CPDLCClosedColor).InvertIf(!ul.IsAcknowledged);
+        }
+
+        if (IsPilotLate(OriginalMessage))
+        {
+            // Time Out (pilot or Controller) message background is CPDLCClosedColor
+            return new ColorPair(Theme.CPDLCClosedColor, Theme.CPDLCPilotLateColor).InvertIf(!OriginalMessage.IsAcknowledged);
+        }
+
+        if (IsControllerLate(OriginalMessage))
+        {
+            // Time Out (pilot or Controller) message background is CPDLCClosedColor
+            return new ColorPair(Theme.CPDLCClosedColor, Theme.CPDLCControllerLateColor).InvertIf(!OriginalMessage.IsAcknowledged);
+        }
+        
+        if (OriginalMessage is DownlinkMessage)
+        {
+            return new ColorPair(background, Theme.CPDLCDownlinkColor).InvertIf(!OriginalMessage.IsAcknowledged);
+        }
+
+        if (OriginalMessage is UplinkMessage)
+        {
+            return new ColorPair(background, Theme.CPDLCUplinkColor).Invert();
+        }
+        
+        return new ColorPair(background, Theme.CPDLCClosedColor);
+
+        bool IsUrgent(IAcarsMessageModel message)
+        {
+            return message switch
+            {
+                DownlinkMessage downlinkMessage => downlinkMessage.IsUrgent,
+                UplinkMessage uplinkMessage => uplinkMessage.IsUrgent,
+                _ => false
+            };
+        }
+
+        bool IsFailed(IAcarsMessageModel message)
+        {
+            return message switch
+            {
+                UplinkMessage uplinkMessage => uplinkMessage.IsTransmissionFailed,
+                _ => false
+            };
+        }
+
+        bool IsPilotLate(IAcarsMessageModel message)
+        {
+            return message switch
+            {
+                UplinkMessage uplinkMessage => uplinkMessage.IsPilotLate,
+                _ => false
+            };
+        }
+
+        bool IsControllerLate(IAcarsMessageModel message)
+        {
+            return message switch
+            {
+                DownlinkMessage downlinkMessage => downlinkMessage.IsControllerLate,
+                _ => false
+            };
+        }
+
+        bool IsClosed(IAcarsMessageModel message)
+        {
+            return message switch
+            {
+                DownlinkMessage downlinkMessage => downlinkMessage.IsClosed,
+                UplinkMessage uplinkMessage => uplinkMessage.IsClosed,
+                _ => false
+            };
+        }
+    }
+
+    record ColorPair(SolidColorBrush Background, SolidColorBrush Foreground)
+    {
+        public ColorPair InvertIf(bool condition)
+        {
+            return condition
+                ? Invert()
+                : this;
+        }
+
+        public ColorPair Invert() => new(Foreground, Background);
     }
 }
