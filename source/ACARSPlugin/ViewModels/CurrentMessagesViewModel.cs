@@ -53,15 +53,15 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group1 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-48),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group1.Messages.Add(new MessageViewModel(
+        group1.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST1", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
                 "UPLINK REGULAR NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-48), false),
             currentMessagesConfiguration));
 
-        group1.Messages.Add(new MessageViewModel(
+        group1.Messages.Add(new CurrentMessageViewModel(
             new Model.DownlinkMessage(messageId++, "TEST1", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
                 "DOWNLINK REGULAR NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-47), false),
             currentMessagesConfiguration));
@@ -72,15 +72,15 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group3 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-45),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group3.Messages.Add(new MessageViewModel(
+        group3.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST3", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
                 "UPLINK URGENT NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-45), false) { IsUrgent = true },
             currentMessagesConfiguration));
 
-        group3.Messages.Add(new MessageViewModel(
+        group3.Messages.Add(new CurrentMessageViewModel(
             new Model.DownlinkMessage(messageId++, "TEST3", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
                 "DOWNLINK URGENT NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-44), false) { IsUrgent = true },
             currentMessagesConfiguration));
@@ -91,15 +91,15 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group5 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-42),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group5.Messages.Add(new MessageViewModel(
+        group5.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST5", Server.Contracts.CpdlcUplinkResponseType.Roger,
                 "UPLINK CLOSED NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-42), false) { IsClosed = true },
             currentMessagesConfiguration));
 
-        group5.Messages.Add(new MessageViewModel(
+        group5.Messages.Add(new CurrentMessageViewModel(
             new Model.DownlinkMessage(messageId++, "TEST5", Server.Contracts.CpdlcDownlinkResponseType.NoResponse,
                 "DOWNLINK CLOSED NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-41), false) { IsClosed = true },
             currentMessagesConfiguration));
@@ -110,10 +110,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group7 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-39),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group7.Messages.Add(new MessageViewModel(
+        group7.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST7", Server.Contracts.CpdlcUplinkResponseType.Roger,
                 "UPLINK SPECIAL CLOSED NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-39), true) { IsClosed = true },
             currentMessagesConfiguration));
@@ -124,10 +124,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group9 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-37),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group9.Messages.Add(new MessageViewModel(
+        group9.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST9", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
                 "UPLINK FAILED NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-37), false) { IsTransmissionFailed = true },
             currentMessagesConfiguration));
@@ -138,10 +138,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group11 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-35),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group11.Messages.Add(new MessageViewModel(
+        group11.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST11", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
                 "UPLINK PILOT LATE NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-35), false) { IsPilotLate = true },
             currentMessagesConfiguration));
@@ -152,10 +152,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group13 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-33),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group13.Messages.Add(new MessageViewModel(
+        group13.Messages.Add(new CurrentMessageViewModel(
             new Model.DownlinkMessage(messageId++, "TEST13", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
                 "DOWNLINK CONTROLLER LATE NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-33), false) { IsControllerLate = true },
             currentMessagesConfiguration));
@@ -166,10 +166,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group15 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-31),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group15.Messages.Add(new MessageViewModel(
+        group15.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST15", Server.Contracts.CpdlcUplinkResponseType.Roger,
                 "UPLINK SPECIAL TIMEOUT NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-31), true) { IsPilotLate = true, IsClosed = true },
             currentMessagesConfiguration));
@@ -180,10 +180,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group16 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-29),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group16.Messages.Add(new MessageViewModel(
+        group16.Messages.Add(new CurrentMessageViewModel(
             new Model.DownlinkMessage(messageId++, "TEST16", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
                 "DOWNLINK OVERFLOW MESSAGE SHOWING ASTERISK PREFIX NOT ACKNOWLEDGED VERY LONG TEXT THAT EXCEEDS MAX LENGTH",
                 DateTimeOffset.UtcNow.AddMinutes(-29), false),
@@ -195,15 +195,15 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group2 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-27),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group2.Messages.Add(new MessageViewModel(
+        group2.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST2", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
                 "UPLINK REGULAR ACK", DateTimeOffset.UtcNow.AddMinutes(-27), false) { IsAcknowledged = true },
             currentMessagesConfiguration));
 
-        group2.Messages.Add(new MessageViewModel(
+        group2.Messages.Add(new CurrentMessageViewModel(
             new Model.DownlinkMessage(messageId++, "TEST2", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
                 "DOWNLINK REGULAR ACK", DateTimeOffset.UtcNow.AddMinutes(-26), false) { IsAcknowledged = true },
             currentMessagesConfiguration));
@@ -214,15 +214,15 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group4 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-24),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group4.Messages.Add(new MessageViewModel(
+        group4.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST4", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
                 "UPLINK URGENT ACK", DateTimeOffset.UtcNow.AddMinutes(-24), false) { IsUrgent = true, IsAcknowledged = true },
             currentMessagesConfiguration));
 
-        group4.Messages.Add(new MessageViewModel(
+        group4.Messages.Add(new CurrentMessageViewModel(
             new Model.DownlinkMessage(messageId++, "TEST4", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
                 "DOWNLINK URGENT ACK", DateTimeOffset.UtcNow.AddMinutes(-23), false) { IsUrgent = true, IsAcknowledged = true },
             currentMessagesConfiguration));
@@ -233,15 +233,15 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group6 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-21),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group6.Messages.Add(new MessageViewModel(
+        group6.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST6", Server.Contracts.CpdlcUplinkResponseType.Roger,
                 "UPLINK CLOSED ACK", DateTimeOffset.UtcNow.AddMinutes(-21), false) { IsClosed = true, IsAcknowledged = true },
             currentMessagesConfiguration));
 
-        group6.Messages.Add(new MessageViewModel(
+        group6.Messages.Add(new CurrentMessageViewModel(
             new Model.DownlinkMessage(messageId++, "TEST6", Server.Contracts.CpdlcDownlinkResponseType.NoResponse,
                 "DOWNLINK CLOSED ACK", DateTimeOffset.UtcNow.AddMinutes(-20), false) { IsClosed = true, IsAcknowledged = true },
             currentMessagesConfiguration));
@@ -252,10 +252,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group8 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-18),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group8.Messages.Add(new MessageViewModel(
+        group8.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST8", Server.Contracts.CpdlcUplinkResponseType.Roger,
                 "UPLINK SPECIAL CLOSED ACK", DateTimeOffset.UtcNow.AddMinutes(-18), true) { IsClosed = true, IsAcknowledged = true },
             currentMessagesConfiguration));
@@ -266,10 +266,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group10 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-16),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group10.Messages.Add(new MessageViewModel(
+        group10.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST10", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
                 "UPLINK FAILED ACK", DateTimeOffset.UtcNow.AddMinutes(-16), false) { IsTransmissionFailed = true, IsAcknowledged = true },
             currentMessagesConfiguration));
@@ -280,10 +280,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group12 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-14),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group12.Messages.Add(new MessageViewModel(
+        group12.Messages.Add(new CurrentMessageViewModel(
             new Model.UplinkMessage(messageId++, "TEST12", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
                 "UPLINK PILOT LATE ACK", DateTimeOffset.UtcNow.AddMinutes(-14), false) { IsPilotLate = true, IsAcknowledged = true },
             currentMessagesConfiguration));
@@ -294,10 +294,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var group14 = new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-12),
-            Messages = new ObservableCollection<MessageViewModel>()
+            Messages = new ObservableCollection<CurrentMessageViewModel>()
         };
 
-        group14.Messages.Add(new MessageViewModel(
+        group14.Messages.Add(new CurrentMessageViewModel(
             new Model.DownlinkMessage(messageId++, "TEST14", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
                 "DOWNLINK CONTROLLER LATE ACK", DateTimeOffset.UtcNow.AddMinutes(-12), false) { IsControllerLate = true, IsAcknowledged = true },
             currentMessagesConfiguration));
@@ -312,7 +312,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     private ObservableCollection<DialogueViewModel> dialogues = [];
 
     [ObservableProperty]
-    private MessageViewModel? currentlyExtendedMessage;
+    private CurrentMessageViewModel? currentlyExtendedMessage;
 
     private async Task LoadDialoguesAsync()
     {
@@ -322,8 +322,8 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         var dialogueViewModels = response.Dialogues
             .Select(d => new DialogueViewModel
             {
-                Messages = new ObservableCollection<MessageViewModel>(d.Messages.Select(m =>
-                    new MessageViewModel(m, _configuration.CurrentMessages))),
+                Messages = new ObservableCollection<CurrentMessageViewModel>(d.Messages.Select(m =>
+                    new CurrentMessageViewModel(m, _configuration.CurrentMessages))),
                 FirstMessageTime = d.Messages.OrderBy(m => m.Time).First().Time
             });
         
@@ -355,11 +355,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendStandby(MessageViewModel messageViewModel)
+    private async Task SendStandby(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
-            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
                 return;
 
             await _mediator.Send(new SendStandbyUplinkRequest(downlink.Id, downlink.Sender));
@@ -371,11 +371,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendDeferred(MessageViewModel messageViewModel)
+    private async Task SendDeferred(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
-            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
                 return;
 
             await _mediator.Send(new SendDeferredUplinkRequest(downlink.Id, downlink.Sender));
@@ -387,11 +387,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendUnable(MessageViewModel messageViewModel)
+    private async Task SendUnable(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
-            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
                 return;
 
             await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender));
@@ -403,11 +403,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendUnableDueTraffic(MessageViewModel messageViewModel)
+    private async Task SendUnableDueTraffic(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
-            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
                 return;
 
             await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO TRAFFIC"));
@@ -419,11 +419,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendUnableDueAirspace(MessageViewModel messageViewModel)
+    private async Task SendUnableDueAirspace(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
-            if (messageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
                 return;
 
             await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO AIRSPACE RESTRICTION"));
@@ -435,11 +435,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task AcknowledgeDownlink(MessageViewModel messageViewModel)
+    private async Task AcknowledgeDownlink(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
-            await _mediator.Send(new AcknowledgeDownlinkMessageRequest(messageViewModel.OriginalMessage.Id));
+            await _mediator.Send(new AcknowledgeDownlinkMessageRequest(currentMessageViewModel.OriginalMessage.Id));
         }
         catch (Exception ex)
         {
@@ -448,11 +448,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task AcknowledgeUplink(MessageViewModel messageViewModel)
+    private async Task AcknowledgeUplink(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
-            await _mediator.Send(new AcknowledgeUplinkMessageRequest(messageViewModel.OriginalMessage.Id));
+            await _mediator.Send(new AcknowledgeUplinkMessageRequest(currentMessageViewModel.OriginalMessage.Id));
         }
         catch (Exception ex)
         {
@@ -461,11 +461,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task MoveToHistory(MessageViewModel messageViewModel)
+    private async Task MoveToHistory(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
-            await _mediator.Send(new MoveToHistoryRequest(messageViewModel.OriginalMessage.Id));
+            await _mediator.Send(new MoveToHistoryRequest(currentMessageViewModel.OriginalMessage.Id));
             // TODO: Close if there are no more current messages
         }
         catch (Exception ex)
@@ -475,11 +475,11 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task ReissueMessage(MessageViewModel messageViewModel)
+    private async Task ReissueMessage(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
-            if (messageViewModel.OriginalMessage is UplinkMessage uplink)
+            if (currentMessageViewModel.OriginalMessage is UplinkMessage uplink)
             {
                 // TODO: await _mediator.Send(new ReissueMessageRequest(uplink.Id));
             }
@@ -491,14 +491,14 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private void ToggleExtendedDisplay(MessageViewModel messageViewModel)
+    private void ToggleExtendedDisplay(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
             // If this message is already extended, collapse it
-            if (CurrentlyExtendedMessage == messageViewModel)
+            if (CurrentlyExtendedMessage == currentMessageViewModel)
             {
-                messageViewModel.IsExtended = false;
+                currentMessageViewModel.IsExtended = false;
                 CurrentlyExtendedMessage = null;
                 return;
             }
@@ -508,8 +508,8 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
                 CurrentlyExtendedMessage.IsExtended = false;
 
             // Extend this message
-            messageViewModel.IsExtended = true;
-            CurrentlyExtendedMessage = messageViewModel;
+            currentMessageViewModel.IsExtended = true;
+            CurrentlyExtendedMessage = currentMessageViewModel;
         }
         catch (Exception ex)
         {

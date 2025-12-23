@@ -8,6 +8,11 @@
     "MaxDisplayMessageLength": 40,
     "MaxExtendedMessageLength": 80
   },
+  "History": {
+    "MaxHistory": 100,
+    "MaxDisplayMessageLength": 40,
+    "MaxExtendedMessageLength": 80
+  },
   "ControllerLateSeconds": 120,
   "PilotLateSeconds": 120,
   "SpecialUplinkMessages": ["STANDBY", "REQUEST DEFERRED"],

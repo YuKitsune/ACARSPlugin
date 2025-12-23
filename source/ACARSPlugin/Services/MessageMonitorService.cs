@@ -106,11 +106,11 @@ public class MessageMonitorService : IAsyncDisposable
         {
             if (!dialogue.IsClosed || !dialogue.Messages.OfType<DownlinkMessage>().All(m => m.IsAcknowledged))
                 continue;
-            
+
             var archiveTime = dialogue.Closed.Value.AddSeconds(_configuration.CurrentMessages.HistoryTransferDelaySeconds);
             if (now < archiveTime)
                 continue;
-            
+
             dialogue.IsInHistory = true;
             anyChanges = true;
         }
@@ -118,6 +118,7 @@ public class MessageMonitorService : IAsyncDisposable
         if (anyChanges)
         {
             await _publisher.Publish(new CurrentMessagesChanged(), cancellationToken);
+            await _publisher.Publish(new HistoryMessagesChanged(), cancellationToken);
         }
     }
 

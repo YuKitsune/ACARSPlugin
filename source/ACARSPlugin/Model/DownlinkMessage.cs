@@ -21,7 +21,6 @@ public class DownlinkMessage(
     public DateTimeOffset Received { get; } = received;
     public bool IsSpecial { get; } = isSpecial;
 
-    // Boolean state properties
     public bool IsClosed { get; set; }
     public bool IsAcknowledged { get; set; }
     public bool IsUrgent { get; set; }

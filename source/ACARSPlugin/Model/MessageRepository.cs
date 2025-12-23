@@ -185,6 +185,48 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         }
     }
 
+    public async Task<IReadOnlyList<Dialogue>> GetHistoryDialoguesFor(string callsign)
+    {
+        await _semaphore.WaitAsync();
+        try
+        {
+            return _dialogues
+                .Where(d => d.IsInHistory && d.Callsign == callsign)
+                .OrderBy(d => d.Callsign)
+                .ThenBy(d => d.Closed ?? d.Opened)
+                .ToArray();
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    public async Task PruneHistory(int maxHistory)
+    {
+        await _semaphore.WaitAsync();
+        try
+        {
+            var historyDialogues = _dialogues.Where(d => d.IsInHistory).ToList();
+            if (historyDialogues.Count <= maxHistory)
+                return;
+
+            var toRemove = historyDialogues
+                .OrderBy(d => d.Closed ?? d.Opened)
+                .Take(historyDialogues.Count - maxHistory)
+                .ToList();
+
+            foreach (var dialogue in toRemove)
+            {
+                _dialogues.Remove(dialogue);
+            }
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
     internal async Task AcknowledgeDownlink(int messageId)
     {
         await _semaphore.WaitAsync();
@@ -212,7 +254,8 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
                 return;
 
             uplinkMessage.IsAcknowledged = true;
-            uplinkMessage.IsClosed = true; // Manually acknowledged messages are closed
+            uplinkMessage.IsClosed = true;
+            uplinkMessage.IsManuallyAcknowledged = true;
 
             // Close the dialogue
             var dialogue = _dialogues.FirstOrDefault(d => d.Messages.Contains(uplinkMessage));

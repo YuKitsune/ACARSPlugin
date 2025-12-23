@@ -116,10 +116,13 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type viewModels:DialogueViewModel}">
                             <StackPanel>
+                                
+                                <!-- TODO: Consider extracting this into a control we can share with Current Message Window -->
+
                                 <!-- Display all messages for this dialogue -->
                                 <ItemsControl ItemsSource="{Binding Messages}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate DataType="{x:Type viewModels:MessageViewModel}">
+                                        <DataTemplate DataType="{x:Type viewModels:CurrentMessageViewModel}">
                                             <Border x:Name="MessageBorder"
                                                     Background="{Binding BackgroundColor}"
                                                     HorizontalAlignment="Left"

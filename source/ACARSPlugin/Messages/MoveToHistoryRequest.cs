@@ -1,11 +1,15 @@
-﻿using ACARSPlugin.Model;
+﻿using ACARSPlugin.Configuration;
+using ACARSPlugin.Model;
 using MediatR;
 
 namespace ACARSPlugin.Messages;
 
 public record MoveToHistoryRequest(int MessageId) : IRequest;
 
-public class MoveToHistoryRequestHandler(MessageRepository repository, IPublisher publisher)
+public class MoveToHistoryRequestHandler(
+    MessageRepository repository,
+    IPublisher publisher,
+    AcarsConfiguration configuration)
     : IRequestHandler<MoveToHistoryRequest>
 {
     public async Task Handle(MoveToHistoryRequest request, CancellationToken cancellationToken)
@@ -17,7 +21,13 @@ public class MoveToHistoryRequestHandler(MessageRepository repository, IPublishe
                 continue;
 
             dialogue.IsInHistory = true;
+
+            // Prune history if needed
+            await repository.PruneHistory(configuration.History.MaxHistory);
+
+            // Publish both notifications
             await publisher.Publish(new CurrentMessagesChanged(), cancellationToken);
+            await publisher.Publish(new HistoryMessagesChanged(), cancellationToken);
             return;
         }
     }

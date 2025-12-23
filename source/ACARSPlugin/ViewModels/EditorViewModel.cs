@@ -606,7 +606,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             {
                 foreach (var message in dialogue.Messages)
                 {
-                    if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed)
+                    if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed || downlinkMessage.ResponseType == CpdlcDownlinkResponseType.NoResponse)
                         continue;
                     
                     var downlinkMessageViewModel = new DownlinkMessageViewModel(

@@ -21,10 +21,11 @@ using vatsys.Plugin;
 namespace ACARSPlugin;
 
 // TODO: Revise CPDLC message set (custom config)
-// TODO: History window
+// TODO: vatSys window
 // TODO: Text fallback
 // TODO: RELEASE
 
+// TODO: Complex variable entry (popups and validation)
 // TODO: ADS-C
 // TODO: Strip items
 
@@ -492,7 +493,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
     void OpenHistoryWindow()
     {
-        // If the history window is already open, close it
         if (_historyWindow is not null)
         {
             _historyWindow.Close();
@@ -500,13 +500,22 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             return;
         }
 
-        // Get the mediator from the service provider
+        var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
         var mediator = ServiceProvider.GetRequiredService<IMediator>();
+        var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
+        var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
 
-        // TODO: Create the View Model
+        var selectedCallsign = MMI.SelectedTrack?.GetFDR()?.Callsign;
+
+        var viewModel = new HistoryViewModel(
+            configuration,
+            mediator,
+            guiInvoker,
+            errorReporter,
+            selectedCallsign);
 
         // Create and show the window
-        var window = new HistoryWindow();
+        var window = new HistoryWindow(viewModel);
         window.Closed += (_, _) => _historyWindow = null;
 
         ElementHost.EnableModelessKeyboardInterop(window);
@@ -653,7 +662,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             {
                 foreach (var message in dialogue.Messages)
                 {
-                    if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed)
+                    if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed || downlinkMessage.ResponseType == CpdlcDownlinkResponseType.NoResponse)
                         continue;
                     
                     var downlinkMessageViewModel = new DownlinkMessageViewModel(

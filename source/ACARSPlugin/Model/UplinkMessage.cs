@@ -23,9 +23,11 @@ public class UplinkMessage(int id,
     public DateTimeOffset Sent { get; } = sent;
     public bool IsSpecial { get; } = isSpecial;
 
-    // Boolean state properties
     public bool IsClosed { get; set; }
     public bool IsAcknowledged { get; set; }
+    public bool IsManuallyAcknowledged { get; set; } // Pilot acknowledged via voice, no corresponding downlink
+    public bool CanAction { get; set; }
+    public bool Actioned { get; set; }
     public bool IsUrgent { get; set; }
     public bool IsPilotLate { get; set; }
     public bool IsTransmissionFailed { get; set; }

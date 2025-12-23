@@ -11,7 +11,7 @@ namespace ACARSPlugin.Windows;
 
 public partial class CurrentMessagesWindow : Window
 {
-    private MessageViewModel? _selectedMessage;
+    private CurrentMessageViewModel? _selectedMessage;
     private FrameworkElement? _extendedMessageAnchor;
     private readonly CurrentMessagesViewModel _viewModel;
 
@@ -55,7 +55,7 @@ public partial class CurrentMessagesWindow : Window
     private void Message_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
-            element.DataContext is not MessageViewModel messageViewModel ||
+            element.DataContext is not CurrentMessageViewModel messageViewModel ||
             DataContext is not CurrentMessagesViewModel viewModel)
             return;
 
@@ -67,7 +67,7 @@ public partial class CurrentMessagesWindow : Window
     private void Callsign_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
-            element.DataContext is not MessageViewModel messageViewModel ||
+            element.DataContext is not CurrentMessageViewModel messageViewModel ||
             DataContext is not CurrentMessagesViewModel viewModel)
             return;
 
@@ -91,7 +91,7 @@ public partial class CurrentMessagesWindow : Window
     private void Message_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
-            element.DataContext is not MessageViewModel messageViewModel ||
+            element.DataContext is not CurrentMessageViewModel messageViewModel ||
             DataContext is not CurrentMessagesViewModel viewModel)
             return;
 
@@ -158,7 +158,7 @@ public partial class CurrentMessagesWindow : Window
         e.Handled = true;
     }
 
-    private void UpdateButtonVisibility(MessageViewModel message)
+    private void UpdateButtonVisibility(CurrentMessageViewModel currentMessage)
     {
         // Hide all buttons first
         StandbyButton.Visibility = Visibility.Collapsed;
@@ -171,7 +171,7 @@ public partial class CurrentMessagesWindow : Window
         HistoryButton.Visibility = Visibility.Collapsed;
 
         // Show buttons based on message type and state
-        if (message is { IsDownlink: true, OriginalMessage: DownlinkMessage { ResponseType: CpdlcDownlinkResponseType.ResponseRequired } })
+        if (currentMessage is { IsDownlink: true, OriginalMessage: DownlinkMessage { ResponseType: CpdlcDownlinkResponseType.ResponseRequired } })
         {
             StandbyButton.Visibility = Visibility.Visible;
             DeferredButton.Visibility = Visibility.Visible;
@@ -179,12 +179,12 @@ public partial class CurrentMessagesWindow : Window
             UnableTrafficButton.Visibility = Visibility.Visible;
             UnableAirspaceButton.Visibility = Visibility.Visible;
         }
-        else if (message is { IsDownlink: false, OriginalMessage: UplinkMessage { IsPilotLate: true } })
+        else if (currentMessage is { IsDownlink: false, OriginalMessage: UplinkMessage { IsPilotLate: true } })
         {
             ManualAckButton.Visibility = Visibility.Visible;
             HistoryButton.Visibility = Visibility.Visible;
         }
-        else if (message.OriginalMessage is UplinkMessage { IsTransmissionFailed: true })
+        else if (currentMessage.OriginalMessage is UplinkMessage { IsTransmissionFailed: true })
         {
             HistoryButton.Visibility = Visibility.Visible;
             ReissueButton.Visibility = Visibility.Visible;
@@ -203,7 +203,7 @@ public partial class CurrentMessagesWindow : Window
                HistoryButton.Visibility == Visibility.Visible;
     }
 
-    private void ExecuteCommandAndClosePopup(Func<CurrentMessagesViewModel, IRelayCommand<MessageViewModel>> commandSelector)
+    private void ExecuteCommandAndClosePopup(Func<CurrentMessagesViewModel, IRelayCommand<CurrentMessageViewModel>> commandSelector)
     {
         if (_selectedMessage != null && DataContext is CurrentMessagesViewModel viewModel)
         {
