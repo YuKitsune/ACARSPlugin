@@ -42,6 +42,20 @@
             <Style x:Key="MessageClassButton" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
                 <Setter Property="Height" Value="28"/>
                 <Setter Property="Margin" Value="1"/>
+                
+                <Style.Triggers>
+                    <DataTrigger Value="True">
+                        <DataTrigger.Binding>
+                            <MultiBinding Converter="{StaticResource EqualityConverter}" Mode="OneWay">
+                                <Binding Mode="OneWay"/>
+                                <Binding Path="DataContext.SelectedMessageCategory" RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type Window}}" Mode="OneWay"/>
+                            </MultiBinding>
+                        </DataTrigger.Binding>
+                        
+                        <Setter Property="Background" Value="{x:Static local:Theme.InteractiveTextColor}"/>
+                        <Setter Property="Foreground" Value="{x:Static local:Theme.BackgroundColor}"/>
+                    </DataTrigger>
+                </Style.Triggers>
             </Style>
             
             <Style x:Key="Mode2Button" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
