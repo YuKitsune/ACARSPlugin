@@ -1,4 +1,5 @@
 using ACARSPlugin.Model;
+using ACARSPlugin.Server.Contracts;
 
 namespace ACARSPlugin.Services;
 
@@ -30,6 +31,19 @@ public class AircraftConnectionTracker
         try
         {
             _connectedAircraft.Add(connection);
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+
+    public async Task<AircraftConnection?> GetConnectedAircraft(string callsign, CancellationToken cancellationToken = default)
+    {
+        await _semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            return _connectedAircraft.FirstOrDefault(a => a.Callsign == callsign);
         }
         finally
         {
