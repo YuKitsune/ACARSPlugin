@@ -20,6 +20,12 @@ using vatsys.Plugin;
 
 namespace ACARSPlugin;
 
+// TODO: Revise CPDLC message set (custom config)
+// TODO: History window
+// TODO: Text fallback
+// TODO: RELEASE
+
+// TODO: ADS-C
 // TODO: Strip items
 
 [Export(typeof(IPlugin))]
@@ -661,8 +667,12 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
             var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
             var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels.ToArray(), mediator, errorReporter, guiInvoker);
+            var windowHandle = new WpfWindowHandle();
+            
+            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels.ToArray(), mediator, errorReporter, guiInvoker, windowHandle);
             var window = new EditorWindow(viewModel);
+            windowHandle.SetWindow(window);
+
             ElementHost.EnableModelessKeyboardInterop(window);
             
             _editorWindowState = new WindowState(callsign, window);
@@ -676,18 +686,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     }
 
     record WindowState(string Callsign, EditorWindow Window);
-
-    public class AircraftInfo
-    {
-        public string Callsign { get; set; }
-        public bool Equipped { get; set; }
-        public bool Connected { get; set; }
-        public bool HasJurisdiction { get; set; }
-        public bool IsCurrentDataAuthority { get; set; }
-        public bool HasActiveDownlinkMessages { get; set; }
-        public bool HasSuspendedMessage { get; set; }
-        public bool Unable { get; set; }
-    }
 
     public void Dispose()
     {

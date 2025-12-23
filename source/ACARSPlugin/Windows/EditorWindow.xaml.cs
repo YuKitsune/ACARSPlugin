@@ -43,7 +43,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
     private void MessageClassElement_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
-            element.DataContext is not UplinkMessageTemplate template ||
+            element.DataContext is not UplinkMessageTemplateViewModel template ||
             DataContext is not EditorViewModel viewModel)
             return;
 
@@ -79,7 +79,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
     private void TemplatePartButton_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
-            element.DataContext is not UplinkMessageTemplatePartViewModel templatePart)
+            element.DataContext is not UplinkMessageTemplateElementComponentViewModel templatePart)
             return;
 
         switch (e.ChangedButton)
@@ -117,7 +117,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
     private void TemplatePartTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (sender is not FrameworkElement element ||
-            element.DataContext is not UplinkMessageTemplatePartViewModel templatePart)
+            element.DataContext is not UplinkMessageTemplateElementComponentViewModel templatePart)
             return;
 
         // Enter: Save and exit editing
@@ -137,7 +137,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
     private void TemplatePartTextBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement element ||
-            element.DataContext is not UplinkMessageTemplatePartViewModel templatePart)
+            element.DataContext is not UplinkMessageTemplateElementComponentViewModel templatePart)
             return;
 
         templatePart.IsEditing = false;
