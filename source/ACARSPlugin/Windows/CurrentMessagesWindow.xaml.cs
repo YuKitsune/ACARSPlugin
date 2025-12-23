@@ -171,7 +171,7 @@ public partial class CurrentMessagesWindow : Window
         HistoryButton.Visibility = Visibility.Collapsed;
 
         // Show buttons based on message type and state
-        if (currentMessage is { IsDownlink: true, OriginalMessage: DownlinkMessage { ResponseType: CpdlcDownlinkResponseType.ResponseRequired } })
+        if (currentMessage is { IsDownlink: true, OriginalMessage: DownlinkMessage { ResponseType: CpdlcDownlinkResponseType.ResponseRequired, IsClosed: false } })
         {
             StandbyButton.Visibility = Visibility.Visible;
             DeferredButton.Visibility = Visibility.Visible;
@@ -179,15 +179,19 @@ public partial class CurrentMessagesWindow : Window
             UnableTrafficButton.Visibility = Visibility.Visible;
             UnableAirspaceButton.Visibility = Visibility.Visible;
         }
-        else if (currentMessage is { IsDownlink: false, OriginalMessage: UplinkMessage { IsPilotLate: true } })
+        else if (currentMessage is { IsDownlink: false, OriginalMessage: UplinkMessage { IsPilotLate: true, IsClosed: false } })
         {
             ManualAckButton.Visibility = Visibility.Visible;
             HistoryButton.Visibility = Visibility.Visible;
         }
-        else if (currentMessage.OriginalMessage is UplinkMessage { IsTransmissionFailed: true })
+        else if (currentMessage.OriginalMessage is UplinkMessage { IsTransmissionFailed: true, IsClosed: false })
         {
             HistoryButton.Visibility = Visibility.Visible;
             ReissueButton.Visibility = Visibility.Visible;
+        }
+        else
+        {
+            HistoryButton.Visibility = Visibility.Visible;
         }
     }
 
