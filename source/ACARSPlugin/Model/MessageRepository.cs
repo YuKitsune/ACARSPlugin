@@ -15,11 +15,17 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         try
         {
             // TODO: move DTO to Model conversion into handler
+            // Replace newlines with ". " so messages display on a single line
+            var content = downlinkMessage.Content
+                .Replace("\r\n", ". ")
+                .Replace("\n", ". ")
+                .Replace("\r", ". ");
+
             var model = new DownlinkMessage(
                 downlinkMessage.Id,
                 downlinkMessage.Sender,
                 downlinkMessage.ResponseType,
-                downlinkMessage.Content,
+                content,
                 clock.UtcNow(),
                 configuration.SpecialDownlinkMessages.Contains(downlinkMessage.Content),
                 downlinkMessage.ReplyToUplinkId);

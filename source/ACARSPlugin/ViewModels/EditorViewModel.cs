@@ -474,6 +474,11 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         
         foreach (var uplinkMessageElement in UplinkMessageElements)
         {
+            if (!string.IsNullOrEmpty(content))
+            {
+                content += ". ";
+            }
+            
             foreach (var uplinkMessageElementPart in uplinkMessageElement.Parts)
             {
                 if (uplinkMessageElementPart is UplinkMessageTextPartViewModel textPart)
@@ -499,8 +504,6 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             var newResponseRank = responseTypeRank[responseTypeMap[uplinkMessageElement.ResponseType]];
             if (newResponseRank > currentResponseRank)
                 responseType = responseTypeMap[uplinkMessageElement.ResponseType];
-            
-            content += Environment.NewLine;
         }
 
         return (content.Trim(), responseType);
