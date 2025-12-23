@@ -69,12 +69,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         Callsign = callsign;
         DownlinkMessages = downlinkMessages;
 
-        if (downlinkMessages.Any())
-        {
-            // Automatically select the last downlink message
-            downlinkMessages.Last().Selected = true;
-            SelectedDownlinkMessage =  downlinkMessages.Last();
-        }
+        // Automatically select the last downlink message
+        SelectedDownlinkMessage = downlinkMessages.LastOrDefault();
 
         MessageCategoryNames = _uplinkMessageTemplates.Messages.Keys
             .Where(s => s != _permanentMessageClassName)
@@ -123,20 +119,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
 
     [ObservableProperty] private string? error;
 
-    partial void OnSelectedDownlinkMessageChanged(DownlinkMessageViewModel? oldValue, DownlinkMessageViewModel? newValue)
+    partial void OnSelectedDownlinkMessageChanged(DownlinkMessageViewModel? _, DownlinkMessageViewModel? newValue)
     {
-        // Clear the Selected property on the previously selected message
-        if (oldValue is not null)
-        {
-            oldValue.Selected = false;
-        }
-
-        // Set the Selected property on the newly selected message
-        if (newValue is not null)
-        {
-            newValue.Selected = true;
-        }
-
         // Show the hot buttons if a message has been selected
         ShowHotButtons = newValue is not null;
     }

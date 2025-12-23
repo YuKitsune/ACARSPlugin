@@ -30,7 +30,6 @@ public partial class DownlinkMessageViewModel : ObservableObject
         Message = "EXAMPLE";
         MaxCharacters = 250; // TODO: Calculate based on view width
         DisplayText = GetDisplayText(Message, Received, StandbySent, Deferred, MaxCharacters);
-        Selected = false;
     }
 #endif
 
@@ -42,7 +41,6 @@ public partial class DownlinkMessageViewModel : ObservableObject
     [ObservableProperty] private string message;
     [ObservableProperty] private string displayText;
     [ObservableProperty] private string fullDisplayText;
-    [ObservableProperty] private bool selected;
     [ObservableProperty] private int maxCharacters;
     
     static string GetDisplayText(string fullContent, DateTimeOffset received, bool standbySent, bool requestDeferred, int maxCharacters)
