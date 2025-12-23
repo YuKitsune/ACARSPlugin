@@ -351,6 +351,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 }.Any(s => flightDataRecord.AircraftEquip.Contains(s));
 
                 var unacknowledgedUnableReceived = activeDialogues.SelectMany(d => d.Messages)
+                    .OfType<DownlinkMessage>()
                     .Any(m => m.Content.Contains("UNABLE") && !m.IsAcknowledged);
 
                 // TODO: Suspended messages
