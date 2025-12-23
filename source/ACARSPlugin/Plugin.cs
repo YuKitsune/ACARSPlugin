@@ -211,7 +211,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated) {}
     
-    public CustomLabelItem GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
+    public CustomLabelItem? GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
     {
         var labelItem = new CustomLabelItem
         {
@@ -221,22 +221,34 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         
         try
         {
+            if (!itemType.StartsWith("ACARSPLUGIN_CPDLCSTATUS"))
+                return labelItem;
             
-            var customItem = GetCustomStripOrLabelItem(itemType, flightDataRecord);
+            var customItem = GetCustomStripOrLabelItem(flightDataRecord);
             if (customItem is null)
             {
+                if (itemType == "ACARSPLUGIN_CPDLCSTATUS_BG")
+                    return null;
+                
                 return labelItem;
             }
 
             labelItem.Text = customItem.Text;
-            
-            // BUG: These colours don't change
-            if (customItem.ForegroundColour is not null)
-            {
-                labelItem.ForeColourIdentity = Colours.Identities.Custom;
-                labelItem.CustomForeColour = customItem.ForegroundColour;
-            }
 
+            // vatSys bug: custom background colours can't be drawn selectively.
+            // vatSys won't draw the custom background if the original colour (specified in the Labels.xml file) is transparent (or empty).
+            // To work around this, we define two label items. One with the background, and one without.
+            // If we need to draw a custom background colour, we return `null` for the one without the background
+            if (customItem.BackgroundColour is not null && itemType != "ACARSPLUGIN_CPDLCSTATUS_BG")
+            {
+                return null;
+            }
+            
+            if (customItem.BackgroundColour is null && itemType != "ACARSPLUGIN_CPDLCSTATUS")
+            {
+                return null;
+            }
+            
             if (customItem.BackgroundColour is not null)
             {
                 labelItem.BackColourIdentity = Colours.Identities.Custom;
@@ -266,13 +278,10 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
     }
 
-    CustomStripOrLabelItem? GetCustomStripOrLabelItem(string itemType, FDP2.FDR flightDataRecord)
+    CustomStripOrLabelItem? GetCustomStripOrLabelItem(FDP2.FDR flightDataRecord)
     {
         try
         {
-            if (itemType is not ("ACARSPlugin_CPDLCStatus" or "LABEL_ITEM_CPDLC_STATUS" or "CPDLCStatus"))
-                return null;
-
             return _labelItemCache.TryGetValue(flightDataRecord.Callsign, out var cachedItem)
                 ? cachedItem
                 : null;
@@ -287,7 +296,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     record CustomStripOrLabelItem(
         string Text,
         CustomColour? BackgroundColour,
-        CustomColour? ForegroundColour,
         Action LeftClickCallback,
         Action MiddleClickCallback,
         Action RightClickCallback);
@@ -416,7 +424,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 _labelItemCache[flightDataRecord.Callsign] = new CustomStripOrLabelItem(
                     text,
                     backgroundColour,
-                    foregroundColour,
                     leftClickAction,
                     middleClickAction,
                     rightClickAction);
