@@ -46,8 +46,8 @@ public class Dialogue
                     uplink.IsClosed = true;
                 }
 
-                // Close the corresponding downlink
-                if (uplink.ReplyToDownlinkId.HasValue)
+                // Close the corresponding downlink, unless this is a special message (i.e. STANDBY)
+                if (!uplink.IsSpecial && uplink.ReplyToDownlinkId.HasValue)
                 {
                     var downlink = _messages.OfType<DownlinkMessage>().FirstOrDefault(dl => dl.Id == uplink.ReplyToDownlinkId.Value);
                     if (downlink != null)
@@ -72,14 +72,9 @@ public class Dialogue
                     downlink.IsClosed = true;
                 }
 
-                // Rule 2: When downlink reply is received, close the uplink it's replying to
-                if (downlink.ReplyToUplinkId.HasValue)
+                // Close the corresponding uplink, unless this is a special message (i.e. STANDBY)
+                if (!downlink.IsSpecial && downlink.ReplyToUplinkId.HasValue)
                 {
-                    // Special downlinks (STANDBY) don't close the uplink
-                    // TODO: Maybe they should? We need to stop the "Late" timer from kicking in if there's a special interim reply.
-                    if (downlink.IsSpecial)
-                        return;
-
                     var uplink = _messages.OfType<UplinkMessage>().FirstOrDefault(ul => ul.Id == downlink.ReplyToUplinkId.Value);
                     if (uplink != null)
                     {
