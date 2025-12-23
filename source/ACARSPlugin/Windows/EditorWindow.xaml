@@ -24,7 +24,13 @@
             <Style x:Key="DownlinkMessageBackground" TargetType="Border">
                 <Setter Property="Background" Value="{x:Static local:Theme.InteractiveTextColor}"/>
                 <Style.Triggers>
-                    <DataTrigger Binding="{Binding Selected}" Value="True">
+                    <DataTrigger Value="True">
+                        <DataTrigger.Binding>
+                            <MultiBinding Converter="{StaticResource EqualityConverter}" Mode="OneWay">
+                                <Binding Mode="OneWay"/>
+                                <Binding Path="DataContext.SelectedDownlinkMessage" RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type Window}}" Mode="OneWay"/>
+                            </MultiBinding>
+                        </DataTrigger.Binding>
                         <Setter Property="Background" Value="{x:Static local:Theme.CPDLCSelectedDownlinkBackgroundColor}"/>
                     </DataTrigger>
                 </Style.Triggers>
@@ -33,7 +39,13 @@
             <Style x:Key="DownlinkMessageText" TargetType="TextBlock" BasedOn="{StaticResource InteractiveTextStyle}">
                 <Setter Property="Foreground" Value="{x:Static local:Theme.CPDLCSelectedDownlinkBackgroundColor}"/>
                 <Style.Triggers>
-                    <DataTrigger Binding="{Binding Selected}" Value="True">
+                    <DataTrigger Value="True">
+                        <DataTrigger.Binding>
+                            <MultiBinding Converter="{StaticResource EqualityConverter}" Mode="OneWay">
+                                <Binding Mode="OneWay"/>
+                                <Binding Path="DataContext.SelectedDownlinkMessage" RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type Window}}" Mode="OneWay"/>
+                            </MultiBinding>
+                        </DataTrigger.Binding>
                         <Setter Property="Foreground" Value="{x:Static local:Theme.InteractiveTextColor}"/>
                     </DataTrigger>
                 </Style.Triggers>
@@ -283,7 +295,22 @@
                                     </Style.Triggers>
                                 </Style>
                             </Button.Style>
-                            <TextBlock Style="{StaticResource InteractiveTextStyle}">
+                            <TextBlock>
+                                <TextBlock.Style>
+                                    <Style BasedOn="{StaticResource InteractiveTextStyle}" TargetType="TextBlock">
+                                        <Style.Triggers>
+                                            <DataTrigger Value="True">
+                                                <DataTrigger.Binding>
+                                                    <MultiBinding Converter="{StaticResource EqualityConverter}" Mode="OneWay">
+                                                        <Binding Mode="OneWay"/>
+                                                        <Binding Path="DataContext.SelectedUplinkMessageElement" RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type Window}}" Mode="OneWay"/>
+                                                    </MultiBinding>
+                                                </DataTrigger.Binding>
+                                                <Setter Property="Foreground" Value="{x:Static local:Theme.BackgroundColor}"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
                                 <TextBlock.Text>
                                     <MultiBinding Converter="{StaticResource IndexInCollectionConverter}" FallbackValue="?">
                                         <Binding FallbackValue="{x:Null}"/>
