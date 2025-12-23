@@ -604,6 +604,9 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             
             foreach (var dialogue in response.Dialogues)
             {
+                if (dialogue.Callsign != Callsign)
+                    continue;
+                
                 foreach (var message in dialogue.Messages)
                 {
                     if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed || downlinkMessage.ResponseType == CpdlcDownlinkResponseType.NoResponse)

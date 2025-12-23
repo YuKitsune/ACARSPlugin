@@ -3,7 +3,6 @@ using System.ComponentModel.Composition;
 using System.IO;
 using System.Windows;
 using System.Windows.Forms;
-using System.Windows.Forms.Integration;
 using System.Windows.Media;
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
@@ -22,6 +21,7 @@ using vatsys.Plugin;
 
 namespace ACARSPlugin;
 
+// TODO: Jurisdiction checks
 // TODO: Revise CPDLC message set (custom config)
 // TODO: vatSys window
 // TODO: Text fallback
@@ -627,6 +627,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
                 foreach (var dialogue in response.Dialogues)
                 {
+                    if (dialogue.Callsign != callsign)
+                        continue;
+                    
                     foreach (var message in dialogue.Messages)
                     {
                         if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed || downlinkMessage.ResponseType == CpdlcDownlinkResponseType.NoResponse)
