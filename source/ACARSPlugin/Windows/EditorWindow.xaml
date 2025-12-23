@@ -12,7 +12,7 @@
         Title="{Binding Callsign}"
         Width="640"
         SizeToContent="Height"
-        Topmost="true">
+        ResizeMode="NoResize">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

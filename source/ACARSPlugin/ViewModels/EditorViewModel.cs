@@ -591,7 +591,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
 
     public void Receive(CurrentMessagesChanged message)
     {
-        _guiInvoker.InvokeOnGUI(async () => await LoadDownlinkMessagesAsync());
+        _guiInvoker.InvokeOnGUI(async _ => await LoadDownlinkMessagesAsync());
     }
 
     async Task LoadDownlinkMessagesAsync()

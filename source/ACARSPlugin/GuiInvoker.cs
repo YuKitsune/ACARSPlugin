@@ -1,15 +1,16 @@
-﻿using vatsys;
+﻿using System.Windows.Forms;
+using vatsys;
 
 namespace ACARSPlugin;
 
 public interface IGuiInvoker
 {
-    void InvokeOnGUI(Action action);
+    void InvokeOnGUI(Action<Form> action);
 }
 
 public class GuiInvoker : IGuiInvoker
 {
-    public void InvokeOnGUI(Action action)
+    public void InvokeOnGUI(Action<Form> action)
     {
         var mainForm = System.Windows.Forms.Application.OpenForms["MainForm"];
         if (mainForm == null)
@@ -22,13 +23,13 @@ public class GuiInvoker : IGuiInvoker
         // If already on UI thread, execute directly to avoid deadlock
         if (!mainForm.InvokeRequired)
         {
-            action();
+            action(mainForm);
             return;
         }
 
         try
         {
-            MMI.InvokeOnGUI(delegate { action(); });
+            MMI.InvokeOnGUI(delegate { action(mainForm); });
         }
         catch (InvalidOperationException)
         {

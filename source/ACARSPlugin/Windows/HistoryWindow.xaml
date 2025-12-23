@@ -12,7 +12,6 @@
         Height="320" Width="467"
         MinHeight="24" MinWidth="140"
         d:DesignHeight="640"
-        Topmost="True"
         Background="{x:Static local:Theme.BackgroundColor}">
 
     <Window.Resources>

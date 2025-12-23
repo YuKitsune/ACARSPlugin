@@ -1,8 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Controls.Primitives;
 using System.Windows.Input;
-using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
 using ACARSPlugin.ViewModels;
 using CommunityToolkit.Mvvm.Messaging;

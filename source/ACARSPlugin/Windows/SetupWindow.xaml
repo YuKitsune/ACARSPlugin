@@ -11,7 +11,7 @@
         Title="CPDLC Setup"
         Width="400"
         SizeToContent="Height"
-        Topmost="true">
+        ResizeMode="NoResize">
     <Window.Resources>
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>

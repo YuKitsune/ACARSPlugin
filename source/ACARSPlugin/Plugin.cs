@@ -98,6 +98,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             .AddSingleton<MessageMonitorService>()
             .AddSingleton<IErrorReporter, ErrorReporter>()
             .AddSingleton<AircraftConnectionTracker>()
+            .AddSingleton<WindowManager>()
             .AddMediatR(c => c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly))
             .BuildServiceProvider();
         
@@ -386,9 +387,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                         try
                         {
                             // TODO: Better async stuff here
-                            guiInvoker.InvokeOnGUI(() =>
+                            guiInvoker.InvokeOnGUI(_ =>
                             {
-                                OpenCpdlcWindow(flightDataRecord.Callsign, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+                                OpenCpdlcWindow(flightDataRecord.Callsign, CancellationToken.None);
                             });
                         }
                         catch (Exception ex)
@@ -405,9 +406,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                         try
                         {
                             // TODO: Better async stuff here
-                            guiInvoker.InvokeOnGUI(() =>
+                            guiInvoker.InvokeOnGUI(_ =>
                             {
-                                OpenCpdlcWindow(flightDataRecord.Callsign, CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+                                OpenCpdlcWindow(flightDataRecord.Callsign, CancellationToken.None);
                             });
                         }
                         catch (Exception ex)
@@ -452,105 +453,77 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
     }
 
-    SetupWindow? _setupWindow = null;
-
     void OpenSetupWindow()
     {
-        // If the setup window is already open, close it
-        if (_setupWindow is not null)
-        {
-            _setupWindow.Close();
-            _setupWindow = null;
-            return;
-        }
+        var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
 
-        var acarsConfiguration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
-        var mediator = ServiceProvider.GetRequiredService<IMediator>();
+        windowManager.FocusOrCreateWindow(
+            WindowKeys.Setup,
+            windowHandle =>
+            {
+                var acarsConfiguration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
+                var mediator = ServiceProvider.GetRequiredService<IMediator>();
 
-        // Create the view model with current configuration and connection state
-        var isConnected = ConnectionManager?.IsConnected ?? false;
-        var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
-        var viewModel = new SetupViewModel(
-            mediator,
-            errorReporter,
-            acarsConfiguration.ServerEndpoint,
-            acarsConfiguration.Stations,
-            isConnected ? ConnectionManager!.StationIdentifier : acarsConfiguration.Stations.First(),
-            isConnected);
+                // Create the view model with current configuration and connection state
+                var isConnected = ConnectionManager?.IsConnected ?? false;
+                var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
+                var viewModel = new SetupViewModel(
+                    mediator,
+                    errorReporter,
+                    acarsConfiguration.ServerEndpoint,
+                    acarsConfiguration.Stations,
+                    isConnected ? ConnectionManager!.StationIdentifier : acarsConfiguration.Stations.First(),
+                    isConnected);
 
-        // Create and show the window
-        var window = new SetupWindow(viewModel);
-        window.Closed += (_, _) => _setupWindow = null;
-
-        ElementHost.EnableModelessKeyboardInterop(window);
-
-        _setupWindow = window;
-        window.Show();
+                var control = new SetupWindow(viewModel);
+                return control;
+            });
     }
-
-    HistoryWindow? _historyWindow = null;
-    CurrentMessagesWindow? _currentMessagesWindow = null;
 
     void OpenHistoryWindow()
     {
-        if (_historyWindow is not null)
-        {
-            _historyWindow.Close();
-            _historyWindow = null;
-            return;
-        }
+        var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
 
-        var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
-        var mediator = ServiceProvider.GetRequiredService<IMediator>();
-        var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-        var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
+        windowManager.FocusOrCreateWindow(
+            WindowKeys.History,
+            windowHandle =>
+            {
+                var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
+                var mediator = ServiceProvider.GetRequiredService<IMediator>();
+                var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
+                var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
 
-        var selectedCallsign = MMI.SelectedTrack?.GetFDR()?.Callsign;
+                var viewModel = new HistoryViewModel(
+                    configuration,
+                    mediator,
+                    guiInvoker,
+                    errorReporter);
 
-        var viewModel = new HistoryViewModel(
-            configuration,
-            mediator,
-            guiInvoker,
-            errorReporter,
-            selectedCallsign);
-
-        // Create and show the window
-        var window = new HistoryWindow(viewModel);
-        window.Closed += (_, _) => _historyWindow = null;
-
-        ElementHost.EnableModelessKeyboardInterop(window);
-
-        _historyWindow = window;
-        window.Show();
+                return new HistoryWindow(viewModel);
+            });
     }
 
     void OpenCurrentMessagesWindow()
     {
-        if (_currentMessagesWindow is not null)
-            return; // Already open
+        var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
 
-        var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
-        var mediator = ServiceProvider.GetRequiredService<IMediator>();
-        var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-        var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
-        var viewModel = new CurrentMessagesViewModel(configuration, mediator, guiInvoker, errorReporter);
+        windowManager.FocusOrCreateWindow(
+            WindowKeys.CurrentMessages,
+            windowHandle =>
+            {
+                var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
+                var mediator = ServiceProvider.GetRequiredService<IMediator>();
+                var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
+                var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
 
-        var window = new CurrentMessagesWindow(viewModel);
-        window.Closed += (_, _) => _currentMessagesWindow = null;
+                var viewModel = new CurrentMessagesViewModel(
+                    configuration,
+                    mediator,
+                    guiInvoker,
+                    errorReporter);
 
-        ElementHost.EnableModelessKeyboardInterop(window);
-
-        _currentMessagesWindow = window;
-        window.Show();
-    }
-
-    void CloseCurrentMessagesWindow()
-    {
-        if (_currentMessagesWindow is null)
-            return;
-
-        _currentMessagesWindow.Close();
-        _currentMessagesWindow = null;
+                return new CurrentMessagesWindow(viewModel);
+            });
     }
 
     private async void FDP2OnFDRsChanged(object sender, FDP2.FDRsChangedEventArgs e)
@@ -598,6 +571,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 return;
 
             var repository = ServiceProvider.GetRequiredService<MessageRepository>();
+            var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
             var currentDialogues = await repository.GetCurrentDialogues();
 
             if (_isDisposed)
@@ -607,12 +581,11 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
             if (currentDialogues.Any())
             {
-                if (_currentMessagesWindow is null)
-                    guiInvoker.InvokeOnGUI(OpenCurrentMessagesWindow);
+                guiInvoker.InvokeOnGUI(_ => OpenCurrentMessagesWindow());
             }
             else
             {
-                guiInvoker.InvokeOnGUI(CloseCurrentMessagesWindow);
+                windowManager.TryRemoveWindow(WindowKeys.CurrentMessages);
             }
         }
         catch (Exception ex)
@@ -626,75 +599,59 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     CustomColour _cachedDownlinkColor = new(0, 105, 0);
     CustomColour _cachedUnableDownlinkColor = new(230, 127, 127);
     CustomColour _cachedSuspendedColor = new(255, 255, 255);
-
-    // TODO: Close the window if the aircraft disconnects from CPDLC, or if the connection to the ACARS Server fails.
-    SemaphoreSlim _editorWindowStateSemaphore = new(1,1);
-    WindowState? _editorWindowState = null;
     
-    async Task OpenCpdlcWindow(string callsign, CancellationToken cancellationToken)
+    void OpenCpdlcWindow(string callsign, CancellationToken cancellationToken)
     {
-        await _editorWindowStateSemaphore.WaitAsync(cancellationToken);
-        
-        try
-        {
-            // If the editor window is already opened for this aircraft, close it
-            if (_editorWindowState is not null && _editorWindowState.Callsign == callsign)
+        var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
+
+        // Close any existing editor window before opening a new one
+        // Each editor is specific to a callsign, so we always want a fresh window
+        windowManager.TryRemoveWindow(WindowKeys.Editor);
+
+        windowManager.FocusOrCreateWindow(
+            WindowKeys.Editor,
+            windowHandle =>
             {
-                _editorWindowState.Window.Close();
-                _editorWindowState = null;
-                return;
-            }
+                var mediator = ServiceProvider.GetRequiredService<IMediator>();
 
-            // Close the existing window
-            if (_editorWindowState is not null)
-            {
-                _editorWindowState.Window.Close();
-                _editorWindowState = null;
-            }
+                var response = mediator.Send(new GetCurrentDialoguesRequest(), cancellationToken)
+                    .ConfigureAwait(false)
+                    .GetAwaiter()
+                    .GetResult();
 
-            var mediator = ServiceProvider.GetRequiredService<IMediator>();
+                var downlinkMessageViewModels = new List<DownlinkMessageViewModel>();
 
-            var response = await mediator.Send(new GetCurrentDialoguesRequest(), cancellationToken);
-
-            var downlinkMessageViewModels = new List<DownlinkMessageViewModel>();
-            
-            foreach (var dialogue in response.Dialogues)
-            {
-                foreach (var message in dialogue.Messages)
+                foreach (var dialogue in response.Dialogues)
                 {
-                    if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed || downlinkMessage.ResponseType == CpdlcDownlinkResponseType.NoResponse)
-                        continue;
-                    
-                    var downlinkMessageViewModel = new DownlinkMessageViewModel(
-                        downlinkMessage,
-                        standbySent: dialogue.HasStandbyResponse(downlinkMessage.Id),
-                        deferred: dialogue.HasDeferredResponse(downlinkMessage.Id));
-                
-                    downlinkMessageViewModels.Add(downlinkMessageViewModel);
+                    foreach (var message in dialogue.Messages)
+                    {
+                        if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed || downlinkMessage.ResponseType == CpdlcDownlinkResponseType.NoResponse)
+                            continue;
+
+                        var downlinkMessageViewModel = new DownlinkMessageViewModel(
+                            downlinkMessage,
+                            standbySent: dialogue.HasStandbyResponse(downlinkMessage.Id),
+                            deferred: dialogue.HasDeferredResponse(downlinkMessage.Id));
+
+                        downlinkMessageViewModels.Add(downlinkMessageViewModel);
+                    }
                 }
-            }
 
-            var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
-            var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-            var windowHandle = new WpfWindowHandle();
-            
-            var viewModel = new EditorViewModel(callsign, downlinkMessageViewModels.ToArray(), mediator, errorReporter, guiInvoker, windowHandle);
-            var window = new EditorWindow(viewModel);
-            windowHandle.SetWindow(window);
+                var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
+                var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
 
-            ElementHost.EnableModelessKeyboardInterop(window);
-            
-            _editorWindowState = new WindowState(callsign, window);
+                var viewModel = new EditorViewModel(
+                    callsign,
+                    downlinkMessageViewModels.ToArray(),
+                    mediator,
+                    errorReporter,
+                    guiInvoker,
+                    windowHandle);
 
-            window.Show();
-        }
-        finally
-        {
-            _editorWindowStateSemaphore.Release();
-        }
+                var control = new EditorWindow(viewModel);
+                return control;
+            });
     }
-
-    record WindowState(string Callsign, EditorWindow Window);
 
     public void Dispose()
     {
@@ -716,12 +673,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             // Dispose MessageMonitorService
             var monitorService = ServiceProvider.GetService<MessageMonitorService>();
             monitorService?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-
-            // Close windows
-            _setupWindow?.Close();
-            _historyWindow?.Close();
-            _currentMessagesWindow?.Close();
-            _editorWindowState?.Window.Close();
 
             // Dispose connection manager
             ConnectionManager?.Dispose();

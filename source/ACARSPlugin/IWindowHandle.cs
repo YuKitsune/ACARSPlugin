@@ -1,4 +1,5 @@
 ﻿using System.Windows;
+using System.Windows.Forms;
 
 namespace ACARSPlugin;
 
@@ -19,5 +20,20 @@ public class WpfWindowHandle : IWindowHandle
     public void Close()
     {
         Window?.Close();
+    }
+}
+
+public class FormWindowHandle(Form? form = null) : IWindowHandle
+{
+    Form? Form { get; set; } = form;
+
+    public void SetForm(Form form)
+    {
+        Form = form;
+    }
+    
+    public void Close()
+    {
+        Form?.Close();
     }
 }

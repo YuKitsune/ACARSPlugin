@@ -108,7 +108,7 @@ public partial class HistoryViewModel : ObservableObject,
         if (_disposed)
             return;
 
-        _guiInvoker.InvokeOnGUI(async () =>
+        _guiInvoker.InvokeOnGUI(async _ =>
         {
             if (_disposed)
                 return;
