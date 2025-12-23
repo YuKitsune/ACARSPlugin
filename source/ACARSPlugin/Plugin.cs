@@ -624,16 +624,18 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             
             foreach (var dialogue in response.Dialogues)
             {
-                var firstMessage = dialogue.Messages.First();
-                if (firstMessage is not DownlinkMessage downlinkMessage)
-                    continue;
-
-                var downlinkMessageViewModel = new DownlinkMessageViewModel(
-                    downlinkMessage,
-                    standbySent: dialogue.HasStandbyResponse(downlinkMessage.Id),
-                    deferred: dialogue.HasDeferredResponse(downlinkMessage.Id));
+                foreach (var message in dialogue.Messages)
+                {
+                    if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed)
+                        continue;
+                    
+                    var downlinkMessageViewModel = new DownlinkMessageViewModel(
+                        downlinkMessage,
+                        standbySent: dialogue.HasStandbyResponse(downlinkMessage.Id),
+                        deferred: dialogue.HasDeferredResponse(downlinkMessage.Id));
                 
-                downlinkMessageViewModels.Add(downlinkMessageViewModel);
+                    downlinkMessageViewModels.Add(downlinkMessageViewModel);
+                }
             }
 
             var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
