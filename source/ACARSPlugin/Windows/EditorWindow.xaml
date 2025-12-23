@@ -218,40 +218,23 @@
         <!-- TODO: Prefix with * if the text needs to overflow. Right-click to extend the display area. -->
         <!-- TODO: Prefix with F if uplink id is 169 -->
         <!-- TODO: Prefix with E if uplink id is 170 -->
-        <ListBox
+        <ScrollViewer
             Grid.Row="2"
-            BorderThickness="2"
             Margin="8"
-            ItemsSource="{Binding SelectedMessageCategoryElements}">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <TextBlock
-                        Text="{Binding DisplayText}"
-                        Style="{StaticResource InteractiveTextStyle}"
-                        MouseLeftButtonDown="MessageClassElement_Click"/>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-
-            <ListBox.ItemContainerStyle>
-                <Style TargetType="ListBoxItem">
-                    <Setter Property="Padding" Value="4,2"/>
-                    <Setter Property="Margin" Value="0"/>
-                    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
-                    <Setter Property="Template">
-                        <Setter.Value>
-                            <ControlTemplate TargetType="ListBoxItem">
-                                <Border
-                                    Background="Transparent"
-                                    Padding="{TemplateBinding Padding}">
-                                    <ContentPresenter/>
-                                </Border>
-                            </ControlTemplate>
-                        </Setter.Value>
-                    </Setter>
-                </Style>
-            </ListBox.ItemContainerStyle>
-
-        </ListBox>
+            Style="{StaticResource CustomScrollViewerStyle}">
+            <ItemsControl ItemsSource="{Binding SelectedMessageCategoryElements}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Background="Transparent" Padding="4,2" Margin="0">
+                            <TextBlock
+                                Text="{Binding DisplayText}"
+                                Style="{StaticResource InteractiveTextStyle}"
+                                MouseLeftButtonDown="MessageClassElement_Click"/>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
         
         <!-- Message Construction Area -->
         <Grid Grid.Row="3" Margin="8">

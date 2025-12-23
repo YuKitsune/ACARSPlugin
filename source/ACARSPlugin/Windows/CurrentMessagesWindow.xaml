@@ -110,7 +110,7 @@
                 </Border>
             </Popup>
 
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ScrollViewer Style="{StaticResource CustomScrollViewerStyle}">
                 <ItemsControl ItemsSource="{Binding Dialogues}">
                     <!-- Each DialogueGroupViewModel -->
                     <ItemsControl.ItemTemplate>

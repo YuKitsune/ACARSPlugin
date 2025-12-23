@@ -518,4 +518,43 @@
         </Setter>
     </Style>
 
+    <!-- ScrollViewer with external CustomScrollBar -->
+    <Style x:Key="CustomScrollViewerStyle" TargetType="{x:Type ScrollViewer}" BasedOn="{StaticResource ControlBaseStyle}">
+        <Setter Property="HorizontalScrollBarVisibility" Value="Disabled"/>
+        <Setter Property="VerticalScrollBarVisibility" Value="Hidden"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="{x:Type ScrollViewer}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="16"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Content area with sunken border -->
+                        <controls:BeveledBorder
+                            Grid.Column="0"
+                            BevelType="Sunken"
+                            BorderThickness="{x:Static local:Theme.BeveledBorderThickness}"
+                            Margin="0,0,1,0">
+                            <ScrollViewer
+                                x:Name="PART_InternalScrollViewer"
+                                Focusable="false"
+                                HorizontalScrollBarVisibility="Hidden"
+                                VerticalScrollBarVisibility="Hidden">
+                                <ContentPresenter />
+                            </ScrollViewer>
+                        </controls:BeveledBorder>
+
+                        <!-- Custom external scrollbar -->
+                        <controls:CustomScrollBar
+                            Grid.Column="1"
+                            Margin="1,0,0,0"
+                            ScrollViewer="{Binding ElementName=PART_InternalScrollViewer}" />
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

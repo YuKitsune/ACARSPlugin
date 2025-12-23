@@ -25,7 +25,7 @@
 
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="32"/>
+            <RowDefinition Height="64"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         
@@ -41,7 +41,7 @@
                        Margin="0,0,8,0"
                        Text="ACID:"/>
 
-            <Grid Grid.Column="1" Width="80">
+            <Grid Grid.Column="1" Width="120" Height="32">
                 <TextBox x:Name="CallsignTextBox"
                          Text="{Binding Callsign, UpdateSourceTrigger=PropertyChanged}"
                          VerticalContentAlignment="Center"
@@ -115,8 +115,7 @@
                     </Border>
                 </Popup>
                 
-                <ScrollViewer VerticalScrollBarVisibility="Auto"
-                              HorizontalScrollBarVisibility="Disabled"
+                <ScrollViewer Style="{StaticResource CustomScrollViewerStyle}"
                               ScrollChanged="ScrollViewer_ScrollChanged">
                     <ItemsControl ItemsSource="{Binding Dialogues}">
                         <!-- Each DialogueHistoryViewModel -->
