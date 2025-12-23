@@ -324,13 +324,10 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     continue;
 
                 var connection = connectedAircraft.FirstOrDefault(c => c.Callsign == flightDataRecord.Callsign);
-                    
-                var messages = repository.GetDownlinkMessagesFrom(flightDataRecord.Callsign, CancellationToken.None)
-                    .ConfigureAwait(false)
-                    .GetAwaiter()
-                    .GetResult();
-                
-                var hasActiveDownlinkMessages = messages.Any(m => !m.IsClosed || !m.IsAcknowledged);
+
+                var activeDialogues = await repository.GetCurrentDialogues();
+
+                var hasActiveDownlinkMessages = activeDialogues.Any();
                 
                 var isEquipped = new[]
                 {
@@ -342,9 +339,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     "J6",
                     "J7",
                 }.Any(s => flightDataRecord.AircraftEquip.Contains(s));
-                
-                // TODO: if dialog is open and messages contains UNABLE
-                var unableReceived = messages.Any(m => !m.IsAcknowledged && m.Content.Contains("UNABLE"));
+
+                var unacknowledgedUnableReceived = activeDialogues.SelectMany(d => d.Messages)
+                    .Any(m => m.Content.Contains("UNABLE") && !m.IsAcknowledged);
 
                 // TODO: Suspended messages
                 var hasSuspendedMessage = false;
@@ -404,19 +401,13 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     // Color only changes for the responsible controller
                     if (flightDataRecord.IsTrackedByMe)
                     {
-                        if (hasActiveDownlinkMessages && unableReceived)
+                        if (hasActiveDownlinkMessages && unacknowledgedUnableReceived)
                         {
                             backgroundColour = _cachedUnableDownlinkColor;
                         }
                         else if (hasActiveDownlinkMessages)
                         {
                             backgroundColour = _cachedDownlinkColor;
-                        }
-
-                        // TODO: Verify this behaviour is correct
-                        if (hasSuspendedMessage)
-                        {
-                            foregroundColour = _cachedSuspendedColor;
                         }
                     }
                 }
