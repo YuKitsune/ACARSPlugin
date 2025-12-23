@@ -197,6 +197,7 @@ public partial class MessageViewModel : ObservableObject
         {
             return message switch
             {
+                DownlinkMessage downlinkMessage => downlinkMessage.Content.StartsWith("ERROR"), // TODO: Move to model
                 UplinkMessage uplinkMessage => uplinkMessage.IsTransmissionFailed,
                 _ => false
             };
