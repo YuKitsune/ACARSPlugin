@@ -23,16 +23,19 @@ namespace ACARSPlugin;
 // TODO: Strip items
 
 [Export(typeof(IPlugin))]
-public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipient<ConnectedAircraftChanged>
+public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipient<ConnectedAircraftChanged>, IDisposable
 {
 #if DEBUG
     public const string Name = "ACARS Plugin - Debug";
 #else
     public const string Name = "ACARS Plugin";
 #endif
-    
+
     // Cache for CustomStripOrLabelItem to avoid expensive lookups on every label update
     private readonly ConcurrentDictionary<string, CustomStripOrLabelItem> _labelItemCache = new();
+
+    private bool _isDisposed;
+    private readonly SemaphoreSlim _disposeLock = new(1, 1);
     
     string IPlugin.Name => Name;
 
@@ -126,6 +129,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     {
         try
         {
+            if (_isDisposed)
+                return;
+
             var mediator =  ServiceProvider.GetService<IMediator>();
             if (mediator is null)
                 return;
@@ -134,7 +140,8 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
         catch (Exception ex)
         {
-            Errors.Add(ex, Name);
+            if (!_isDisposed)
+                Errors.Add(ex, Name);
         }
     }
 
@@ -308,9 +315,12 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     {
         try
         {
+            if (_isDisposed)
+                return;
+
             var allExistingKeys = _labelItemCache.Keys;
             var allUpdatedKeys = new List<string>();
-            
+
             _labelItemCache.Clear();
 
             var repository = ServiceProvider.GetRequiredService<MessageRepository>();
@@ -531,11 +541,15 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     {
         try
         {
+            if (_isDisposed)
+                return;
+
             await RebuildLabelItemCache();
         }
         catch (Exception ex)
         {
-            Errors.Add(ex, Name);
+            if (!_isDisposed)
+                Errors.Add(ex, Name);
         }
     }
 
@@ -543,11 +557,15 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     {
         try
         {
+            if (_isDisposed)
+                return;
+
             await RebuildLabelItemCache();
         }
         catch (Exception ex)
         {
-            Errors.Add(ex, Name);
+            if (!_isDisposed)
+                Errors.Add(ex, Name);
         }
     }
     
@@ -555,10 +573,20 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     {
         try
         {
+            if (_isDisposed)
+                return;
+
             await RebuildLabelItemCache();
+
+            if (_isDisposed)
+                return;
 
             var repository = ServiceProvider.GetRequiredService<MessageRepository>();
             var currentDialogues = await repository.GetCurrentDialogues();
+
+            if (_isDisposed)
+                return;
+
             var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
 
             if (currentDialogues.Any())
@@ -573,7 +601,8 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
         catch (Exception ex)
         {
-            Errors.Add(ex, Name);
+            if (!_isDisposed)
+                Errors.Add(ex, Name);
         }
     }
 
@@ -657,5 +686,58 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         public bool HasActiveDownlinkMessages { get; set; }
         public bool HasSuspendedMessage { get; set; }
         public bool Unable { get; set; }
+    }
+
+    public void Dispose()
+    {
+        _disposeLock.Wait();
+        try
+        {
+            if (_isDisposed)
+                return;
+
+            _isDisposed = true;
+
+            // Unregister event handlers
+            Network.Connected -= NetworkConnected;
+            Network.Disconnected -= NetworkDisconnected;
+            FDP2.FDRsChanged -= FDP2OnFDRsChanged;
+            WeakReferenceMessenger.Default.Unregister<CurrentMessagesChanged>(this);
+            WeakReferenceMessenger.Default.Unregister<ConnectedAircraftChanged>(this);
+
+            // Dispose MessageMonitorService
+            var monitorService = ServiceProvider.GetService<MessageMonitorService>();
+            monitorService?.DisposeAsync().AsTask().GetAwaiter().GetResult();
+
+            // Close windows
+            _setupWindow?.Close();
+            _historyWindow?.Close();
+            _currentMessagesWindow?.Close();
+            _editorWindowState?.Window.Close();
+
+            // Dispose connection manager
+            ConnectionManager?.Dispose();
+
+            // Dispose service provider if it's disposable
+            if (ServiceProvider is IDisposable disposableProvider)
+                disposableProvider.Dispose();
+        }
+        catch (Exception ex)
+        {
+            // Log but don't throw during disposal
+            try
+            {
+                Errors.Add(ex, Name);
+            }
+            catch
+            {
+                // Ignore errors during error reporting in disposal
+            }
+        }
+        finally
+        {
+            _disposeLock.Release();
+            _disposeLock.Dispose();
+        }
     }
 }
