@@ -162,4 +162,34 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
 
         e.Handled = true;
     }
+
+    private void DownlinkMessage_RightClick(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is not FrameworkElement element ||
+            element.DataContext is not DownlinkMessageViewModel downlinkMessage ||
+            DataContext is not EditorViewModel viewModel)
+            return;
+
+        ExtendedDownlinkMessagePopup.PlacementTarget = element;
+        viewModel.CurrentlyExtendedDownlinkMessage = downlinkMessage;
+        ExtendedDownlinkMessagePopup.IsOpen = true;
+
+        e.Handled = true;
+    }
+
+    private void ExtendedDownlinkMessagePopup_MouseDown(object sender, MouseButtonEventArgs e)
+    {
+        // Close the popup on any click (left or right)
+        ExtendedDownlinkMessagePopup.IsOpen = false;
+        e.Handled = true;
+    }
+
+    private void ExtendedDownlinkMessagePopup_Closed(object? sender, EventArgs e)
+    {
+        // Clear the extended message in the ViewModel when the popup closes
+        if (DataContext is not EditorViewModel viewModel)
+            return;
+        
+        viewModel.CurrentlyExtendedDownlinkMessage = null;
+    }
 }

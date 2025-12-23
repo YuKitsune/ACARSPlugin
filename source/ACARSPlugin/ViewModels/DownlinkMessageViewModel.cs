@@ -1,4 +1,5 @@
 using System.Text;
+using System.Windows.Media;
 using ACARSPlugin.Model;
 using CommunityToolkit.Mvvm.ComponentModel;
 
@@ -15,6 +16,7 @@ public partial class DownlinkMessageViewModel : ObservableObject
         Message = message.Content;
         MaxCharacters = 250; // TODO: Calculate based on view width
         DisplayText = GetDisplayText(Message, Received, StandbySent, Deferred, MaxCharacters);
+        FullDisplayText = GetDisplayText(Message, Received, StandbySent, Deferred, int.MaxValue);
     }
 
 #if DEBUG
@@ -39,6 +41,7 @@ public partial class DownlinkMessageViewModel : ObservableObject
     [ObservableProperty] private bool deferred;
     [ObservableProperty] private string message;
     [ObservableProperty] private string displayText;
+    [ObservableProperty] private string fullDisplayText;
     [ObservableProperty] private bool selected;
     [ObservableProperty] private int maxCharacters;
     
@@ -78,7 +81,7 @@ public partial class DownlinkMessageViewModel : ObservableObject
         {
             sb[0] = '*';
         }
-        
+
         return sb.ToString();
     }
 }

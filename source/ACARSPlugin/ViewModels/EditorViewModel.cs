@@ -98,6 +98,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         nameof(SendUnableDueAirspaceUplinkMessageCommand))]
     private DownlinkMessageViewModel? selectedDownlinkMessage;
 
+    [ObservableProperty] private DownlinkMessageViewModel? currentlyExtendedDownlinkMessage;
+
     public bool ShowMessageCategories => !ShowHotButtons;
     [ObservableProperty] private string[] messageCategoryNames = [];
 
@@ -226,7 +228,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             _errorReporter.ReportError(ex);
         }
     }
-    
+
     [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
     async Task SendUnableDueTrafficUplinkMessage()
     {

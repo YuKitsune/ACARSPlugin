@@ -85,14 +85,30 @@
             <Style TargetType="TextBlock" BasedOn="{StaticResource GenericTextStyle}" />
         </ResourceDictionary>
     </Window.Resources>
+
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="60"/>
-            <RowDefinition Height="80"/>
-            <RowDefinition Height="128"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+        <!-- Extended Downlink Message Popup -->
+        <Popup x:Name="ExtendedDownlinkMessagePopup"
+               StaysOpen="False"
+               AllowsTransparency="True"
+               Placement="Relative"
+               Closed="ExtendedDownlinkMessagePopup_Closed">
+            <Border Style="{StaticResource DownlinkMessageBackground}"
+                    Height="20"
+                    MouseDown="ExtendedDownlinkMessagePopup_MouseDown">
+                <TextBlock Text="{Binding CurrentlyExtendedDownlinkMessage.FullDisplayText}"
+                           Style="{StaticResource DownlinkMessageText}"/>
+            </Border>
+        </Popup>
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="60"/>
+                <RowDefinition Height="80"/>
+                <RowDefinition Height="128"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
         
         <!-- Downlink Messages -->
         <ListBox
@@ -104,7 +120,8 @@
                 <DataTemplate DataType="{x:Type viewModels:DownlinkMessageViewModel}">
                     <Border Style="{StaticResource DownlinkMessageBackground}"
                             Height="20"
-                            MouseLeftButtonDown="DownlinkMessage_Click">
+                            MouseLeftButtonDown="DownlinkMessage_Click"
+                            MouseRightButtonDown="DownlinkMessage_RightClick">
                         <TextBlock Text="{Binding DisplayText}"
                                    Style="{StaticResource DownlinkMessageText}"/>
                     </Border>
@@ -397,5 +414,6 @@
                 </Button>
             </Grid>
         </Border>
+        </Grid>
     </Grid>
 </Window>
