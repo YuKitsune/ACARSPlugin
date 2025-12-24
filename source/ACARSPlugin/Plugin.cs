@@ -250,6 +250,13 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         
         // TODO: If nobody has jurisdiction, and we're the next owner, show the message
         // TODO: If nobody has jurisdiction, and we were the last owner, show the message
+        
+        // Fallback: If nobody has jurisdiction, show the message to everyone
+        if (!fdr.IsTracked)
+        {
+            return true;
+        }
+        
         return false;
     }
     
