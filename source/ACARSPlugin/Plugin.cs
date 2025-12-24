@@ -22,12 +22,10 @@ using vatsys.Plugin;
 
 namespace ACARSPlugin;
 
-// TODO: Jurisdiction checks
-// TODO: vatSys window
-// TODO: Text fallback
-// TODO: RELEASE
-
+// TODO: Text message fallback
+// TODO: window frame styling
 // TODO: Complex variable entry (popups and validation)
+// TODO: Fix jurisdiction checks
 // TODO: ADS-C
 // TODO: Strip items
 
