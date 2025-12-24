@@ -13,6 +13,12 @@ public class GetCurrentDialoguesRequestHandler(MessageRepository messageReposito
     public async Task<GetCurrentDialoguesResponse> Handle(GetCurrentDialoguesRequest request, CancellationToken cancellationToken)
     {
         var groups = await messageRepository.GetCurrentDialogues();
-        return new GetCurrentDialoguesResponse(groups);
+
+        // Filter to only include dialogues for the current controller
+        var filteredGroups = groups
+            .Where(dialogue => Plugin.ShouldDisplayMessage(dialogue.Callsign))
+            .ToList();
+
+        return new GetCurrentDialoguesResponse(filteredGroups);
     }
 }

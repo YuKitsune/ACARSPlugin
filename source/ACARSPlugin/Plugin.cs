@@ -228,6 +228,28 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     public void OnFDRUpdate(FDP2.FDR updated) { }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated) {}
+
+    public static bool ShouldDisplayMessage(string callsign)
+    {
+        var fdr = FDP2.GetFDRs.FirstOrDefault(f => f.Callsign == callsign);
+        if (fdr == null)
+            return false;
+
+        return ShouldDisplayMessage(fdr);
+    }
+
+    public static bool ShouldDisplayMessage(FDP2.FDR fdr)
+    {
+        // If we have jurisdiction, show the message
+        if (fdr.IsTrackedByMe)
+        {
+            return true;
+        }
+        
+        // TODO: If nobody has jurisdiction, and we're the next owner, show the message
+        // TODO: If nobody has jurisdiction, and we were the last owner, show the message
+        return false;
+    }
     
     public CustomLabelItem? GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
     {
@@ -421,7 +443,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     };
 
                     // Color only changes for the responsible controller
-                    if (flightDataRecord.IsTrackedByMe)
+                    if (ShouldDisplayMessage(flightDataRecord))
                     {
                         if (hasActiveDownlinkMessages && unacknowledgedUnableReceived)
                         {
@@ -573,16 +595,18 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             if (_isDisposed)
                 return;
 
-            var repository = ServiceProvider.GetRequiredService<MessageRepository>();
+            var mediator = ServiceProvider.GetRequiredService<IMediator>();
             var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
-            var currentDialogues = await repository.GetCurrentDialogues();
+
+            // Use the filtered GetCurrentDialogues request which only returns dialogues for the current controller
+            var response = await mediator.Send(new GetCurrentDialoguesRequest());
 
             if (_isDisposed)
                 return;
 
             var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
 
-            if (currentDialogues.Any())
+            if (response.Dialogues.Any())
             {
                 guiInvoker.InvokeOnGUI(_ => OpenCurrentMessagesWindow());
             }
