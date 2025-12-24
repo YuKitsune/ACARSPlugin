@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.ComponentModel.Composition;
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Media;
@@ -56,6 +57,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         try
         {
             EnsureDpiAwareness();
+            UpdateLabelsXml();
 
             var configuration = LoadConfiguration();
             ConfigureServices(configuration);
@@ -804,6 +806,62 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         {
             executablePath = null;
             return false;
+        }
+    }
+
+    public void UpdateLabelsXml()
+    {
+        try
+        {
+            var assemblyLocation = Assembly.GetExecutingAssembly().Location;
+            var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
+            if (assemblyDirectory == null)
+                return;
+
+            // Work backwards to find Labels.xml (typically in profile root directory)
+            var currentDirectory = new DirectoryInfo(assemblyDirectory);
+            string? labelsXmlPath = null;
+
+            // Search up to 3 levels up from the assembly directory
+            for (var i = 0; i < 3 && currentDirectory != null; i++)
+            {
+                var potentialPath = Path.Combine(currentDirectory.FullName, "Labels.xml");
+                if (File.Exists(potentialPath))
+                {
+                    labelsXmlPath = potentialPath;
+                    break;
+                }
+                currentDirectory = currentDirectory.Parent;
+            }
+
+            if (labelsXmlPath == null)
+                return;
+
+            var content = File.ReadAllText(labelsXmlPath);
+
+            const string oldItem = "<Item Type=\"LABEL_ITEM_CPDLC\" Colour=\"\" BackgroundColour=\"CPDLCDownlink\" LeftClick=\"Label_CPDLC_Menu\" MiddleClick=\"Label_CPDLC_Message_Toggle\" RightClick=\"Label_CPDLC_Editor\" />";
+            const string newItems = "<Item Type=\"ACARSPLUGIN_CPDLCSTATUS\" />\n  <Item Type=\"ACARSPLUGIN_CPDLCSTATUS_BG\" BackgroundColour=\"Custom\" />";
+
+            // If new items already exist, nothing to do
+            if (content.Contains("ACARSPLUGIN_CPDLCSTATUS"))
+                return;
+
+            // If old item doesn't exist, nothing to replace
+            if (!content.Contains(oldItem))
+                return;
+
+            // Create backup
+            var backupPath = $"{labelsXmlPath}.backup_{DateTime.Now:yyyyMMdd_HHmmss}";
+            File.Copy(labelsXmlPath, backupPath, overwrite: false);
+
+            var updatedContent = content.Replace(oldItem, newItems);
+            File.WriteAllText(labelsXmlPath, updatedContent);
+
+            RestartVatSys();
+        }
+        catch (Exception ex)
+        {
+            Errors.Add(new Exception($"Failed to update Labels.xml: {ex.Message}", ex), Name);
         }
     }
 }
