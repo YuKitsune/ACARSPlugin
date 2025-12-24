@@ -8,7 +8,7 @@ public partial class UplinkMessageTemplateViewModel : ObservableObject
 {
     [ObservableProperty] private string content;
     [ObservableProperty] private UplinkResponseType responseType;
-    
+
     // TODO: Make these message types and indicators configurable
     [ObservableProperty] private bool isFreeText;
     [ObservableProperty] private bool isRevision;
@@ -16,12 +16,15 @@ public partial class UplinkMessageTemplateViewModel : ObservableObject
     [ObservableProperty] private string displayText;
     [ObservableProperty] private int maxCharacters;
 
-    public UplinkMessageTemplateViewModel(string content, UplinkResponseType responseType, bool isFreeText, bool isRevision)
+    public UplinkMessageReference MessageReference { get; }
+
+    public UplinkMessageTemplateViewModel(string content, UplinkResponseType responseType, bool isFreeText, bool isRevision, UplinkMessageReference messageReference)
     {
         Content = content;
         ResponseType = responseType;
         IsFreeText = isFreeText;
         IsRevision = isRevision;
+        MessageReference = messageReference;
         MaxCharacters = 250; // TODO: Calculate based on view width
         DisplayText = GetDisplayText(Content, MaxCharacters, IsFreeText, IsRevision);
     }
@@ -39,6 +42,10 @@ public partial class UplinkMessageTemplateViewModel : ObservableObject
         else if (isRevision)
         {
             sb.Append("E");
+        }
+        else
+        {
+            sb.Append(" ");
         }
 
         if (isFreeText || isRevision)

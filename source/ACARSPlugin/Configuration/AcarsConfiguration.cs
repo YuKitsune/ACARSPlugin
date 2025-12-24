@@ -10,4 +10,5 @@ public class AcarsConfiguration
     public required int PilotLateSeconds { get; init; }
     public required string[] SpecialDownlinkMessages { get; init; }
     public required string[] SpecialUplinkMessages { get; init; }
+    public required UplinkMessagesConfiguration UplinkMessages { get; init; }
 }

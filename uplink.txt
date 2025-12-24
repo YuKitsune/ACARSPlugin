@@ -1,0 +1,366 @@
+
+
+# Rules
+
+- Each message contains an uplink id.
+- If the uplink id is `169`, `F:` is displayed next to the text in the Class Elements Display Area
+- If the uplink id is `170`, `E:` is displayed next to the text in the Class Elements Display Area
+- There should be one master list of all uplink messages. Each message in this list should include:
+    - Uplink ID
+    - Message Template
+    - A list of template parameters, which includes the parameter name and type
+- Parameter types include:
+    - Altimeter
+    - ATIS code
+    - code
+    - degree
+    - direction
+    - distance offset
+    - facility designation
+    - free text
+    - frequency
+    - leg type
+    - Level
+    - position
+    - Pre-departure clearance (will not be not simulated)
+    - Procedure name (not yet simulated, will be implemented later)
+    - Route clearance (not yet simulated, will be implemented later)
+    - Speed
+    - Time
+    - To from
+    - Unit name
+    - Vertical rate
+
+- Separate from the master uplink message list, there will be another list containing lists of the above messages grouped into categories
+- Messages can be referenced in a category multiple times.
+- Message references can include arguments to it's parameters, which will be auto-populated in the UI when selected
+    - For messages consisting entirely of freetext, if an argument has been provided, the `[` and `]` characters are not displayed in the UI
+
+
+## Data Entry
+
+By default, left-clicking on a parameter in the Message Construction Area will present a text box for manual text entry.
+
+The following parameter types allow for data entry using popup menus:
+
+### Direction
+
+- When left-clicking on a Direction parameter, a popup will be displayed with the following values:
+    - L
+    - R
+    - LR
+    - N
+    - E
+    - S
+    - W
+    - NE
+    - NW
+    - SE
+    - SW
+- Manual text entry is not available for direction parameters
+
+### To/From
+- When left-clicking on a To/From parameter, a popup will be displayed with the following values:
+    - TO
+    - FROM
+- Manual text entry is not available for To/From parameters
+
+### Unit Popup
+
+- When left-clicking on a Unit Name parameter, a popup will be displayed listing all unit names defined in the config file
+- Right-clicking the parameter allows for manual text entry
+
+### Degree
+
+- Left-clicking a degree parameter allows for manual text entry
+- The entered text must start with three digits, followed by T or M
+- An error should be displayed and the entered value rejected if the format is incorrect
+
+### Level
+
+- Left-clicking a level parameter will display the altitude popup
+    - The altitude popup contains scrollview of buttons, each corresponding to an altitude in 500 ft increments starting from 500 to 59,000 ft in descending order.
+    - Only the first three digits are displayed (i.e. 050, 055, ..., 340, 345, etc.)
+- Right clicking the parameter will allow for manual text entry.
+    - The entered text must contain three digits representing the level
+    - An error should be displayed and the entered value rejected if the format is incorrect
+
+### Speed
+
+- Left-clicking a speed parameter will display the speed popup
+    - The speed popup contains a scrollview of buttons, each corresponding to a speed in increments of 10 knots, starting from 10 to 500, in descending order.
+    - At the bottom of the popup is a button to switch between KNOT and MACH
+    - When MACH is selected, the button will read KNOT, vice versa.
+    - When MACH is selected, the buttons display mach numbers in increments of 0.01, ranging from 0.01 to 2.00 in descending order
+- Right clicking the parameter will allow for manual text entry.
+    - The entered text must start with either M, N, I or G, and be followed by three digits
+    - An error should be displayed and the entered value rejected if the format is incorrect
+
+---
+
+Note: UM169 is a freetext message. There will be multiple UM169 messages below. This means the arguments for this message have been provided for the message group entry.
+
+Response Types:
+- WU: Wilco or Unable
+- AN: Affirmative or Negative
+- R: Roger or Unable
+- NE: No response required
+
+Format:
+[MessageElementId]/[ResponseType]: [Message Template]
+
+## Permanent Message List
+
+UM147/NE:   REQUEST POSITION REPORT
+UM123/WU:   SQUAWK [code]
+UM169/R:    REQUEST RECEIVED, RESPONSE WILL BE VIA VOICE
+UM117/WU:   CONTACT [MELBOURNE CTR] [122.4]
+UM121/WU:   AT [pos] MONITOR [unit name] [freq]
+UM118/WU:   AT [pos] CONTACT [unit name] [freq]
+UM161/NE:   END SERVICE
+UM20/WU:    CLIMB TO [lev]
+UM129/R:    REPORT MAINTAINING [lev]
+
+## Level Messages (LEVEL)
+
+UM19/WU:    MAINTAIN [lev]
+UM20/WU:    CLIMB TO [lev]
+UM164/NE:    WHEN READY
+UM26/WU:    CLIMB TO REACH [lev] BY [time]
+UM27/WU:    CLIMB TO REACH [lev] BY [pos]
+UM129/R:    REPORT MAINTAINING [lev]
+UM23/WU:    DESCENT TO [lev]
+UM28/WU:    DESCEND TO REACH [lev] BY [time]
+UM29/WU:    DESCEND TO REACH [lev] BY [pos]
+UM128/R:    REPORT LEAVING [lev]
+UM135/NE:    CONFIRM ASSIGNED Level
+UM171/WU:   CLIMB AT [vert] MINIMUM
+UM172/WU:   CLIMB AT [vert] MAXIMUM
+UM173/WU:   DESCEND AT [vert] MINIMUM
+UM174/WU:   DESCEND AT [vert] MAXIMUM
+UM36/WU:     EXPEDITE CLIMB TO [lev]
+UM37/WU:    EXPEDITE DESCENT TO [lev]
+UM38/WU:    IMMEDIATELY CLIMB TO [lev]
+UM39/WU:    IMMEDIATELY DESCEND TO [lev]
+
+## Route Messages (ROUTE)
+
+UM137/NE:   CONFIRM ASSIGNED ROUTE
+UM74/WU:    PROCEED DIRECT TO [pos]
+UM77/WU:    AT [pos] PROCEED DIRECT TO [pos]
+UM79/WU:    CLEARED TO [pos] VIA [rc]
+UM83/WU:    AT [pos] CLEARED [rc]
+UM167/NE:   DUE TO AIRSPACE RESTRICTION
+UM80/WU:    CLEARED [rc]
+UM72/WU:    RESUME OWN NAVIGATION
+UM76/WU:    AT [time] PROCEED DIRECT TO [pos]
+UM78/WU:    AT [lev] PROCEED DIRECT TO [pos]
+UM92/WU:    HOLD AT [pos] AS PUBLISHED MAINTAIN [lev]
+UM91/WU:    HOLD AT [pos] MAINTAIN [lev] INBOUND TRACK [deg] [dir] TURNS [lev]
+UM81/WU:    CLEARED [proc name]
+UM84/WU:    AT [pos] CLEARED [proc name]
+
+## Transfer Messages (TRANSFR)
+
+UM169/R:    CHECK AND RESPOND TO OPEN CPDLC Messages
+UM118/WU:   AT [pos] CONTACT [unit name] [freq]
+UM121/WU:   AT [pos] MONITOR [unit name] [freq]
+UM117/WU:   CONTACT [unit name] [freq]
+UM120/WU:   MONITOR [unit name] [freq]
+UM119/WU:   AT [time] CONTACT [unit name] [freq]
+UM122/WU:   AT [time] MONITOR [unit name] [freq]
+UM161/NE:   END SERVICE
+
+## Crossing Messages (CROSS)
+
+UM61/WU:    CROSS [pos] AT [lev]
+UM51/WU:    CROSS [pos] AT [time]
+UM55/WU:    CROSS [pos] AT [spd]
+UM47/WU:    CROSS [pos] AT OR ABOVE [lev]
+UM48/WU:    CROSS [pos] AT OR BELOW [lev]
+UM52/WU:    CROSS [pos] AT OR BEFORE [time]
+UM53/WU:    CROSS [pos] AT OR AFTER [time]
+UM56/WU:    CROSS [pos] AT OR LESS THAN [spd]
+UM57/WU:    CROSS [pos] AT OR GREATER THAN [spd]
+UM50/WU:    CROSS [pos] BETWEEN [lev] AND [lev]
+UM54/WU:    CROSS [pos] BETWEEN [time] AND [time]
+UM62/WU:    CROSS [pos] AT AND MAINTAIN [lev]
+UM58/WU:    CROSS [pos] AT [time] AT [lev]
+UM59/WU:    CROSS [pos] AT OR BEFORE [time] AT [lev]
+UM60/WU:    CROSS [pos] AT OR AFTER [time] AND [lev]
+UM61/WU:    CROSS [pos] AT AND MAINTAIN [lev] AT [spd]
+UM62/WU:    AT [time] CROSS [pos] AT AND MAINTAIN [lev]
+UM63/WU:    AT [time] CROSS [pos] AT AND MAINTAIN [lev] AT [spd]
+
+## Enquiry Messages (ENQ/TXT)
+
+UM169:      [freetext]
+UM148/NE:   WHEN CAN YOU ACCEPT [lev]
+UM149/AN:   CAN YOU ACCEPT [lev] AT [pos]
+UM150/AN:   CAN YOU ACCEPT [lev] AT [time]
+UM169/R:    ADVISE PREFERRED LEVEL
+UM169/R:    ADVISE PREFERRED LEVEL TO CROSS [pos]
+UM151/NE:   WHEN CAN YOU ACCEPT [spd]
+
+## Surveilance Messages (SURV)
+
+UM123/WU:   SQUAWK [code]
+UM144/NE:   CONFIRM SQUAWK
+UM179/WU:   SQUAWK IDENT
+UM169/NE:   IDENTIFIED
+UM169/WU:   RE-ENTER ADS-B IDENTIFICATION [ACID]
+UM169/R:    IDENTIFICATION TERMINATED
+UM125/WU:   SQUAWK MODE CHARLIE
+UM126/WU:   STOP SQUAWK MODE CHARLIE
+UM124/WU:   STOP SQUAWK
+
+## Expect Messages (EXPECT)
+
+UM7/R:      EXPECT CLIMB AT [time]
+UM8/R:      EXPECT CLIMB AT [pos]
+UM9/R:      EXPECT DESCENT AT [time]
+UM10/R:     EXPECT DESCENT AT [pos]
+UM99/R:     EXPECT [proc name]
+UM93/R:     EXPECT FURTHER CLEARANCE AT [time]
+UM70/R:     EXPECT BACK ON ROUTE BY [pos]
+UM71/R:     EXPECT BACK ON ROUTE BY [time]
+UM100/R:    AT [time] EXPECT [spd]
+UM101/R:    AT [pos] EXPECT [spd]
+UM102/R:    AT [lev] EXPECT [spd]
+
+## BLK/CND
+
+MAINTAIN BLOCK [lev] to [lev]
+CLIMB TO AND MAINTAIN BLOCK [lev] to [lev]
+REPORT REACHING BLOCK [lev] to [lev]
+F: REACH [lev] BY [time]
+F: REACH [lev] BY [pos]
+MAINTAIN (#CFL#)
+AT [time] CLIMB TO [lev]
+AT [pos] CLIMB TO [lev]
+AT [time] DESCEND TO [lev]
+AT [pos] DESCEND TO [lev]
+REPORT MAINTAINING [lev]
+REPORT LEAVING [lev]
+
+## Weather Deviations (WX/OFF)
+
+UM82/WU:    CLEARED TO DEVIATE UP TO [doff] [dir] OF ROUTE
+UM127/WU:   REPORT BACK ON ROUTE
+UM75/WU:    WHEN ABLE PROCEED DIRECT TO [pos]
+UM68/WU:    REJOIN ROUTE BY [pos]
+UM69/WU:    REJOIN ROUTE BY [time]
+UM64/WU:    OFFSET [doff] [dir] OF ROUTE
+UM65/WU:    AT [pos] OFFSET [doff] [dir] OF ROUTE
+UM66/WU:    AT [time] OFFSET [doff] [dir] OF ROUTE
+UM169/NE:   REPORT HEADING
+UM96/WU:    CONTINUE PRESENT HEADING
+UM94/WU:    TURN [dir] HEADING [deg]
+UM97/WU:    AT [pos] FLY HEADING [deg]
+UM167/NE:   DUE TO AIRSPACE RESTRICTION
+UM74/WU:    PROCEED DIRECT TO [pos]
+UM72/WU:    RESUME OWN NAVIGATION
+UM146/NE:   REPORT GROUND TRACK
+UM95/WU:    TURN [dir] GROUND TRACK [deg]
+UM98/WU:    IMMEDIATELY TURN [dir] HEADING [deg]
+
+## COMM
+
+UM117/WU:   CONTACT [unit name] [freq]
+UM120/WU:   MONITOR [unit name] [freq]
+UM169/R:    CHECK AND RESPOND TO OPEN CPDLC Messages
+UM169/R:    RELAY TO [rtf callsign] ON [freq] [callsign + instruction]
+UM157/NE:   CHECK STUCK MICROPHONE ON [freq]
+
+## Speed (SPEED)
+
+UM169/NE:   CONFIRM SPEED
+UM169/NE:   REPORT GROUND SPEED
+UM169/R:    NO SPEED RESTRICTION
+UM136/NE:   CONFIRM ASSIGNED SPEED
+UM106/WU:   MAINTAIN [spd]
+UM108/WU:   MAINTAIN [spd] OR GREATER
+UM109/WU:   MAINTAIN [spd] OR LESS
+UM116/WU:   RESUME NORMAL SPEED
+UM55/WU:    CROSS [pos] AT [spd]
+UM151/NE:   WHEN CAN YOU ACCEPT [spd]
+UM107/WU:   MAINTAIN PRESENT SPEED
+UM110/WU:   MAINTAIN [spd] TO [spd]
+UM111/WU:   INCREASE SPEED TO [spd]
+UM112/WU:   INCREASE SPEED TO [spd] OR GREATER
+UM113/WU:   REDUCE SPEED TO [spd]
+UM114/WU:   REDUCE SPEED TO [spd] OR LESS
+
+## Confirmations and Reports (CFM/RPT)
+
+UM147/NE:   REQUEST POSITION REPORT
+UM133/NE:   CONFIRM ALTITUDE
+UM135/NE:   CONFIRM ASSIGNED ALTITUDE
+UM136/NE:   CONFIRM ASSIGNED SPEED
+UM137/NE:   CONFIRM ASSIGNED ROUTE
+UM169/NE:   CONFIRM SPEED
+UM169/R:    REPORT SIGHTING AND PASSING OPPOSITE DIRECTION [tfc desc]
+UM169/NE:    REPORT ETA [pos]
+UM169/NE:    REPORT GROUND SPEED
+UM141/NE:   CONFIRM NEXT WAYPOINT ETA
+UM181/NE:   REPORT DISTANCE [to/from] [pos]
+UM140/NE:   CONFIRM NEXT WAYPOINT
+UM142/NE:   CONFIRM ENSUING WAYPOINT
+UM138/NE:   CONFIRM TIME OVER REPORTED WAYPOINT
+UM129/WU:   REPORT MAINTAINING [lev]
+UM127/WU:   REPORT BACK ON ROUTE
+UM139/NE:   CONFIRM REPORTED WAYPOINT
+UM143/NE:   CONFIRM REQUEST
+UM144/NE:   CONFIRM SQUAWK
+UM130/R:    REPORT PASSING [pos]
+UM131/NE:   REPORT REMAINING FUEL AND PERSONS ON BOARD
+UM169/NE:   REPORT HEADING
+UM146/NE:   REPORT GROUND TRACK
+
+## MISC
+
+UM0/NE:     UNABLE
+UM166/NE:   DUE TO TRAFFIC
+UM167/NE:   DUE TO AIRSPACE RESTRICTION
+UM169/R:    CHECK AND RESPOND TO OPEN CPDLC Messages
+UM169/R:    CRUISE CLIMB PROCEDURE NOT AVAILABLE IN AUSTRALIAN ADMINISTERED AIRSPACE
+UM169/R:    MELBOURNE CTR AT REDUCED SYSTEM CAPACITY
+UM169/R:    BRISBANE CTR AT REDUCED SYSTEM CAPACITY
+UM169/NE:    DISCONNECT CPDLC
+UM169/R:    TRAFFIC IS [tfc desc]
+UM169/R:    ADS-C REPORTS NOT RECEIVED, REQUEST CPDLC POSITION REPORTS
+UM169/R:    REPORT SIGHTING AND PASSING OPPOSITE DIRECTION [tfc desc]
+UM169/NE:    ADVISE PREFERRED LEVEL
+UM164/NE:   WHEN READY
+UM1/NE:     STANDBY
+UM3/NE:     ROGER
+UM4/NE:     AFFIRM
+UM5/NE:     NEGATIVE
+UM2/NE:     REQUEST DEFERRED
+UM158/R:    ATIS [atis]
+UM153/R:    ALTIMETER [altim]
+UM131/NE:   REPORT REMAINING FUEL AND PERSONS ON BOARD
+
+## Emergencies (EMERG)
+
+UM169/R:    ROGER MAYDAY
+UM169/R:    ROGER PAN
+UM38/WU:    IMMEDIATELY CLIMB TO [lev]
+UM39/WU:    IMMEDIATELY DESCEND TO [lev]
+UM36/WU:     EXPEDITE CLIMB TO [lev]
+UM37/WU:    EXPEDITE DESCENT TO [lev]
+UM157/NE:   CHECK STUCK MICROPHONE ON [freq]
+UM169/NE:    REPORT SPEED
+UM169/R:    CONFIRM ADS-C EMERGENCY
+UM169/R:    [freetext urgent]
+UM169/R:    TRAFFIC IS [tfc desc]
+UM131/NE:   REPORT REMAINING FUEL AND PERSONS ON BOARD
+UM117/WU:   CONTACT [unit name] [freq]
+UM98/WU:    IMMEDIATELY TURN [dir] HEADING [deg]
+
+
+---
+
+TODO: Re-write this to include ICAO Message Element Identifier.
+TODO: Urgency flags.
+TODO: Emergency flag.

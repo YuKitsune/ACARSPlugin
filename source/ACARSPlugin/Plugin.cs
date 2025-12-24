@@ -22,7 +22,6 @@ using vatsys.Plugin;
 namespace ACARSPlugin;
 
 // TODO: Jurisdiction checks
-// TODO: Revise CPDLC message set (custom config)
 // TODO: vatSys window
 // TODO: Text fallback
 // TODO: RELEASE
@@ -616,6 +615,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             WindowKeys.Editor,
             windowHandle =>
             {
+                var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
                 var mediator = ServiceProvider.GetRequiredService<IMediator>();
 
                 var response = mediator.Send(new GetCurrentDialoguesRequest(), cancellationToken)
@@ -650,6 +650,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 var viewModel = new EditorViewModel(
                     callsign,
                     downlinkMessageViewModels.ToArray(),
+                    configuration,
                     mediator,
                     errorReporter,
                     guiInvoker,

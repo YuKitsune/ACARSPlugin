@@ -17,19 +17,16 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
 {
     // Ick, but I can't be bothered making it better...
     static ConcurrentDictionary<string, UplinkMessageElementViewModel[]> _suspendedUplinkMessages = new();
-    
-    // TODO: Source these from configuration
-    private readonly string _permanentMessageClassName = Testing.PermanentMessageClassName;
-    readonly UplinkMessageTemplates _uplinkMessageTemplates = Testing.UplinkMessageTemplates;
 
+    readonly AcarsConfiguration _configuration;
     readonly IMediator _mediator;
     readonly IErrorReporter _errorReporter;
     readonly IGuiInvoker _guiInvoker;
     readonly IWindowHandle _windowHandle;
 
 #if DEBUG
-    
-    static DownlinkMessageViewModel[] _testDownlinkMessages = 
+
+    static DownlinkMessageViewModel[] _testDownlinkMessages =
     [
         new()
         {
@@ -45,22 +42,106 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             StandbySent = true
         }
     ];
-    
+
+    static AcarsConfiguration CreateTestConfiguration()
+    {
+        return new AcarsConfiguration
+        {
+            ServerEndpoint = "http://localhost:5000",
+            Stations = ["TEST"],
+            CurrentMessages = new CurrentMessagesConfiguration
+            {
+                MaxCurrentMessages = 50,
+                HistoryTransferDelaySeconds = 10,
+                PilotResponseTimeoutSeconds = 180,
+                MaxDisplayMessageLength = 40,
+                MaxExtendedMessageLength = 80
+            },
+            History = new HistoryConfiguration
+            {
+                MaxHistory = 100,
+                MaxDisplayMessageLength = 40,
+                MaxExtendedMessageLength = 80
+            },
+            ControllerLateSeconds = 120,
+            PilotLateSeconds = 120,
+            SpecialDownlinkMessages = ["STANDBY"],
+            SpecialUplinkMessages = ["STANDBY", "REQUEST DEFERRED"],
+            UplinkMessages = new UplinkMessagesConfiguration
+            {
+                MasterMessages =
+                [
+                    new UplinkMessageTemplate { Id = 147, Template = "REQUEST POSITION REPORT", Parameters = [], ResponseType = UplinkResponseType.NoResponse },
+                    new UplinkMessageTemplate { Id = 123, Template = "SQUAWK [code]", Parameters = [new UplinkMessageParameter { Name = "code", Type = ParameterType.Code }], ResponseType = UplinkResponseType.WilcoUnable },
+                    new UplinkMessageTemplate { Id = 20, Template = "CLIMB TO [lev]", Parameters = [new UplinkMessageParameter { Name = "lev", Type = ParameterType.Level }], ResponseType = UplinkResponseType.WilcoUnable },
+                    new UplinkMessageTemplate { Id = 117, Template = "CONTACT [unit name] [freq]", Parameters = [new UplinkMessageParameter { Name = "unit name", Type = ParameterType.UnitName }, new UplinkMessageParameter { Name = "freq", Type = ParameterType.Frequency }], ResponseType = UplinkResponseType.WilcoUnable },
+                    new UplinkMessageTemplate { Id = 169, Template = "[freetext]", Parameters = [new UplinkMessageParameter { Name = "freetext", Type = ParameterType.FreeText }], ResponseType = UplinkResponseType.Roger }
+                ],
+                PermanentMessages =
+                [
+                    new UplinkMessageReference { MessageId = 147 },
+                    new UplinkMessageReference { MessageId = 123 },
+                    new UplinkMessageReference { MessageId = 20 },
+                    new UplinkMessageReference
+                    {
+                        MessageId = 117,
+                        DefaultParameters = new Dictionary<string, string>
+                        {
+                            { "unit name", "MELBOURNE CTR" },
+                            { "freq", "122.4" }
+                        }
+                    },
+                    new UplinkMessageReference
+                    {
+                        MessageId = 169,
+                        DefaultParameters = new Dictionary<string, string>
+                        {
+                            { "freetext", "REQUEST RECEIVED, RESPONSE WILL BE VIA VOICE" }
+                        },
+                        ResponseType = UplinkResponseType.Roger
+                    },
+                    new UplinkMessageReference
+                    {
+                        MessageId = 169,
+                        DefaultParameters = new Dictionary<string, string>
+                        {
+                            { "freetext", "CRUISE CLIMB PROCEDURE NOT AVAILABLE IN AUSTRALIAN ADMINISTERED AIRSPACE" }
+                        },
+                        ResponseType = UplinkResponseType.Roger
+                    }
+                ],
+                Groups =
+                [
+                    new UplinkMessageGroup
+                    {
+                        Name = "LEVEL",
+                        Messages =
+                        [
+                            new UplinkMessageReference { MessageId = 20 }
+                        ]
+                    }
+                ]
+            }
+        };
+    }
+
     // For testing in the designer
-    public EditorViewModel() : this("QFA1", _testDownlinkMessages, null!, null!, null!, null!)
+    public EditorViewModel() : this("QFA1", _testDownlinkMessages, CreateTestConfiguration(), null!, null!, null!, null!)
     {
     }
-    
+
 #endif
 
     public EditorViewModel(
         string callsign,
         DownlinkMessageViewModel[] downlinkMessages,
+        AcarsConfiguration configuration,
         IMediator mediator,
         IErrorReporter errorReporter,
         IGuiInvoker guiInvoker,
         IWindowHandle windowHandle)
     {
+        _configuration = configuration;
         _mediator = mediator;
         _errorReporter = errorReporter;
         _guiInvoker = guiInvoker;
@@ -72,11 +153,12 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         // Automatically select the last downlink message
         SelectedDownlinkMessage = downlinkMessages.LastOrDefault();
 
-        MessageCategoryNames = _uplinkMessageTemplates.Messages.Keys
-            .Where(s => s != _permanentMessageClassName)
+        MessageCategoryNames = _configuration.UplinkMessages.Groups
+            .Select(g => g.Name)
             .ToArray();
 
-        SelectedMessageCategory = Testing.PermanentMessageClassName;
+        SelectedMessageCategory = null;
+        DisplayMessageElements(_configuration.UplinkMessages.PermanentMessages);
 
         ClearUplinkMessage();
 
@@ -133,7 +215,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
     partial void OnShowHotButtonsChanged(bool value)
     {
         SelectedMessageCategory = value
-            ? Testing.PermanentMessageClassName
+            ? null
             : MessageCategoryNames.First();
     }
 
@@ -152,19 +234,33 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
 
     partial void OnSelectedMessageCategoryChanged(string? value)
     {
+        // If no category is selected, show permanent messages
         if (string.IsNullOrEmpty(value))
         {
-            SelectedMessageCategoryElements = [];
-            return;
+            DisplayMessageElements(_configuration.UplinkMessages.PermanentMessages);
+        }
+        else
+        {
+            // Find the group by name
+            var group = _configuration.UplinkMessages.Groups
+                .FirstOrDefault(g => g.Name == value);
+
+            if (group == null)
+            {
+                SelectedMessageCategoryElements = [];
+                return;
+            }
+
+            DisplayMessageElements(group.Messages);
         }
 
-        var templates = _uplinkMessageTemplates.Messages[value];
-        SelectedMessageCategoryElements = templates
-            .Select(t => new UplinkMessageTemplateViewModel(
-                t.Template,
-                t.ResponseType,
-                isFreeText: false,  // TODO: Determine from configuration
-                isRevision: false)) // TODO: Determine from configuration
+        // Resolve each message reference to a template view model
+    }
+
+    void DisplayMessageElements(IEnumerable<UplinkMessageReference> messageReferences)
+    {
+        SelectedMessageCategoryElements = messageReferences
+            .Select(ResolveMessageReference)
             .ToArray();
     }
 
@@ -260,7 +356,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
     {
         try
         {
-            var parts = ConvertToViewModel(template.Content);
+            var parts = ConvertToViewModel(template.MessageReference);
 
             // If a message element is selected, replace it with this one
             if (SelectedUplinkMessageElement is not null)
@@ -275,7 +371,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
                 if (firstBlankElement is not null)
                 {
                     firstBlankElement.Replace(parts, template.ResponseType);
-                    
+
                     // Trigger property change
                     // TODO: Find a better way to do this
                     UplinkMessageElements = UplinkMessageElements;
@@ -377,7 +473,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
     void Escape()
     {
         ClearUplinkMessage();
-        SelectedMessageCategory = _permanentMessageClassName;
+        SelectedMessageCategory = null;
     }
 
     bool CanEscape() => UplinkMessageElements.Any();
@@ -408,8 +504,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         // Select the most recent downlink message if none is already selected
         if (SelectedDownlinkMessage is null)
             SelectedDownlinkMessage = DownlinkMessages.LastOrDefault();
-        
-        SelectedMessageCategory = _permanentMessageClassName;
+
+        SelectedMessageCategory = null;
     }
 
     bool CanSuspend()
@@ -475,11 +571,20 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         SelectedUplinkMessageElement = null;
     }
 
-    IUplinkMessageElementComponentViewModel[] ConvertToViewModel(string template)
+    IUplinkMessageElementComponentViewModel[] ConvertToViewModel(UplinkMessageReference reference)
     {
+        // Get the master message template
+        var masterMessage = _configuration.UplinkMessages.MasterMessages
+            .FirstOrDefault(m => m.Id == reference.MessageId);
+
+        if (masterMessage == null)
+            throw new InvalidOperationException($"Master message with ID {reference.MessageId} not found");
+
+        var template = masterMessage.Template;
         var parts = new List<IUplinkMessageElementComponentViewModel>();
         var currentText = new StringBuilder();
         var insideBrackets = false;
+        var parameterName = new StringBuilder();
 
         foreach (var c in template)
         {
@@ -495,20 +600,37 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
                         currentText.Clear();
                     }
                     insideBrackets = true;
-                    currentText.Append(c); // Include the opening bracket
+                    parameterName.Clear();
                     break;
                 }
 
                 case ']' when insideBrackets:
+                {
                     // Transition from inside to outside brackets
-                    currentText.Append(c); // Include the closing bracket
-                    parts.Add(new UplinkMessageTemplateElementComponentViewModel(currentText.ToString()));
-                    currentText.Clear();
+                    var paramName = parameterName.ToString();
+                    var templateElement = new UplinkMessageTemplateElementComponentViewModel($"[{paramName}]");
+
+                    // Check if there's a default value for this parameter
+                    if (reference.DefaultParameters?.TryGetValue(paramName, out var defaultValue) == true)
+                    {
+                        // Pre-fill the template element with the default value
+                        templateElement.Value = defaultValue;
+                    }
+
+                    parts.Add(templateElement);
                     insideBrackets = false;
                     break;
+                }
 
                 default:
-                    currentText.Append(c);
+                    if (insideBrackets)
+                    {
+                        parameterName.Append(c);
+                    }
+                    else
+                    {
+                        currentText.Append(c);
+                    }
                     break;
             }
         }
@@ -519,7 +641,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             if (insideBrackets)
             {
                 // Unclosed bracket - treat as template part with what we have
-                parts.Add(new UplinkMessageTemplateElementComponentViewModel(currentText.ToString()));
+                var templateElement = new UplinkMessageTemplateElementComponentViewModel($"[{parameterName}]");
+                parts.Add(templateElement);
             }
             else
             {
@@ -562,8 +685,6 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
                 // TODO: Error?
             }
             
-            // TODO: Find a better way to determine the response type.
-            //  What do the official docs say?
             var currentResponseRank = _responseTypeRank[responseType];
             var newResponseRank = _responseTypeRank[_responseTypeMap[uplinkMessageElement.ResponseType]];
             if (newResponseRank > currentResponseRank)
@@ -625,6 +746,44 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
     public void Dispose()
     {
         WeakReferenceMessenger.Default.Unregister<CurrentMessagesChanged>(this);
+    }
+
+    UplinkMessageTemplateViewModel ResolveMessageReference(UplinkMessageReference reference)
+    {
+        var masterMessage = _configuration.UplinkMessages.MasterMessages
+            .FirstOrDefault(m => m.Id == reference.MessageId);
+
+        if (masterMessage == null)
+            throw new InvalidOperationException($"Master message with ID {reference.MessageId} not found");
+
+        var template = masterMessage.Template;
+
+        // Replace template parameters with default values for display purposes
+        if (reference.DefaultParameters != null)
+        {
+            foreach (var kvp in reference.DefaultParameters)
+            {
+                var paramName = kvp.Key;
+                var paramValue = kvp.Value;
+
+                template = template.Replace($"[{paramName}]", paramValue);
+            }
+        }
+
+        // Use the reference's response type if specified, otherwise use the master message's response type
+        var responseType = reference.ResponseType ?? masterMessage.ResponseType;
+
+        var isFreeText = masterMessage.Id == 169;
+        var isRevision = masterMessage.Id == 170;
+
+        var viewModel = new UplinkMessageTemplateViewModel(
+            template,
+            responseType,
+            isFreeText,
+            isRevision,
+            reference);
+
+        return viewModel;
     }
 
     private readonly IDictionary<UplinkResponseType, CpdlcUplinkResponseType> _responseTypeMap = new Dictionary<UplinkResponseType, CpdlcUplinkResponseType>
