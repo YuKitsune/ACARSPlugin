@@ -33,6 +33,19 @@ Before installing the CPDLC Plugin, ensure you have the following:
 > [!TIP]
 > If you do not see the `CPDLC` menu item after restarting vatSys, refer to the [Troubleshooting](#troubleshooting) section below.
 
+### CPDLC Label Items
+
+In order to use the CPDLC label items, you need to replace the default CPDLC label items in the `Labels.xml` file in the profile.
+
+Replace each occurance of `<Item Type="LABEL_ITEM_CPDLC" Colour="" BackgroundColour="CPDLCDownlink" LeftClick="Label_CPDLC_Menu" MiddleClick="Label_CPDLC_Message_Toggle" RightClick="Label_CPDLC_Editor" />` with the following lines:
+
+```xml
+<Item Type="ACARSPLUGIN_CPDLCSTATUS" />
+<Item Type="ACARSPLUGIN_CPDLCSTATUS_BG" BackgroundColour="Custom" />
+<Item Type="ACARSPLUGIN_TEXTSTATUS" />
+<Item Type="ACARSPLUGIN_TEXTSTATUS_BG" BackgroundColour="Custom" />
+```
+
 ## Troubleshooting
 
 ### CPDLC menu item not appearing
@@ -51,7 +64,7 @@ This script will search for any `.dll` files in the current folder or sub-folder
 
 If you are using a high-resolution display (4K monitor, high-DPI laptop screen, etc.) and experience graphical issues after launching vatSys, you may need to run the `dpiawarefix.bat` script.
 
-1. Locate the `dpiawarefix.bat` file (included in the `Maestro.zip` file).
+1. Locate the `dpiawarefix.bat` file (included in the `ACARSPlugin.zip` file).
 2. Run the script by double-clicking it.
 3. Restart vatSys.
 

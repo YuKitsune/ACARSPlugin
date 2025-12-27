@@ -55,7 +55,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         try
         {
             EnsureDpiAwareness();
-            UpdateLabelsXml();
 
             var configuration = LoadConfiguration();
             ConfigureServices(configuration);
@@ -266,6 +265,79 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             Text = " "
         };
         
+        var lastTextMessage = Network.GetRadioMessages
+            .LastOrDefault(r => r.Address == flightDataRecord.Callsign && !r.Acknowledged);
+
+        if (itemType.StartsWith("ACARSPLUGIN_TEXTSTATUS"))
+        {
+            string? text = null;
+            CustomColour? backgroundColour = null;
+
+            if (flightDataRecord is not null && flightDataRecord.TextOnly)
+            {
+                text = "T";
+            }
+            else if (flightDataRecord is not null && flightDataRecord.ReceiveOnly)
+            {
+                text = "R";
+            }
+            else if (lastTextMessage is not null)
+            {
+                // Only show "V" when there is an unacknowledged message
+                text = "V";
+                backgroundColour = _cachedDownlinkColor;
+            }
+
+            // Don't take up the space if it's not necessary
+            if (text is null)
+                return null;
+
+            // vatSys bug: custom background colours can't be drawn selectively.
+            // To work around this, we define two label items. One with the background, and one without.
+            if (backgroundColour is not null && itemType != "ACARSPLUGIN_TEXTSTATUS_BG")
+            {
+                return null;
+            }
+
+            if (backgroundColour is null && itemType != "ACARSPLUGIN_TEXTSTATUS")
+            {
+                return null;
+            }
+
+            var textLabelItem = new CustomLabelItem
+            {
+                Type = itemType,
+                Text = text,
+                Border = BorderFlags.All
+            };
+
+            if (backgroundColour is not null)
+            {
+                textLabelItem.BackColourIdentity = Colours.Identities.Custom;
+                textLabelItem.CustomBackColour = backgroundColour;
+            }
+
+            // Left-click to open the CPDLC Menu
+            textLabelItem.OnMouseClick = args =>
+            {
+                if (args.Button != CustomLabelItemMouseButton.Left)
+                    return;
+
+                if (lastTextMessage is not null)
+                {
+                    MMI.OpenCPDLCMenu(lastTextMessage);
+                }
+                else
+                {
+                    MMI.OpenCPDLCWindow(flightDataRecord);
+                }
+
+                args.Handled = true;
+            };
+
+            return textLabelItem;
+        }
+
         try
         {
             if (!itemType.StartsWith("ACARSPLUGIN_CPDLCSTATUS"))
@@ -304,15 +376,18 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
             labelItem.OnMouseClick = args =>
             {
-                var action = args.Button switch
+                switch (args.Button)
                 {
-                    CustomLabelItemMouseButton.Left => customItem.LeftClickCallback,
-                    CustomLabelItemMouseButton.Middle => customItem.MiddleClickCallback,
-                    CustomLabelItemMouseButton.Right => customItem.RightClickCallback,
-                    _ => throw new ArgumentOutOfRangeException()
-                };
+                    case CustomLabelItemMouseButton.Left:
+                        customItem.LeftClickCallback();
+                        args.Handled = true;
+                        break;
 
-                action();
+                    case CustomLabelItemMouseButton.Right:
+                        MMI.OpenCPDLCWindow(flightDataRecord);
+                        args.Handled = true;
+                        break;
+                }
             };
 
             return labelItem;
@@ -343,9 +418,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     record CustomStripOrLabelItem(
         string Text,
         CustomColour? BackgroundColour,
-        Action LeftClickCallback,
-        Action MiddleClickCallback,
-        Action RightClickCallback);
+        Action LeftClickCallback);
 
     public CustomColour? SelectASDTrackColour(Track track) => null;
 
@@ -403,8 +476,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 CustomColour? backgroundColour = null;
                 CustomColour? foregroundColour = null;
                 Action leftClickAction = () => { };
-                Action middleClickAction = () => { };
-                Action rightClickAction = () => { };
 
                 if (isEquipped && connection is null)
                 {
@@ -466,9 +537,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 _labelItemCache[flightDataRecord.Callsign] = new CustomStripOrLabelItem(
                     text,
                     backgroundColour,
-                    leftClickAction,
-                    middleClickAction,
-                    rightClickAction);
+                    leftClickAction);
                 
                 allUpdatedKeys.Add(flightDataRecord.Callsign);
             }
@@ -814,62 +883,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         {
             executablePath = null;
             return false;
-        }
-    }
-
-    public void UpdateLabelsXml()
-    {
-        try
-        {
-            var assemblyLocation = Assembly.GetExecutingAssembly().Location;
-            var assemblyDirectory = Path.GetDirectoryName(assemblyLocation);
-            if (assemblyDirectory == null)
-                return;
-
-            // Work backwards to find Labels.xml (typically in profile root directory)
-            var currentDirectory = new DirectoryInfo(assemblyDirectory);
-            string? labelsXmlPath = null;
-
-            // Search up to 3 levels up from the assembly directory
-            for (var i = 0; i < 3 && currentDirectory != null; i++)
-            {
-                var potentialPath = Path.Combine(currentDirectory.FullName, "Labels.xml");
-                if (File.Exists(potentialPath))
-                {
-                    labelsXmlPath = potentialPath;
-                    break;
-                }
-                currentDirectory = currentDirectory.Parent;
-            }
-
-            if (labelsXmlPath == null)
-                return;
-
-            var content = File.ReadAllText(labelsXmlPath);
-
-            const string oldItem = "<Item Type=\"LABEL_ITEM_CPDLC\" Colour=\"\" BackgroundColour=\"CPDLCDownlink\" LeftClick=\"Label_CPDLC_Menu\" MiddleClick=\"Label_CPDLC_Message_Toggle\" RightClick=\"Label_CPDLC_Editor\" />";
-            const string newItems = "<Item Type=\"ACARSPLUGIN_CPDLCSTATUS\" />\n  <Item Type=\"ACARSPLUGIN_CPDLCSTATUS_BG\" BackgroundColour=\"Custom\" />";
-
-            // If new items already exist, nothing to do
-            if (content.Contains("ACARSPLUGIN_CPDLCSTATUS"))
-                return;
-
-            // If old item doesn't exist, nothing to replace
-            if (!content.Contains(oldItem))
-                return;
-
-            // Create backup
-            var backupPath = $"{labelsXmlPath}.backup_{DateTime.Now:yyyyMMdd_HHmmss}";
-            File.Copy(labelsXmlPath, backupPath, overwrite: false);
-
-            var updatedContent = content.Replace(oldItem, newItems);
-            File.WriteAllText(labelsXmlPath, updatedContent);
-
-            RestartVatSys();
-        }
-        catch (Exception ex)
-        {
-            Errors.Add(new Exception($"Failed to update Labels.xml: {ex.Message}", ex), Name);
         }
     }
 }
