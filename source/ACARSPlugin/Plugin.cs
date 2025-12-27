@@ -525,11 +525,14 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
                 var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
 
+                var selectedCallsign = MMI.SelectedTrack?.GetFDR()?.Callsign;
+                
                 var viewModel = new HistoryViewModel(
                     configuration,
                     mediator,
                     guiInvoker,
-                    errorReporter);
+                    errorReporter,
+                    selectedCallsign);
 
                 return new HistoryWindow(viewModel);
             });
