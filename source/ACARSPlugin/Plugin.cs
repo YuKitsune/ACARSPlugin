@@ -1,7 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.ComponentModel.Composition;
 using System.IO;
-using System.Reflection;
+using System.Threading.Channels;
 using System.Windows;
 using System.Windows.Forms;
 using System.Windows.Media;
@@ -31,7 +31,7 @@ namespace ACARSPlugin;
 // TODO: Strip items
 
 [Export(typeof(IPlugin))]
-public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipient<ConnectedAircraftChanged>, IDisposable
+public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipient<ConnectedAircraftChanged>
 {
 #if DEBUG
     public const string Name = "ACARS Plugin - Debug";
@@ -43,10 +43,15 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
     // Cache for CustomStripOrLabelItem to avoid expensive lookups on every label update
     private readonly ConcurrentDictionary<string, CustomStripOrLabelItem> _labelItemCache = new();
-
-    private bool _isDisposed;
-    private readonly SemaphoreSlim _disposeLock = new(1, 1);
     
+    readonly Channel<Func<Task>> _workQueue = Channel.CreateUnbounded<Func<Task>>();
+    readonly Task _worker;
+
+    // Cached theme colors to avoid deadlock when accessing from non-GUI threads
+    CustomColour _cachedDownlinkColor = new(0, 105, 0);
+    CustomColour _cachedUnableDownlinkColor = new(230, 127, 127);
+    CustomColour _cachedSuspendedColor = new(255, 255, 255);
+
     string IPlugin.Name => Name;
 
     public IServiceProvider ServiceProvider { get; private set; }
@@ -71,10 +76,40 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             
             WeakReferenceMessenger.Default.Register<CurrentMessagesChanged>(this);
             WeakReferenceMessenger.Default.Register<ConnectedAircraftChanged>(this);
+            
+            _worker = Worker(CancellationToken.None);
         }
         catch (Exception ex)
         {
             AddError(ex);
+        }
+    }
+
+    async Task Worker(CancellationToken cancellationToken)
+    {
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            try
+            {
+                var work = await _workQueue.Reader.ReadAsync(cancellationToken).ConfigureAwait(false);
+                await work().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                // Expected during shutdown
+                break;
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    AddError(ex);
+                }
+                catch
+                {
+                    // Ignore errors during error reporting
+                }
+            }
         }
     }
 
@@ -140,25 +175,21 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         // TODO: Connect if auto-connect enabled
     }
 
-    private async void NetworkDisconnected(object sender, EventArgs e)
+    private void NetworkDisconnected(object sender, EventArgs e)
     {
         Log.Information("Disconnected from VATSIM");
 
         try
         {
-            if (_isDisposed)
-                return;
-
             var mediator =  ServiceProvider.GetService<IMediator>();
             if (mediator is null)
                 return;
 
-            await mediator.Send(new DisconnectRequest());
+            _workQueue.Writer.TryWrite(async () => await mediator.Send(new DisconnectRequest()).ConfigureAwait(false));
         }
         catch (Exception ex)
         {
-            if (!_isDisposed)
-                AddError(ex);
+            AddError(ex);
         }
     }
 
@@ -462,13 +493,10 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
     public CustomColour? SelectGroundTrackColour(Track track) => null;
 
-    async Task RebuildLabelItemCache()
+    async Task RebuildLabelItemCache(CancellationToken cancellationToken = default)
     {
         try
         {
-            if (_isDisposed)
-                return;
-
             var allExistingKeys = _labelItemCache.Keys;
             var allUpdatedKeys = new List<string>();
 
@@ -477,16 +505,22 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             var repository = ServiceProvider.GetRequiredService<MessageRepository>();
             var aircraftTracker = ServiceProvider.GetRequiredService<AircraftConnectionTracker>();
 
-            var connectedAircraft = await aircraftTracker.GetConnectedAircraft();
+            var connectedAircraft = await aircraftTracker.GetConnectedAircraft(cancellationToken).ConfigureAwait(false);
 
             foreach (var flightDataRecord in FDP2.GetFDRs)
             {
+                if (cancellationToken.IsCancellationRequested)
+                    return;
+
                 if (flightDataRecord is null)
                     continue;
 
                 var connection = connectedAircraft.FirstOrDefault(c => c.Callsign == flightDataRecord.Callsign);
 
-                var activeDialogues = await repository.GetCurrentDialogues();
+                var activeDialogues = await repository.GetCurrentDialogues().ConfigureAwait(false);
+
+                if (cancellationToken.IsCancellationRequested)
+                    return;
 
                 var hasActiveDownlinkMessages = activeDialogues.Any();
                 
@@ -668,81 +702,61 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             });
     }
 
-    private async void FDP2OnFDRsChanged(object sender, FDP2.FDRsChangedEventArgs e)
+    private void FDP2OnFDRsChanged(object sender, FDP2.FDRsChangedEventArgs e)
     {
         try
         {
-            if (_isDisposed)
-                return;
-
-            await RebuildLabelItemCache();
+            _workQueue.Writer.TryWrite(() => RebuildLabelItemCache());
         }
         catch (Exception ex)
         {
-            if (!_isDisposed)
-                AddError(ex);
+            AddError(ex);
         }
     }
 
-    public async void Receive(ConnectedAircraftChanged _)
+    public void Receive(ConnectedAircraftChanged _)
     {
         try
         {
-            if (_isDisposed)
-                return;
-
-            await RebuildLabelItemCache();
+            _workQueue.Writer.TryWrite(() => RebuildLabelItemCache());
         }
         catch (Exception ex)
         {
-            if (!_isDisposed)
-                AddError(ex);
+            AddError(ex);
         }
     }
     
-    public async void Receive(CurrentMessagesChanged _)
+    public void Receive(CurrentMessagesChanged _)
     {
         try
         {
-            if (_isDisposed)
-                return;
-
-            await RebuildLabelItemCache();
-
-            if (_isDisposed)
-                return;
-
-            var mediator = ServiceProvider.GetRequiredService<IMediator>();
-            var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
-
-            // Use the filtered GetCurrentDialogues request which only returns dialogues for the current controller
-            var response = await mediator.Send(new GetCurrentDialoguesRequest());
-
-            if (_isDisposed)
-                return;
-
-            var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-
-            if (response.Dialogues.Any())
+            _workQueue.Writer.TryWrite(async () =>
             {
-                guiInvoker.InvokeOnGUI(_ => OpenCurrentMessagesWindow());
-            }
-            else
-            {
-                windowManager.TryRemoveWindow(WindowKeys.CurrentMessages);
-            }
+                await RebuildLabelItemCache().ConfigureAwait(false);
+
+                var mediator = ServiceProvider.GetRequiredService<IMediator>();
+                var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
+
+                // Use the filtered GetCurrentDialogues request which only returns dialogues for the current controller
+                var response = await mediator.Send(new GetCurrentDialoguesRequest()).ConfigureAwait(false);
+
+                var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
+
+                if (response.Dialogues.Any())
+                {
+                    guiInvoker.InvokeOnGUI(_ => OpenCurrentMessagesWindow());
+                }
+                else
+                {
+                    windowManager.TryRemoveWindow(WindowKeys.CurrentMessages);
+                }
+            });
         }
         catch (Exception ex)
         {
-            if (!_isDisposed)
-                AddError(ex);
+            AddError(ex);
         }
     }
-
-    // Cached theme colors to avoid deadlock when accessing from non-GUI threads
-    CustomColour _cachedDownlinkColor = new(0, 105, 0);
-    CustomColour _cachedUnableDownlinkColor = new(230, 127, 127);
-    CustomColour _cachedSuspendedColor = new(255, 255, 255);
     
     void OpenCpdlcWindow(string callsign, CancellationToken cancellationToken)
     {
@@ -800,53 +814,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 var control = new EditorWindow(viewModel);
                 return control;
             });
-    }
-
-    public void Dispose()
-    {
-        _disposeLock.Wait();
-        try
-        {
-            if (_isDisposed)
-                return;
-
-            _isDisposed = true;
-
-            // Unregister event handlers
-            Network.Connected -= NetworkConnected;
-            Network.Disconnected -= NetworkDisconnected;
-            FDP2.FDRsChanged -= FDP2OnFDRsChanged;
-            WeakReferenceMessenger.Default.Unregister<CurrentMessagesChanged>(this);
-            WeakReferenceMessenger.Default.Unregister<ConnectedAircraftChanged>(this);
-
-            // Dispose MessageMonitorService
-            var monitorService = ServiceProvider.GetService<MessageMonitorService>();
-            monitorService?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-
-            // Dispose connection manager
-            ConnectionManager?.Dispose();
-
-            // Dispose service provider if it's disposable
-            if (ServiceProvider is IDisposable disposableProvider)
-                disposableProvider.Dispose();
-        }
-        catch (Exception ex)
-        {
-            // Log but don't throw during disposal
-            try
-            {
-                AddError(ex);
-            }
-            catch
-            {
-                // Ignore errors during error reporting in disposal
-            }
-        }
-        finally
-        {
-            _disposeLock.Release();
-            _disposeLock.Dispose();
-        }
     }
 
     void EnsureDpiAwareness()

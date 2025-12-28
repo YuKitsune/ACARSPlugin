@@ -39,8 +39,18 @@ public class WindowManager(IGuiInvoker guiInvoker)
     {
         if (!_windows.TryGetValue(key, out var window))
             return;
-        
-        window.Close();
-        _windows.Remove(key);
+
+        try
+        {
+            window.Close();
+        }
+        catch (InvalidOperationException)
+        {
+            // Window may have already been closed or disposed
+        }
+        finally
+        {
+            _windows.Remove(key);
+        }
     }
 }

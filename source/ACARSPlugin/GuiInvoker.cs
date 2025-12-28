@@ -12,7 +12,7 @@ public class GuiInvoker : IGuiInvoker
 {
     public void InvokeOnGUI(Action<Form> action)
     {
-        var mainForm = System.Windows.Forms.Application.OpenForms["MainForm"];
+        var mainForm = Application.OpenForms["MainForm"];
         if (mainForm == null)
             return;
 
@@ -30,6 +30,10 @@ public class GuiInvoker : IGuiInvoker
         try
         {
             MMI.InvokeOnGUI(delegate { action(mainForm); });
+        }
+        catch (ObjectDisposedException)
+        {
+            // Control was disposed during invocation - ignore during shutdown
         }
         catch (InvalidOperationException)
         {
