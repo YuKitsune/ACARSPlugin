@@ -363,6 +363,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             {
                 SelectedUplinkMessageElement.Replace(parts, template.ResponseType);
                 UplinkMessageElements = UplinkMessageElements;
+
+                SuspendCommand.NotifyCanExecuteChanged();
             }
             else if (UplinkMessageElements.Count () < 5)
             {
@@ -375,6 +377,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
                     // Trigger property change
                     // TODO: Find a better way to do this
                     UplinkMessageElements = UplinkMessageElements;
+
+                    SuspendCommand.NotifyCanExecuteChanged();
                 }
                 else
                 {
@@ -382,6 +386,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
                     newMessageElements.Add(new UplinkMessageElementViewModel(parts, template.ResponseType));
 
                     UplinkMessageElements = newMessageElements.ToArray();
+
+                    SuspendCommand.NotifyCanExecuteChanged();
                 }
             }
 
@@ -434,6 +440,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
 
             UplinkMessageElements = elements.ToArray();
             SelectedUplinkMessageElement = newElement;
+
+            SuspendCommand.NotifyCanExecuteChanged();
         }
         catch (Exception ex)
         {
@@ -450,6 +458,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             {
                 // If this element is not blank, clear it
                 element.Clear();
+
+                SuspendCommand.NotifyCanExecuteChanged();
             }
             else if (UplinkMessageElements.Count() > 1)
             {
@@ -459,6 +469,8 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
 
                 UplinkMessageElements = newMessages.ToArray();
                 SelectedUplinkMessageElement = null;
+
+                SuspendCommand.NotifyCanExecuteChanged();
             }
 
             // Do nothing if this is the last element, and it's already blank
