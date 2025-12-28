@@ -7,9 +7,9 @@ namespace ACARSPlugin.Windows;
 
 public partial class HistoryWindow : Window
 {
-    private FrameworkElement? _extendedMessageAnchor;
-    private readonly HistoryViewModel _viewModel;
-    private double _lockedWidth;
+    FrameworkElement? _extendedMessageAnchor;
+    readonly HistoryViewModel _viewModel;
+    double _lockedWidth;
 
     public HistoryWindow(HistoryViewModel viewModel)
     {
@@ -23,7 +23,7 @@ public partial class HistoryWindow : Window
         SizeChanged += Window_SizeChanged;
     }
 
-    private void Window_SizeChanged(object sender, SizeChangedEventArgs e)
+    void Window_SizeChanged(object sender, SizeChangedEventArgs e)
     {
         // Lock width, only allow height resizing
         if (Math.Abs(e.NewSize.Width - _lockedWidth) > 0.1)
@@ -38,7 +38,7 @@ public partial class HistoryWindow : Window
         }
     }
 
-    private void CallsignButton_Click(object sender, RoutedEventArgs e)
+    void CallsignButton_Click(object sender, RoutedEventArgs e)
     {
         CallsignButton.Visibility = Visibility.Collapsed;
         CallsignTextBox.Visibility = Visibility.Visible;
@@ -46,11 +46,11 @@ public partial class HistoryWindow : Window
         CallsignTextBox.SelectAll();
     }
 
-    private void CallsignTextBox_KeyDown(object sender, KeyEventArgs e)
+    void CallsignTextBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key != Key.Enter)
             return;
-        
+
         _viewModel.LoadMessagesCommand.Execute(null);
         CallsignTextBox.Visibility = Visibility.Collapsed;
         CallsignButton.Visibility = Visibility.Visible;
@@ -58,7 +58,7 @@ public partial class HistoryWindow : Window
         e.Handled = true;
     }
 
-    private void Message_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    void Message_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement { DataContext: HistoryMessageViewModel messageViewModel } element ||
             DataContext is not HistoryViewModel viewModel)
@@ -73,13 +73,13 @@ public partial class HistoryWindow : Window
         e.Handled = true;
     }
 
-    private void ExtendedMessage_MouseDown(object sender, MouseButtonEventArgs e)
+    void ExtendedMessage_MouseDown(object sender, MouseButtonEventArgs e)
     {
         CollapseExtendedMessage();
         e.Handled = true;
     }
 
-    private void ScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
+    void ScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
     {
         if (e.VerticalChange != 0)
         {
@@ -87,7 +87,7 @@ public partial class HistoryWindow : Window
         }
     }
 
-    private void CollapseExtendedMessage()
+    void CollapseExtendedMessage()
     {
         if (DataContext is not HistoryViewModel viewModel ||
             viewModel.CurrentlyExtendedMessage == null)

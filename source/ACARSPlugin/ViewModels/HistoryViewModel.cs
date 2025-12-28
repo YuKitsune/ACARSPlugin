@@ -12,11 +12,11 @@ public partial class HistoryViewModel : ObservableObject,
     IRecipient<HistoryMessagesChanged>,
     IDisposable
 {
-    private readonly AcarsConfiguration _configuration;
-    private readonly IMediator _mediator;
-    private readonly IGuiInvoker _guiInvoker;
-    private readonly IErrorReporter _errorReporter;
-    private bool _disposed;
+    readonly AcarsConfiguration _configuration;
+    readonly IMediator _mediator;
+    readonly IGuiInvoker _guiInvoker;
+    readonly IErrorReporter _errorReporter;
+    bool _disposed;
 
     public HistoryViewModel(
         AcarsConfiguration configuration,
@@ -43,17 +43,17 @@ public partial class HistoryViewModel : ObservableObject,
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CallsignButtonText))]
-    private string? _callsign;
+    string? _callsign;
 
     public string CallsignButtonText => string.IsNullOrWhiteSpace(Callsign) ? "ACID" : Callsign;
 
     [ObservableProperty]
-    private DialogueHistoryViewModel[] _dialogues = [];
+    DialogueHistoryViewModel[] _dialogues = [];
 
     [ObservableProperty]
-    private HistoryMessageViewModel? _currentlyExtendedMessage;
+    HistoryMessageViewModel? _currentlyExtendedMessage;
 
-    private async Task LoadDialoguesAsync()
+    async Task LoadDialoguesAsync()
     {
         try
         {
@@ -83,7 +83,7 @@ public partial class HistoryViewModel : ObservableObject,
     }
 
     [RelayCommand]
-    private async Task LoadMessages()
+    async Task LoadMessages()
     {
         try
         {
@@ -126,7 +126,7 @@ public partial class HistoryViewModel : ObservableObject,
     }
 
     [RelayCommand]
-    private void ToggleExtendedDisplay(HistoryMessageViewModel messageViewModel)
+    void ToggleExtendedDisplay(HistoryMessageViewModel messageViewModel)
     {
         try
         {

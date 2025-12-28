@@ -164,42 +164,42 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
 
         WeakReferenceMessenger.Default.Register(this);
     }
-    
-    [ObservableProperty] private string callsign;
 
-    [ObservableProperty] private DownlinkMessageViewModel[] downlinkMessages = [];
+    [ObservableProperty] string callsign;
+
+    [ObservableProperty] DownlinkMessageViewModel[] downlinkMessages = [];
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(
         nameof(SendStandbyUplinkMessageCommand),
         nameof(DeferCommand),
         nameof(SendUnableDueTrafficUplinkMessageCommand),
         nameof(SendUnableDueAirspaceUplinkMessageCommand))]
-    private DownlinkMessageViewModel? selectedDownlinkMessage;
+    DownlinkMessageViewModel? selectedDownlinkMessage;
 
-    [ObservableProperty] private DownlinkMessageViewModel? currentlyExtendedDownlinkMessage;
+    [ObservableProperty] DownlinkMessageViewModel? currentlyExtendedDownlinkMessage;
 
     public bool ShowMessageCategories => !ShowHotButtons;
-    [ObservableProperty] private string[] messageCategoryNames = [];
+    [ObservableProperty] string[] messageCategoryNames = [];
 
     [ObservableProperty, NotifyPropertyChangedFor(nameof(ShowMessageCategories))]
-    private string? selectedMessageCategory;
+    string? selectedMessageCategory;
 
-    [ObservableProperty] private UplinkMessageTemplateViewModel[] selectedMessageCategoryElements = [];
+    [ObservableProperty] UplinkMessageTemplateViewModel[] selectedMessageCategoryElements = [];
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowMessageCategories))]
     [NotifyCanExecuteChangedFor(nameof(SuspendCommand))]
-    private bool showHotButtons;
+    bool showHotButtons;
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(
         nameof(EscapeCommand),
         nameof(RestoreCommand),
         nameof(SuspendCommand))]
-    private UplinkMessageElementViewModel[] uplinkMessageElements = [];
-    [ObservableProperty] private UplinkMessageElementViewModel? selectedUplinkMessageElement;
+    UplinkMessageElementViewModel[] uplinkMessageElements = [];
+    [ObservableProperty] UplinkMessageElementViewModel? selectedUplinkMessageElement;
 
-    [ObservableProperty] private string? error;
+    [ObservableProperty] string? error;
 
     partial void OnSelectedDownlinkMessageChanged(DownlinkMessageViewModel? _, DownlinkMessageViewModel? newValue)
     {
@@ -329,7 +329,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             _errorReporter.ReportError(ex);
         }
     }
-    
+
     [RelayCommand(CanExecute = nameof(DownlinkIsSelected))]
     async Task SendUnableDueAirspaceUplinkMessage()
     {
@@ -398,7 +398,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             _errorReporter.ReportError(ex);
         }
     }
-    
+
     [RelayCommand]
     void ToggleMessageElementSelection(UplinkMessageElementViewModel element)
     {
@@ -525,7 +525,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         // Cannot suspend replies to downlinks
         if (SelectedDownlinkMessage is not null)
             return false;
-        
+
         // Cannot suspend in Mode 2
         if (ShowHotButtons)
             return false;
@@ -547,7 +547,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         try
         {
             var (uplinkMessageContent, uplinkMessageResponseType) = ConstructUplinkMessage();
-            
+
             // Remove the selected downlink message and select the most recent one
             var downlinkMessage = SelectedDownlinkMessage;
             if (SelectedDownlinkMessage is not null)
@@ -556,18 +556,18 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
                 newDownlinkMessages.AddRange(DownlinkMessages.Where(d => d != SelectedDownlinkMessage));
                 SelectedDownlinkMessage = newDownlinkMessages.LastOrDefault();
             }
-            
+
             await _mediator.Send(new SendUplinkRequest(
                 Callsign,
                 downlinkMessage?.OriginalMessage.Id,
                 uplinkMessageResponseType,
                 uplinkMessageContent));
-        
+
             ClearUplinkMessage();
-        
+
             if (SelectedDownlinkMessage is not null)
                 return;
-            
+
             // Close the window if there are no more downlink messages remaining
             _windowHandle.Close();
         }
@@ -670,14 +670,14 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
     {
         var content = string.Empty;
         var responseType = CpdlcUplinkResponseType.NoResponse;
-        
+
         foreach (var uplinkMessageElement in UplinkMessageElements)
         {
             if (!string.IsNullOrEmpty(content))
             {
                 content += ". ";
             }
-            
+
             foreach (var uplinkMessageElementPart in uplinkMessageElement.Parts)
             {
                 if (uplinkMessageElementPart is UplinkMessageTextElementComponentViewModel textPart)
@@ -690,13 +690,13 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
                 {
                     if (string.IsNullOrEmpty(templatePart.Value))
                         throw new Exception("Uplink message is invalid");
-                    
+
                     content += $"@{templatePart.Value}@";
                 }
 
                 // TODO: Error?
             }
-            
+
             var currentResponseRank = _responseTypeRank[responseType];
             var newResponseRank = _responseTypeRank[_responseTypeMap[uplinkMessageElement.ResponseType]];
             if (newResponseRank > currentResponseRank)
@@ -718,22 +718,22 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
             var response = await _mediator.Send(new GetCurrentDialoguesRequest());
 
             var downlinkViewModels = new List<DownlinkMessageViewModel>();
-            
+
             foreach (var dialogue in response.Dialogues)
             {
                 if (dialogue.Callsign != Callsign)
                     continue;
-                
+
                 foreach (var message in dialogue.Messages)
                 {
                     if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed || downlinkMessage.ResponseType == CpdlcDownlinkResponseType.NoResponse)
                         continue;
-                    
+
                     var downlinkMessageViewModel = new DownlinkMessageViewModel(
                         downlinkMessage,
                         standbySent: dialogue.HasStandbyResponse(downlinkMessage.Id),
                         deferred: dialogue.HasDeferredResponse(downlinkMessage.Id));
-                
+
                     downlinkViewModels.Add(downlinkMessageViewModel);
                 }
             }
@@ -798,7 +798,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         return viewModel;
     }
 
-    private readonly IDictionary<UplinkResponseType, CpdlcUplinkResponseType> _responseTypeMap = new Dictionary<UplinkResponseType, CpdlcUplinkResponseType>
+    readonly IDictionary<UplinkResponseType, CpdlcUplinkResponseType> _responseTypeMap = new Dictionary<UplinkResponseType, CpdlcUplinkResponseType>
     {
         { UplinkResponseType.WilcoUnable, CpdlcUplinkResponseType.WilcoUnable },
         { UplinkResponseType.AffirmativeNegative, CpdlcUplinkResponseType.AffirmativeNegative },
@@ -806,7 +806,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
         { UplinkResponseType.NoResponse, CpdlcUplinkResponseType.NoResponse },
     };
 
-    private readonly IDictionary<CpdlcUplinkResponseType, int> _responseTypeRank = new Dictionary<CpdlcUplinkResponseType, int>
+    readonly IDictionary<CpdlcUplinkResponseType, int> _responseTypeRank = new Dictionary<CpdlcUplinkResponseType, int>
     {
         { CpdlcUplinkResponseType.WilcoUnable, 3 },
         { CpdlcUplinkResponseType.AffirmativeNegative, 2 },

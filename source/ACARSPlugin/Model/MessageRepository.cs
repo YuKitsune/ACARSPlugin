@@ -7,8 +7,8 @@ namespace ACARSPlugin.Model;
 public class MessageRepository(IClock clock, AcarsConfiguration configuration, ILogger logger)
     : IDisposable
 {
-    private readonly List<Dialogue> _dialogues = [];
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    readonly List<Dialogue> _dialogues = [];
+    readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public async Task AddDownlinkMessage(CpdlcDownlink downlinkMessage, CancellationToken cancellationToken)
     {
@@ -72,7 +72,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         }
     }
 
-    private void AddMessageToDialogue(IAcarsMessageModel message, string callsign)
+    void AddMessageToDialogue(IAcarsMessageModel message, string callsign)
     {
         // Find which dialogue this message belongs to
         var rootMessageId = FindRootMessageId(message);
@@ -96,7 +96,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         }
     }
 
-    private int FindRootMessageId(IAcarsMessageModel message)
+    int FindRootMessageId(IAcarsMessageModel message)
     {
         // If this message is not a reply, it's the root
         var replyToId = message switch
@@ -140,7 +140,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         }
     }
 
-    private IAcarsMessageModel? FindMessageById(int id)
+    IAcarsMessageModel? FindMessageById(int id)
     {
         // Search all dialogues
         foreach (var dialogue in _dialogues)

@@ -38,7 +38,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         base.OnClosed(e);
     }
 
-    private void MessageClassElement_Click(object sender, MouseButtonEventArgs e)
+    void MessageClassElement_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not UplinkMessageTemplateViewModel template ||
@@ -49,7 +49,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         e.Handled = true;
     }
 
-    private void LineNumberButton_Click(object sender, MouseButtonEventArgs e)
+    void LineNumberButton_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not UplinkMessageElementViewModel messageElement ||
@@ -74,7 +74,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         // Don't mark as handled so button gets visual feedback
     }
 
-    private void TemplatePartButton_MouseDown(object sender, MouseButtonEventArgs e)
+    void TemplatePartButton_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not UplinkMessageTemplateElementComponentViewModel templatePart)
@@ -95,7 +95,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         }
     }
 
-    private void TemplatePartTextBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    void TemplatePartTextBox_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
     {
         if (sender is not TextBox textBox)
             return;
@@ -112,7 +112,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         }
     }
 
-    private void TemplatePartTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
+    void TemplatePartTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not UplinkMessageTemplateElementComponentViewModel templatePart)
@@ -132,7 +132,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         }
     }
 
-    private void TemplatePartTextBox_LostFocus(object sender, RoutedEventArgs e)
+    void TemplatePartTextBox_LostFocus(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not UplinkMessageTemplateElementComponentViewModel templatePart)
@@ -141,7 +141,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         templatePart.IsEditing = false;
     }
 
-    private void DownlinkMessage_Click(object sender, MouseButtonEventArgs e)
+    void DownlinkMessage_Click(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not DownlinkMessageViewModel clickedMessage ||
@@ -161,7 +161,7 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         e.Handled = true;
     }
 
-    private void DownlinkMessage_RightClick(object sender, MouseButtonEventArgs e)
+    void DownlinkMessage_RightClick(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not DownlinkMessageViewModel downlinkMessage ||
@@ -175,19 +175,19 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         e.Handled = true;
     }
 
-    private void ExtendedDownlinkMessagePopup_MouseDown(object sender, MouseButtonEventArgs e)
+    void ExtendedDownlinkMessagePopup_MouseDown(object sender, MouseButtonEventArgs e)
     {
         // Close the popup on any click (left or right)
         ExtendedDownlinkMessagePopup.IsOpen = false;
         e.Handled = true;
     }
 
-    private void ExtendedDownlinkMessagePopup_Closed(object? sender, EventArgs e)
+    void ExtendedDownlinkMessagePopup_Closed(object? sender, EventArgs e)
     {
         // Clear the extended message in the ViewModel when the popup closes
         if (DataContext is not EditorViewModel viewModel)
             return;
-        
+
         viewModel.CurrentlyExtendedDownlinkMessage = null;
     }
 }

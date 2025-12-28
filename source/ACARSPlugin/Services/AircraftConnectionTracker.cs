@@ -9,8 +9,8 @@ namespace ACARSPlugin.Services;
 /// </summary>
 public class AircraftConnectionTracker(ILogger logger)
 {
-    private readonly List<AircraftConnection> _connectedAircraft = new();
-    private readonly SemaphoreSlim _semaphore = new(1, 1);
+    readonly List<AircraftConnection> _connectedAircraft = new();
+    readonly SemaphoreSlim _semaphore = new(1, 1);
 
     public async Task Populate(AircraftConnection[] connections, CancellationToken cancellationToken = default)
     {
@@ -27,7 +27,7 @@ public class AircraftConnectionTracker(ILogger logger)
             _semaphore.Release();
         }
     }
-    
+
     public async Task RegisterConnection(AircraftConnection connection, CancellationToken cancellationToken = default)
     {
         await _semaphore.WaitAsync(cancellationToken);

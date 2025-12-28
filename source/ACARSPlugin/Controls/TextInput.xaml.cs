@@ -39,7 +39,7 @@ public partial class TextInput : UserControl
         set => InputBox.Text = value;
     }
 
-    private void InputBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    void InputBox_PreviewTextInput(object sender, TextCompositionEventArgs e)
     {
         if (DigitsOnly)
         {
@@ -47,7 +47,7 @@ public partial class TextInput : UserControl
         }
     }
 
-    private void InputBox_TextChanged(object sender, TextChangedEventArgs e)
+    void InputBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (DigitsOnly)
         {

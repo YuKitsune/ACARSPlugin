@@ -7,7 +7,7 @@ public interface IUplinkMessageElementComponentViewModel;
 public partial class UplinkMessageTextElementComponentViewModel : ObservableObject, IUplinkMessageElementComponentViewModel
 {
     [ObservableProperty]
-    private string value = string.Empty;
+    string value = string.Empty;
 
     public UplinkMessageTextElementComponentViewModel(string value)
     {
@@ -18,13 +18,13 @@ public partial class UplinkMessageTextElementComponentViewModel : ObservableObje
 public partial class UplinkMessageTemplateElementComponentViewModel : ObservableObject, IUplinkMessageElementComponentViewModel
 {
     [ObservableProperty]
-    private string placeholder = string.Empty;
+    string placeholder = string.Empty;
 
     [ObservableProperty]
-    private string? value;
+    string? value;
 
     [ObservableProperty]
-    private bool isEditing;
+    bool isEditing;
 
     public UplinkMessageTemplateElementComponentViewModel(string placeholder)
     {

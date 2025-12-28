@@ -11,7 +11,7 @@ public partial class SetupWindow : Window
         InitializeComponent();
         ViewModel = viewModel;
     }
-    
+
     public SetupViewModel ViewModel
     {
         get => (SetupViewModel) DataContext;
@@ -26,12 +26,12 @@ public partial class SetupWindow : Window
         }
     }
 
-    private void CloseButton_Click(object sender, RoutedEventArgs e)
+    void CloseButton_Click(object sender, RoutedEventArgs e)
     {
         Close();
     }
 
-    // private void ApiKeyPasswordBox_OnPasswordChanged(object sender, RoutedEventArgs e)
+    // void ApiKeyPasswordBox_OnPasswordChanged(object sender, RoutedEventArgs e)
     // {
     //     if (sender is not PasswordBox passwordBox)
     //         return;

@@ -8,7 +8,7 @@ namespace ACARSPlugin.ViewModels;
 
 public partial class HistoryMessageViewModel : ObservableObject
 {
-    private readonly HistoryConfiguration _config;
+    readonly HistoryConfiguration _config;
 
     public IAcarsMessageModel OriginalMessage { get; }
 
@@ -32,32 +32,32 @@ public partial class HistoryMessageViewModel : ObservableObject
         BackgroundColor = background;
         ForegroundColor = foreground;
     }
-    
-    [ObservableProperty]
-    private string callsign = string.Empty;
 
     [ObservableProperty]
-    private string time = string.Empty;
+    string callsign = string.Empty;
 
     [ObservableProperty]
-    private string prefix = string.Empty;
+    string time = string.Empty;
 
     [ObservableProperty]
-    private string content = string.Empty;
+    string prefix = string.Empty;
 
     [ObservableProperty]
-    private string fullContent = string.Empty;
-    
-    [ObservableProperty]
-    private bool isExtended;
+    string content = string.Empty;
 
     [ObservableProperty]
-    private SolidColorBrush foregroundColor = Theme.GenericTextColor;
+    string fullContent = string.Empty;
 
     [ObservableProperty]
-    private SolidColorBrush backgroundColor = Theme.BackgroundColor;
+    bool isExtended;
 
-    private string GetCallsignFromMessage(IAcarsMessageModel message)
+    [ObservableProperty]
+    SolidColorBrush foregroundColor = Theme.GenericTextColor;
+
+    [ObservableProperty]
+    SolidColorBrush backgroundColor = Theme.BackgroundColor;
+
+    string GetCallsignFromMessage(IAcarsMessageModel message)
     {
         var callsign = message switch
         {
@@ -70,12 +70,12 @@ public partial class HistoryMessageViewModel : ObservableObject
         return callsign.PadRight(8);
     }
 
-    private string FormatTime(DateTimeOffset time)
+    string FormatTime(DateTimeOffset time)
     {
         return time.ToString("HH:mm");
     }
 
-    private DateTimeOffset GetTimeFromMessage(IAcarsMessageModel message)
+    DateTimeOffset GetTimeFromMessage(IAcarsMessageModel message)
     {
         return message switch
         {
@@ -90,7 +90,7 @@ public partial class HistoryMessageViewModel : ObservableObject
         var fullText = GetFormattedContent(message, fullContent);
         if (fullText.Length >= _config.MaxDisplayMessageLength)
             return fullText.Substring(0, _config.MaxDisplayMessageLength);
-        
+
         return fullText.PadRight(_config.MaxDisplayMessageLength);
     }
 
@@ -122,7 +122,7 @@ public partial class HistoryMessageViewModel : ObservableObject
 
         sb.Append(message is UplinkMessage { CanAction: true, Actioned: false } ? "X" : " ");
         sb.Append(message is UplinkMessage { IsManuallyAcknowledged: true } ? "M" : " ");
-        
+
         var isHighPriority = false;
         sb.Append(isHighPriority ? "!" : " ");
 
@@ -130,7 +130,7 @@ public partial class HistoryMessageViewModel : ObservableObject
         return sb.ToString();
     }
 
-    private string CalculatePrefix(IAcarsMessageModel message)
+    string CalculatePrefix(IAcarsMessageModel message)
     {
         var sb = new StringBuilder();
         sb.Append(message.Content.Length > _config.MaxDisplayMessageLength ? "*" : " ");

@@ -17,7 +17,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     readonly IMediator _mediator;
     readonly IGuiInvoker _guiInvoker;
     readonly IErrorReporter _errorReporter;
-    private bool _disposed;
+    bool _disposed;
 
     public CurrentMessagesViewModel(AcarsConfiguration configuration, IMediator mediator, IGuiInvoker guiInvoker, IErrorReporter errorReporter)
     {
@@ -309,12 +309,12 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 #endif
 
     [ObservableProperty]
-    private ObservableCollection<DialogueViewModel> dialogues = [];
+    ObservableCollection<DialogueViewModel> dialogues = [];
 
     [ObservableProperty]
-    private CurrentMessageViewModel? currentlyExtendedMessage;
+    CurrentMessageViewModel? currentlyExtendedMessage;
 
-    private async Task LoadDialoguesAsync()
+    async Task LoadDialoguesAsync()
     {
         var response = await _mediator.Send(new GetCurrentDialoguesRequest());
 
@@ -326,7 +326,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
                     new CurrentMessageViewModel(m, _configuration.CurrentMessages))),
                 FirstMessageTime = d.Messages.OrderBy(m => m.Time).First().Time
             });
-        
+
         foreach (var dialogueViewModel in dialogueViewModels)
         {
             Dialogues.Add(dialogueViewModel);
@@ -355,7 +355,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendStandby(CurrentMessageViewModel currentMessageViewModel)
+    async Task SendStandby(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
@@ -371,7 +371,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendDeferred(CurrentMessageViewModel currentMessageViewModel)
+    async Task SendDeferred(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
@@ -387,7 +387,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendUnable(CurrentMessageViewModel currentMessageViewModel)
+    async Task SendUnable(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
@@ -403,7 +403,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendUnableDueTraffic(CurrentMessageViewModel currentMessageViewModel)
+    async Task SendUnableDueTraffic(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
@@ -419,7 +419,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task SendUnableDueAirspace(CurrentMessageViewModel currentMessageViewModel)
+    async Task SendUnableDueAirspace(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
@@ -435,7 +435,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task AcknowledgeDownlink(CurrentMessageViewModel currentMessageViewModel)
+    async Task AcknowledgeDownlink(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
@@ -448,7 +448,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task AcknowledgeUplink(CurrentMessageViewModel currentMessageViewModel)
+    async Task AcknowledgeUplink(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
@@ -461,7 +461,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task MoveToHistory(CurrentMessageViewModel currentMessageViewModel)
+    async Task MoveToHistory(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
@@ -475,7 +475,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private async Task ReissueMessage(CurrentMessageViewModel currentMessageViewModel)
+    async Task ReissueMessage(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {
@@ -491,7 +491,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     }
 
     [RelayCommand]
-    private void ToggleExtendedDisplay(CurrentMessageViewModel currentMessageViewModel)
+    void ToggleExtendedDisplay(CurrentMessageViewModel currentMessageViewModel)
     {
         try
         {

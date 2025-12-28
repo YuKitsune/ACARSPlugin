@@ -8,7 +8,7 @@ namespace ACARSPlugin.ViewModels;
 
 public partial class CurrentMessageViewModel : ObservableObject
 {
-    private readonly CurrentMessagesConfiguration _config;
+    readonly CurrentMessagesConfiguration _config;
 
     public CurrentMessageViewModel(IAcarsMessageModel message, CurrentMessagesConfiguration config)
     {
@@ -16,7 +16,7 @@ public partial class CurrentMessageViewModel : ObservableObject
         UpdateMessage(message);
     }
 
-    public IAcarsMessageModel OriginalMessage { get; private set; }
+    public IAcarsMessageModel OriginalMessage { get; set; }
 
     public void UpdateMessage(IAcarsMessageModel newMessage)
     {
@@ -39,33 +39,33 @@ public partial class CurrentMessageViewModel : ObservableObject
     }
 
     [ObservableProperty]
-    private string callsign = string.Empty;
+    string callsign = string.Empty;
 
     [ObservableProperty]
-    private string time = string.Empty;
+    string time = string.Empty;
 
     [ObservableProperty]
-    private string prefix = string.Empty;
+    string prefix = string.Empty;
 
     [ObservableProperty]
-    private string content = string.Empty;
+    string content = string.Empty;
 
     [ObservableProperty]
-    private string fullContent = string.Empty;
+    string fullContent = string.Empty;
 
     [ObservableProperty]
-    private bool isExtended;
+    bool isExtended;
 
     [ObservableProperty]
-    private bool isDownlink;
+    bool isDownlink;
 
     [ObservableProperty]
-    private SolidColorBrush foregroundColor = Theme.GenericTextColor;
+    SolidColorBrush foregroundColor = Theme.GenericTextColor;
 
     [ObservableProperty]
-    private SolidColorBrush backgroundColor = Theme.BackgroundColor;
+    SolidColorBrush backgroundColor = Theme.BackgroundColor;
 
-    private string GetCallsignFromMessage(IAcarsMessageModel message)
+    string GetCallsignFromMessage(IAcarsMessageModel message)
     {
         var callsign = message switch
         {
@@ -78,7 +78,7 @@ public partial class CurrentMessageViewModel : ObservableObject
         return callsign.PadRight(8);
     }
 
-    private DateTimeOffset GetTimeFromMessage(IAcarsMessageModel message)
+    DateTimeOffset GetTimeFromMessage(IAcarsMessageModel message)
     {
         return message switch
         {
@@ -88,12 +88,12 @@ public partial class CurrentMessageViewModel : ObservableObject
         };
     }
 
-    private string FormatTime(DateTimeOffset time)
+    string FormatTime(DateTimeOffset time)
     {
         return time.ToString("HH:mm");
     }
 
-    private string GetDisplayContent(string fullContent)
+    string GetDisplayContent(string fullContent)
     {
         if (fullContent.Length >= _config.MaxDisplayMessageLength)
             return fullContent.Substring(0, _config.MaxDisplayMessageLength);
@@ -102,7 +102,7 @@ public partial class CurrentMessageViewModel : ObservableObject
         return fullContent.PadRight(_config.MaxDisplayMessageLength);
     }
 
-    private string CalculatePrefix(IAcarsMessageModel message)
+    string CalculatePrefix(IAcarsMessageModel message)
     {
         var sb = new StringBuilder();
 

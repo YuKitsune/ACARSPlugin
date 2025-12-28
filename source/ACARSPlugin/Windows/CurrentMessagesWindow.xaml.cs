@@ -11,9 +11,9 @@ namespace ACARSPlugin.Windows;
 
 public partial class CurrentMessagesWindow : Window
 {
-    private CurrentMessageViewModel? _selectedMessage;
-    private FrameworkElement? _extendedMessageAnchor;
-    private readonly CurrentMessagesViewModel _viewModel;
+    CurrentMessageViewModel? _selectedMessage;
+    FrameworkElement? _extendedMessageAnchor;
+    readonly CurrentMessagesViewModel _viewModel;
 
     public CurrentMessagesWindow(CurrentMessagesViewModel viewModel)
     {
@@ -52,7 +52,7 @@ public partial class CurrentMessagesWindow : Window
         }
     }
 
-    private void Message_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    void Message_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not CurrentMessageViewModel messageViewModel ||
@@ -64,7 +64,7 @@ public partial class CurrentMessagesWindow : Window
             viewModel.AcknowledgeDownlinkCommand.Execute(messageViewModel);
     }
 
-    private void Callsign_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    void Callsign_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not CurrentMessageViewModel messageViewModel ||
@@ -88,7 +88,7 @@ public partial class CurrentMessagesWindow : Window
         }
     }
 
-    private void Message_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    void Message_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (sender is not FrameworkElement element ||
             element.DataContext is not CurrentMessageViewModel messageViewModel ||
@@ -108,7 +108,7 @@ public partial class CurrentMessagesWindow : Window
         e.Handled = true;
     }
 
-    private void ExtendedMessage_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    void ExtendedMessage_MouseRightButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (DataContext is not CurrentMessagesViewModel viewModel)
             return;
@@ -122,7 +122,7 @@ public partial class CurrentMessagesWindow : Window
         e.Handled = true;
     }
 
-    private void ExtendedCallsign_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    void ExtendedCallsign_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (DataContext is not CurrentMessagesViewModel viewModel ||
             viewModel.CurrentlyExtendedMessage == null)
@@ -143,7 +143,7 @@ public partial class CurrentMessagesWindow : Window
         e.Handled = true;
     }
 
-    private void ExtendedContent_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    void ExtendedContent_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (DataContext is not CurrentMessagesViewModel viewModel ||
             viewModel.CurrentlyExtendedMessage == null)
@@ -158,7 +158,7 @@ public partial class CurrentMessagesWindow : Window
         e.Handled = true;
     }
 
-    private void UpdateButtonVisibility(CurrentMessageViewModel currentMessage)
+    void UpdateButtonVisibility(CurrentMessageViewModel currentMessage)
     {
         // Hide all buttons first
         StandbyButton.Visibility = Visibility.Collapsed;
@@ -195,7 +195,7 @@ public partial class CurrentMessagesWindow : Window
         }
     }
 
-    private bool HasVisibleButtons()
+    bool HasVisibleButtons()
     {
         return StandbyButton.Visibility == Visibility.Visible ||
                DeferredButton.Visibility == Visibility.Visible ||
@@ -207,7 +207,7 @@ public partial class CurrentMessagesWindow : Window
                HistoryButton.Visibility == Visibility.Visible;
     }
 
-    private void ExecuteCommandAndClosePopup(Func<CurrentMessagesViewModel, IRelayCommand<CurrentMessageViewModel>> commandSelector)
+    void ExecuteCommandAndClosePopup(Func<CurrentMessagesViewModel, IRelayCommand<CurrentMessageViewModel>> commandSelector)
     {
         if (_selectedMessage != null && DataContext is CurrentMessagesViewModel viewModel)
         {
@@ -218,7 +218,7 @@ public partial class CurrentMessagesWindow : Window
         ActionPopup.IsOpen = false;
     }
 
-    private void Popup_MouseDown(object sender, MouseButtonEventArgs e)
+    void Popup_MouseDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ChangedButton != MouseButton.Middle)
             return;
@@ -227,7 +227,7 @@ public partial class CurrentMessagesWindow : Window
         e.Handled = true;
     }
 
-    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
     {
         for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
         {

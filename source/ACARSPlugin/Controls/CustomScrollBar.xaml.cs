@@ -6,8 +6,8 @@ namespace ACARSPlugin.Controls;
 
 public partial class CustomScrollBar : UserControl
 {
-    private bool _isDragging;
-    private Point _lastMousePosition;
+    bool _isDragging;
+    Point _lastMousePosition;
 
     public static readonly DependencyProperty ScrollViewerProperty =
         DependencyProperty.Register(
@@ -27,7 +27,7 @@ public partial class CustomScrollBar : UserControl
         InitializeComponent();
     }
 
-    private void UserControl_Loaded(object sender, RoutedEventArgs e)
+    void UserControl_Loaded(object sender, RoutedEventArgs e)
     {
         if (PART_ScrollUpButton != null)
             PART_ScrollUpButton.MouseLeftButtonDown += OnUpButtonClick;
@@ -47,7 +47,7 @@ public partial class CustomScrollBar : UserControl
         UpdateScrollBar();
     }
 
-    private static void OnScrollViewerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    static void OnScrollViewerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is CustomScrollBar scrollBar)
         {
@@ -65,22 +65,22 @@ public partial class CustomScrollBar : UserControl
         }
     }
 
-    private void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
+    void OnScrollChanged(object? sender, ScrollChangedEventArgs e)
     {
         UpdateScrollBar();
     }
 
-    private void OnUpButtonClick(object sender, MouseButtonEventArgs e)
+    void OnUpButtonClick(object sender, MouseButtonEventArgs e)
     {
         ScrollViewer?.LineUp();
     }
 
-    private void OnDownButtonClick(object sender, MouseButtonEventArgs e)
+    void OnDownButtonClick(object sender, MouseButtonEventArgs e)
     {
         ScrollViewer?.LineDown();
     }
 
-    private void OnThumbMouseDown(object sender, MouseButtonEventArgs e)
+    void OnThumbMouseDown(object sender, MouseButtonEventArgs e)
     {
         if (PART_Thumb != null && PART_Track != null)
         {
@@ -90,7 +90,7 @@ public partial class CustomScrollBar : UserControl
         }
     }
 
-    private void OnThumbMouseUp(object sender, MouseButtonEventArgs e)
+    void OnThumbMouseUp(object sender, MouseButtonEventArgs e)
     {
         if (PART_Thumb != null && _isDragging)
         {
@@ -99,7 +99,7 @@ public partial class CustomScrollBar : UserControl
         }
     }
 
-    private void OnThumbMouseMove(object sender, MouseEventArgs e)
+    void OnThumbMouseMove(object sender, MouseEventArgs e)
     {
         if (_isDragging && PART_Track != null && ScrollViewer != null && ScrollViewer.ScrollableHeight > 0)
         {
@@ -127,7 +127,7 @@ public partial class CustomScrollBar : UserControl
         }
     }
 
-    private void UpdateScrollBar()
+    void UpdateScrollBar()
     {
         if (PART_Thumb == null || PART_Track == null)
             return;

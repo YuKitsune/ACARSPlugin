@@ -19,14 +19,14 @@ public partial class UplinkMessageElementViewModel : ObservableObject
         Prefix = GetPrefix(false, false);
     }
 
-    [ObservableProperty] private IUplinkMessageElementComponentViewModel[] parts = [];
+    [ObservableProperty] IUplinkMessageElementComponentViewModel[] parts = [];
     [ObservableProperty] UplinkResponseType responseType = UplinkResponseType.NoResponse;
-    
-    // TODO: Make these message types and indicators configurable
-    [ObservableProperty] private bool isFreeText;
-    [ObservableProperty] private bool isRevision;
 
-    [ObservableProperty] private string prefix;
+    // TODO: Make these message types and indicators configurable
+    [ObservableProperty] bool isFreeText;
+    [ObservableProperty] bool isRevision;
+
+    [ObservableProperty] string prefix;
 
     public bool IsEmpty => Parts.Length == 0;
 

@@ -12,13 +12,13 @@ namespace ACARSPlugin.Services;
 /// </summary>
 public class MessageMonitorService : IAsyncDisposable
 {
-    private readonly MessageRepository _repository;
-    private readonly IClock _clock;
-    private readonly AcarsConfiguration _configuration;
-    private readonly IPublisher _publisher;
-    private readonly ILogger _logger;
-    private readonly Task _monitorTask;
-    private readonly CancellationTokenSource _monitorCancellationTokenSource;
+    readonly MessageRepository _repository;
+    readonly IClock _clock;
+    readonly AcarsConfiguration _configuration;
+    readonly IPublisher _publisher;
+    readonly ILogger _logger;
+    readonly Task _monitorTask;
+    readonly CancellationTokenSource _monitorCancellationTokenSource;
 
     public MessageMonitorService(MessageRepository repository, IClock clock, AcarsConfiguration configuration, IPublisher publisher, ILogger logger)
     {

@@ -11,8 +11,8 @@ public partial class SetupViewModel : ObservableObject,
     IRecipient<ConnectedNotification>,
     IRecipient<DisconnectedNotification>
 {
-    private readonly IMediator _mediator;
-    private readonly IErrorReporter _errorReporter;
+    readonly IMediator _mediator;
+    readonly IErrorReporter _errorReporter;
 
     [ObservableProperty] string serverEndpoint;
     [ObservableProperty] string[] availableStationIdentifiers;

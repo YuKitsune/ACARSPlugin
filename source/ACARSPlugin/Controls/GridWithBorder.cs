@@ -75,7 +75,7 @@ public class GridWithBorder : Grid
         }
     }
 
-    private double GetColumnActualWidth(int columnIndex)
+    double GetColumnActualWidth(int columnIndex)
     {
         if (columnIndex < 0 || columnIndex >= ColumnDefinitions.Count)
             return 0;
@@ -102,7 +102,7 @@ public class GridWithBorder : Grid
         return ActualWidth / ColumnDefinitions.Count;
     }
 
-    private double GetRowActualHeight(int rowIndex)
+    double GetRowActualHeight(int rowIndex)
     {
         if (rowIndex < 0 || rowIndex >= RowDefinitions.Count)
             return 0;

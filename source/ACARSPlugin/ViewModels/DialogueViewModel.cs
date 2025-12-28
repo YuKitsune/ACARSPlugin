@@ -7,8 +7,8 @@ namespace ACARSPlugin.ViewModels;
 public partial class DialogueViewModel : ObservableObject
 {
     [ObservableProperty]
-    private ObservableCollection<CurrentMessageViewModel> messages = [];
+    ObservableCollection<CurrentMessageViewModel> messages = [];
 
     [ObservableProperty]
-    private DateTimeOffset firstMessageTime;
+    DateTimeOffset firstMessageTime;
 }

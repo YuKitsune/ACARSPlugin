@@ -8,8 +8,8 @@ namespace ACARSPlugin.Model;
 /// </summary>
 public class Dialogue
 {
-    private readonly List<IAcarsMessageModel> _messages = [];
-    private DateTimeOffset? _closedTime;
+    readonly List<IAcarsMessageModel> _messages = [];
+    DateTimeOffset? _closedTime;
 
     public Dialogue(int rootMessageId, string callsign, IAcarsMessageModel firstMessage)
     {
@@ -56,13 +56,13 @@ public class Dialogue
                         downlink.IsAcknowledged = true; // Auto-acknowledge when replying
                     }
                 }
-                
+
                 // Close the dialogue if this message doesn't require a response, and it's not a special message (i.e. STANDBY or REQUEST DEFERRED)
                 if (!uplink.IsSpecial && uplink.ResponseType == CpdlcUplinkResponseType.NoResponse)
                 {
                     Close(uplink.Sent);
                 }
-                
+
                 break;
 
             case DownlinkMessage downlink:
@@ -82,7 +82,7 @@ public class Dialogue
                         uplink.IsAcknowledged = true; // Auto-acknowledge when pilot responds
                     }
                 }
-                
+
                 // Close the dialogue if this message doesn't require a response, and it's not a special message (i.e. STANDBY or REQUEST DEFERRED)
                 if (!downlink.IsSpecial && downlink.ResponseType == CpdlcDownlinkResponseType.NoResponse)
                 {
@@ -96,7 +96,7 @@ public class Dialogue
     public void Close(DateTimeOffset now)
     {
         _closedTime = now;
-        
+
         // Ensure all messages in the dialogue are also closed
         foreach (var message in _messages)
         {

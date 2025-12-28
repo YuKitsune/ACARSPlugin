@@ -14,8 +14,8 @@ public class SignalRConnectionManager(
     ILogger logger)
     : IDisposable
 {
-    private HubConnection? _connection;
-    private bool _isDisposed;
+    HubConnection? _connection;
+    bool _isDisposed;
 
     /// <summary>
     /// Gets the current connection state.
@@ -37,7 +37,7 @@ public class SignalRConnectionManager(
     /// </summary>
     public event EventHandler<Exception>? ConnectionError;
 
-    public string StationIdentifier { get; private set; } = string.Empty;
+    public string StationIdentifier { get; set; } = string.Empty;
 
     /// <summary>
     /// Initializes the SignalR connection.
@@ -194,7 +194,7 @@ public class SignalRConnectionManager(
 
         return result.UplinkMessage;
     }
-    
+
     public record SendUplinkResult(CpdlcUplink UplinkMessage);
 
     public async Task<ConnectedAircraftInfo[]> GetConnectedAircraft(CancellationToken cancellationToken)
@@ -210,13 +210,13 @@ public class SignalRConnectionManager(
 
         return result.Aircraft;
     }
-    
+
     record GetConnectedAircraftResult(ConnectedAircraftInfo[] Aircraft);
 
     /// <summary>
     /// Registers connection lifecycle event handlers.
     /// </summary>
-    private void RegisterConnectionEvents()
+    void RegisterConnectionEvents()
     {
         if (_connection == null) return;
 
@@ -262,13 +262,13 @@ public class SignalRConnectionManager(
         };
     }
 
-    private void OnConnectionStateChanged(HubConnectionState newState)
+    void OnConnectionStateChanged(HubConnectionState newState)
     {
         logger.Debug("Connection state changed to {State}", newState);
         ConnectionStateChanged?.Invoke(this, newState);
     }
 
-    private void OnConnectionError(Exception error)
+    void OnConnectionError(Exception error)
     {
         logger.Error(error, "SignalR connection error occurred");
         ConnectionError?.Invoke(this, error);
@@ -278,7 +278,7 @@ public class SignalRConnectionManager(
     /// <summary>
     /// Ensures the connection is active before attempting operations.
     /// </summary>
-    private void EnsureConnected()
+    void EnsureConnected()
     {
         if (_connection == null)
         {
@@ -302,7 +302,7 @@ public class SignalRConnectionManager(
         GC.SuppressFinalize(this);
     }
 
-    private async Task DisposeConnectionAsync()
+    async Task DisposeConnectionAsync()
     {
         if (_connection != null)
         {

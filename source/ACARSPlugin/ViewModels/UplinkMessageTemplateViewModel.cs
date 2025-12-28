@@ -6,15 +6,15 @@ namespace ACARSPlugin.ViewModels;
 
 public partial class UplinkMessageTemplateViewModel : ObservableObject
 {
-    [ObservableProperty] private string content;
-    [ObservableProperty] private UplinkResponseType responseType;
+    [ObservableProperty] string content;
+    [ObservableProperty] UplinkResponseType responseType;
 
     // TODO: Make these message types and indicators configurable
-    [ObservableProperty] private bool isFreeText;
-    [ObservableProperty] private bool isRevision;
+    [ObservableProperty] bool isFreeText;
+    [ObservableProperty] bool isRevision;
 
-    [ObservableProperty] private string displayText;
-    [ObservableProperty] private int maxCharacters;
+    [ObservableProperty] string displayText;
+    [ObservableProperty] int maxCharacters;
 
     public UplinkMessageReference MessageReference { get; }
 
@@ -28,7 +28,7 @@ public partial class UplinkMessageTemplateViewModel : ObservableObject
         MaxCharacters = 250; // TODO: Calculate based on view width
         DisplayText = GetDisplayText(Content, MaxCharacters, IsFreeText, IsRevision);
     }
-    
+
     static string GetDisplayText(string fullContent, int maxCharacters, bool isFreeText, bool isRevision)
     {
         var sb = new StringBuilder();
@@ -66,13 +66,13 @@ public partial class UplinkMessageTemplateViewModel : ObservableObject
         {
             sb.Append(fullContent);
         }
-        
+
         var totalLength = sb.Length + fullContent.Length;
         if (totalLength > maxCharacters)
         {
             sb[0] = '*';
         }
-        
+
         return sb.ToString();
     }
 }

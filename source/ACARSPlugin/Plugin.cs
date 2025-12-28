@@ -42,8 +42,8 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     static readonly Dictionary<string, DateTimeOffset> ErrorMessages = new();
 
     // Cache for CustomStripOrLabelItem to avoid expensive lookups on every label update
-    private readonly ConcurrentDictionary<string, CustomStripOrLabelItem> _labelItemCache = new();
-    
+    readonly ConcurrentDictionary<string, CustomStripOrLabelItem> _labelItemCache = new();
+
     readonly Channel<Func<Task>> _workQueue = Channel.CreateUnbounded<Func<Task>>();
     readonly Task _worker;
 
@@ -54,7 +54,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
     string IPlugin.Name => Name;
 
-    public IServiceProvider ServiceProvider { get; private set; }
+    IServiceProvider ServiceProvider { get; set; }
 
     public SignalRConnectionManager? ConnectionManager { get; set; }
 
@@ -71,12 +71,12 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
             Network.Connected += NetworkConnected;
             Network.Disconnected += NetworkDisconnected;
-            
+
             FDP2.FDRsChanged += FDP2OnFDRsChanged;
-            
+
             WeakReferenceMessenger.Default.Register<CurrentMessagesChanged>(this);
             WeakReferenceMessenger.Default.Register<ConnectedAircraftChanged>(this);
-            
+
             _worker = Worker(CancellationToken.None);
         }
         catch (Exception ex)
@@ -127,9 +127,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     void ConfigureServices(AcarsConfiguration acarsConfiguration)
     {
         var serverConfiguration = CreateServerConfiguration(acarsConfiguration.ServerEndpoint);
-        
+
         var logger = ConfigureLogger(acarsConfiguration);
-        
+
         ServiceProvider = new ServiceCollection()
             .AddSingleton(logger)
             .AddSingleton(this) // TODO: Ick... Whatever we're relying on this for, move it into a separate service please.
@@ -144,7 +144,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             .AddSingleton<WindowManager>()
             .AddMediatR(c => c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly))
             .BuildServiceProvider();
-        
+
         // Activate the monitor
         // TODO: Do this a better way...
         ServiceProvider.GetRequiredService<MessageMonitorService>();
@@ -168,14 +168,14 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         return logger;
     }
 
-    private void NetworkConnected(object sender, EventArgs e)
+    void NetworkConnected(object sender, EventArgs e)
     {
         Log.Information("Connected to VATSIM as {Callsign}", Network.Callsign);
-        
+
         // TODO: Connect if auto-connect enabled
     }
 
-    private void NetworkDisconnected(object sender, EventArgs e)
+    void NetworkDisconnected(object sender, EventArgs e)
     {
         Log.Information("Disconnected from VATSIM");
 
@@ -198,7 +198,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         TryAddErrorInternal(exception);
         Log.Error(exception, "An error has occurred");
     }
-    
+
     public static void AddError(Exception exception, string message)
     {
         TryAddErrorInternal(exception);
@@ -229,11 +229,11 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         Theme.CPDLCDownlinkColor = GetColour(Colours.Identities.CPDLCDownlink);
         Theme.CPDLCSendBackgroundColor = GetColour(Colours.Identities.CPDLCSendButton);
         Theme.CPDLCHotButtonBackgroundColor = GetColour(Colours.Identities.CPDLCSendButton);
-        
+
         Theme.FontFamily = new FontFamily(MMI.eurofont_xsml.FontFamily.Name);
         Theme.FontSize = MMI.eurofont_xsml.Size;
         Theme.FontWeight = MMI.eurofont_xsml.Bold ? FontWeights.Bold : FontWeights.Regular;
-        
+
         CacheLabelColours();
 
         SolidColorBrush GetColour(Colours.Identities identity)
@@ -241,11 +241,11 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             return new SolidColorBrush(Colours.GetColour(identity).ToWindowsColor());
         }
     }
-    
+
     void CacheLabelColours()
     {
         // Need to cache these for thread-safe access
-        
+
         var downlinkColor = Theme.CPDLCDownlinkColor.Color;
         _cachedDownlinkColor = new CustomColour(downlinkColor.R, downlinkColor.G, downlinkColor.B);
 
@@ -255,11 +255,11 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         var suspendedColor = Theme.CPDLCSuspendedColor.Color;
         _cachedSuspendedColor = new CustomColour(suspendedColor.R, suspendedColor.G, suspendedColor.B);
     }
-    
+
     void AddToolbarItems()
     {
         const string menuItemCategory = "CPDLC";
-        
+
         var setupMenuItem = new CustomToolStripMenuItem(
             CustomToolStripMenuItemWindowType.Main,
             menuItemCategory,
@@ -267,7 +267,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         setupMenuItem.Item.Click += (_, _) => OpenSetupWindow();
 
         MMI.AddCustomMenuItem(setupMenuItem);
-        
+
         var currentMessagesMenuItem = new CustomToolStripMenuItem(
             CustomToolStripMenuItemWindowType.Main,
             menuItemCategory,
@@ -275,7 +275,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         currentMessagesMenuItem.Item.Click += (_, _) => OpenCurrentMessagesWindow();
 
         MMI.AddCustomMenuItem(currentMessagesMenuItem);
-        
+
         var historyMenuItem = new CustomToolStripMenuItem(
             CustomToolStripMenuItemWindowType.Main,
             menuItemCategory,
@@ -284,7 +284,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
         MMI.AddCustomMenuItem(historyMenuItem);
     }
-    
+
     public void OnFDRUpdate(FDP2.FDR updated) { }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated) {}
@@ -298,26 +298,26 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         return ShouldDisplayMessage(fdr);
     }
 
-    public static bool ShouldDisplayMessage(FDP2.FDR fdr)
+    static bool ShouldDisplayMessage(FDP2.FDR fdr)
     {
         // If we have jurisdiction, show the message
         if (fdr.IsTrackedByMe)
         {
             return true;
         }
-        
+
         // TODO: If nobody has jurisdiction, and we're the next owner, show the message
         // TODO: If nobody has jurisdiction, and we were the last owner, show the message
-        
+
         // Fallback: If nobody has jurisdiction, show the message to everyone
         if (!fdr.IsTracked)
         {
             return true;
         }
-        
+
         return false;
     }
-    
+
     public CustomLabelItem? GetCustomLabelItem(
         string itemType,
         Track track,
@@ -350,13 +350,13 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         // vatSys won't draw the custom background if the original colour (specified in the Labels.xml file) is transparent (or empty).
         // To work around this, we define two label items. One with the background, and one without.
         // If we need to draw a custom background colour, we return `null` for the one without the background.
-        
+
         if (flightDataRecord is null)
             return null;
-        
+
         var lastTextMessage = Network.GetRadioMessages
             .LastOrDefault(r => r.Address == flightDataRecord.Callsign && !r.Acknowledged);
-        
+
         string? text = null;
         CustomColour? backgroundColour = null;
 
@@ -427,14 +427,14 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         // vatSys won't draw the custom background if the original colour (specified in the Labels.xml file) is transparent (or empty).
         // To work around this, we define two label items. One with the background, and one without.
         // If we need to draw a custom background colour, we return `null` for the one without the background.
-        
+
         // Blank by default
         var labelItem = new CustomLabelItem
         {
             Type = itemType,
             Text = " "
         };
-        
+
         var customItem = GetCustomStripOrLabelItem(flightDataRecord);
         if (customItem is null)
         {
@@ -447,10 +447,10 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         labelItem.Text = customItem.Text;
         if (customItem.BackgroundColour is not null && itemType != "ACARSPLUGIN_CPDLCSTATUS_BG")
             return null;
-        
+
         if (customItem.BackgroundColour is null && itemType != "ACARSPLUGIN_CPDLCSTATUS")
             return null;
-        
+
         if (customItem.BackgroundColour is not null)
         {
             labelItem.BackColourIdentity = Colours.Identities.Custom;
@@ -461,7 +461,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         {
             if (args.Button != CustomLabelItemMouseButton.Left)
                 return;
-            
+
             customItem.LeftClickCallback();
             args.Handled = true;
         };
@@ -483,7 +483,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             return null;
         }
     }
-    
+
     record CustomStripOrLabelItem(
         string Text,
         CustomColour? BackgroundColour,
@@ -523,7 +523,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     return;
 
                 var hasActiveDownlinkMessages = activeDialogues.Any();
-                
+
                 var isEquipped = new[]
                 {
                     "J1",
@@ -541,7 +541,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
                 // TODO: Suspended messages
                 var hasSuspendedMessage = false;
-                
+
                 var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
 
                 var text = " ";
@@ -610,10 +610,10 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     text,
                     backgroundColour,
                     leftClickAction);
-                
+
                 allUpdatedKeys.Add(flightDataRecord.Callsign);
             }
-            
+
             var missingKeys = allExistingKeys.Except(allUpdatedKeys);
             foreach (var missingKey in missingKeys)
             {
@@ -667,7 +667,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
 
                 var selectedCallsign = MMI.SelectedTrack?.GetFDR()?.Callsign;
-                
+
                 var viewModel = new HistoryViewModel(
                     configuration,
                     mediator,
@@ -702,7 +702,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             });
     }
 
-    private void FDP2OnFDRsChanged(object sender, FDP2.FDRsChangedEventArgs e)
+    void FDP2OnFDRsChanged(object sender, FDP2.FDRsChangedEventArgs e)
     {
         try
         {
@@ -725,7 +725,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             AddError(ex);
         }
     }
-    
+
     public void Receive(CurrentMessagesChanged _)
     {
         try
@@ -757,7 +757,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             AddError(ex);
         }
     }
-    
+
     void OpenCpdlcWindow(string callsign, CancellationToken cancellationToken)
     {
         var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
@@ -784,7 +784,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 {
                     if (dialogue.Callsign != callsign)
                         continue;
-                    
+
                     foreach (var message in dialogue.Messages)
                     {
                         if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed || downlinkMessage.ResponseType == CpdlcDownlinkResponseType.NoResponse)

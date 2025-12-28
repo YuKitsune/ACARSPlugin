@@ -6,12 +6,12 @@ namespace ACARSPlugin.Configuration;
 
 public static class ConfigurationLoader
 {
-    private const string ConfigFileName = "ACARS.json";
+    const string ConfigFileName = "ACARS.json";
 
     public static AcarsConfiguration Load()
     {
         var configPath = GetConfigFilePath();
-        
+
         if (!File.Exists(configPath))
         {
             throw new FileNotFoundException($"Could not find configuration file at {configPath}");
@@ -21,7 +21,7 @@ public static class ConfigurationLoader
         return JsonSerializer.Deserialize<AcarsConfiguration>(json)!;
     }
 
-    private static string GetConfigFilePath()
+    static string GetConfigFilePath()
     {
         // Get the directory where the plugin assembly is located
         var assemblyLocation = Assembly.GetExecutingAssembly().Location;

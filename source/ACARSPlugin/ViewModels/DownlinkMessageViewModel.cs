@@ -34,15 +34,15 @@ public partial class DownlinkMessageViewModel : ObservableObject
 #endif
 
     public DownlinkMessage OriginalMessage { get; }
-    
-    [ObservableProperty] private DateTimeOffset received;
-    [ObservableProperty] private bool standbySent;
-    [ObservableProperty] private bool deferred;
-    [ObservableProperty] private string message;
-    [ObservableProperty] private string displayText;
-    [ObservableProperty] private string fullDisplayText;
-    [ObservableProperty] private int maxCharacters;
-    
+
+    [ObservableProperty] DateTimeOffset received;
+    [ObservableProperty] bool standbySent;
+    [ObservableProperty] bool deferred;
+    [ObservableProperty] string message;
+    [ObservableProperty] string displayText;
+    [ObservableProperty] string fullDisplayText;
+    [ObservableProperty] int maxCharacters;
+
     static string GetDisplayText(string fullContent, DateTimeOffset received, bool standbySent, bool requestDeferred, int maxCharacters)
     {
         var sb = new StringBuilder();
@@ -73,7 +73,7 @@ public partial class DownlinkMessageViewModel : ObservableObject
         {
             sb.Append(fullContent);
         }
-        
+
         var totalLength = sb.Length + fullContent.Length;
         if (totalLength > maxCharacters)
         {

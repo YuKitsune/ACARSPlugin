@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -10,7 +8,6 @@ using Nuke.Common;
 using Nuke.Common.CI.GitHubActions;
 using Nuke.Common.Git;
 using Nuke.Common.IO;
-using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
 using Nuke.Common.Tools.GitHub;
 using Nuke.Common.Tools.GitVersion;
@@ -376,7 +373,7 @@ class Build : NukeBuild
         return Path.Combine(documentsPath, "vatSys Files", "Profiles", profileName);
     }
 
-    private string GetSemanticVersion()
+    string GetSemanticVersion()
     {
         // For main/master branch: use major.minor.patch (e.g., "1.2.3")
         if (GitVersion.BranchName is "main" or "master")

@@ -43,7 +43,7 @@ public class BeveledBorder : Decorator
         set => SetValue(BevelTypeProperty, value);
     }
 
-    private Thickness BorderThicknessDoubled =>
+    Thickness BorderThicknessDoubled =>
         new Thickness(BorderThickness.Left * 2, BorderThickness.Top * 2, BorderThickness.Right * 2,
             BorderThickness.Bottom * 2);
 
@@ -102,7 +102,7 @@ public class BeveledBorder : Decorator
         }
     }
 
-    private void DrawBevel(DrawingContext dc, bool isRaised)
+    void DrawBevel(DrawingContext dc, bool isRaised)
     {
         var light = isRaised ? Theme.LightBrush : Theme.DarkBrush;
         var dark = isRaised ? Theme.DarkBrush : Theme.LightBrush;
@@ -114,7 +114,7 @@ public class BeveledBorder : Decorator
         dc.DrawGeometry(dark, new Pen(dark, 0), bottomRightGeometry);
     }
 
-    private void DrawOutline(DrawingContext dc)
+    void DrawOutline(DrawingContext dc)
     {
         var outerLight = Theme.LightBrush;
         var outerDark = Theme.DarkBrush;
@@ -134,7 +134,7 @@ public class BeveledBorder : Decorator
                 ActualHeight - BorderThickness.Bottom, BorderThickness));
     }
 
-    private Geometry GetTopLeftGeometry(double left, double top, double right, double bottom, Thickness thickness)
+    Geometry GetTopLeftGeometry(double left, double top, double right, double bottom, Thickness thickness)
     {
         var segments = new[]
         {
@@ -150,7 +150,7 @@ public class BeveledBorder : Decorator
         return new PathGeometry([new PathFigure(new Point(left, top), segments, true)]);
     }
 
-    private Geometry GetBottomRightGeometry(double left, double top, double right, double bottom, Thickness thickness)
+    Geometry GetBottomRightGeometry(double left, double top, double right, double bottom, Thickness thickness)
     {
         var segments = new[]
         {
