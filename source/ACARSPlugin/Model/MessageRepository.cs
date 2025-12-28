@@ -1,9 +1,10 @@
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Server.Contracts;
+using Serilog;
 
 namespace ACARSPlugin.Model;
 
-public class MessageRepository(IClock clock, AcarsConfiguration configuration)
+public class MessageRepository(IClock clock, AcarsConfiguration configuration, ILogger logger)
     : IDisposable
 {
     private readonly List<Dialogue> _dialogues = [];
@@ -14,6 +15,9 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
+            logger.Debug("Adding downlink message {MessageId} from {Sender} (ReplyTo: {ReplyToUplinkId})",
+                downlinkMessage.Id, downlinkMessage.Sender, downlinkMessage.ReplyToUplinkId);
+
             // TODO: move DTO to Model conversion into handler
             // Replace newlines with ". " so messages display on a single line
             var content = downlinkMessage.Content
@@ -31,6 +35,8 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
                 downlinkMessage.ReplyToUplinkId);
 
             AddMessageToDialogue(model, model.Sender);
+            logger.Information("Downlink message {MessageId} from {Sender} added to repository",
+                downlinkMessage.Id, downlinkMessage.Sender);
         }
         finally
         {
@@ -43,6 +49,9 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
+            logger.Debug("Adding uplink message {MessageId} to {Recipient} (ReplyTo: {ReplyToDownlinkId})",
+                uplinkMessage.Id, uplinkMessage.Recipient, uplinkMessage.ReplyToDownlinkId);
+
             // TODO: move DTO to Model conversion into handler
             var model = new UplinkMessage(
                 uplinkMessage.Id,
@@ -54,6 +63,8 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
                 uplinkMessage.ReplyToDownlinkId);
 
             AddMessageToDialogue(model, model.Recipient);
+            logger.Information("Uplink message {MessageId} to {Recipient} added to repository",
+                uplinkMessage.Id, uplinkMessage.Recipient);
         }
         finally
         {
@@ -70,12 +81,17 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         if (dialogue == null)
         {
             // Create new dialogue (closure rules are applied within the constructor)
+            logger.Debug("Creating new dialogue for {Callsign} with root message {RootMessageId}",
+                callsign, rootMessageId);
             dialogue = new Dialogue(rootMessageId, callsign, message);
             _dialogues.Add(dialogue);
+            logger.Debug("New dialogue created, total dialogues: {DialogueCount}", _dialogues.Count);
         }
         else
         {
             // Add to existing dialogue (closure rules are applied within AddMessage)
+            logger.Debug("Adding message {MessageId} to existing dialogue for {Callsign} (Root: {RootMessageId})",
+                message.Id, callsign, rootMessageId);
             dialogue.AddMessage(message);
         }
     }
@@ -142,10 +158,13 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         await _semaphore.WaitAsync();
         try
         {
-            return _dialogues
+            var dialogues = _dialogues
                 .Where(d => !d.IsInHistory && d.Callsign == callsign)
                 .OrderBy(d => d.Opened)
                 .ToArray();
+
+            logger.Debug("Retrieved {DialogueCount} current dialogues for {Callsign}", dialogues.Length, callsign);
+            return dialogues;
         }
         finally
         {
@@ -158,10 +177,13 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         await _semaphore.WaitAsync();
         try
         {
-            return _dialogues
+            var dialogues = _dialogues
                 .Where(d => !d.IsInHistory)
                 .OrderBy(d => d.Opened)
                 .ToArray();
+
+            logger.Debug("Retrieved {DialogueCount} current dialogues", dialogues.Length);
+            return dialogues;
         }
         finally
         {
@@ -174,10 +196,13 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         await _semaphore.WaitAsync();
         try
         {
-            return _dialogues
+            var dialogues = _dialogues
                 .Where(d => d.IsInHistory)
                 .OrderBy(d => d.Opened)
                 .ToArray();
+
+            logger.Debug("Retrieved {DialogueCount} history dialogues", dialogues.Length);
+            return dialogues;
         }
         finally
         {
@@ -190,36 +215,14 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         await _semaphore.WaitAsync();
         try
         {
-            return _dialogues
+            var dialogues = _dialogues
                 .Where(d => d.IsInHistory && d.Callsign == callsign)
                 .OrderBy(d => d.Callsign)
                 .ThenBy(d => d.Closed ?? d.Opened)
                 .ToArray();
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
-    }
 
-    public async Task PruneHistory(int maxHistory)
-    {
-        await _semaphore.WaitAsync();
-        try
-        {
-            var historyDialogues = _dialogues.Where(d => d.IsInHistory).ToList();
-            if (historyDialogues.Count <= maxHistory)
-                return;
-
-            var toRemove = historyDialogues
-                .OrderBy(d => d.Closed ?? d.Opened)
-                .Take(historyDialogues.Count - maxHistory)
-                .ToList();
-
-            foreach (var dialogue in toRemove)
-            {
-                _dialogues.Remove(dialogue);
-            }
+            logger.Debug("Retrieved {DialogueCount} history dialogues for {Callsign}", dialogues.Length, callsign);
+            return dialogues;
         }
         finally
         {
@@ -234,8 +237,12 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         {
             var message = FindMessageById(messageId);
             if (message is not DownlinkMessage downlinkMessage)
+            {
+                logger.Warning("Cannot acknowledge downlink {MessageId}: message not found or not a downlink", messageId);
                 return;
+            }
 
+            logger.Debug("Acknowledging downlink message {MessageId}", messageId);
             downlinkMessage.IsAcknowledged = true;
         }
         finally
@@ -251,15 +258,27 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
         {
             var message = FindMessageById(messageId);
             if (message is not UplinkMessage uplinkMessage)
+            {
+                logger.Warning("Cannot manually acknowledge uplink {MessageId}: message not found or not an uplink", messageId);
                 return;
+            }
 
+            logger.Information("Manually acknowledging uplink message {MessageId}", messageId);
             uplinkMessage.IsAcknowledged = true;
             uplinkMessage.IsClosed = true;
             uplinkMessage.IsManuallyAcknowledged = true;
 
             // Close the dialogue
             var dialogue = _dialogues.FirstOrDefault(d => d.Messages.Contains(uplinkMessage));
-            dialogue?.Close(clock.UtcNow());
+            if (dialogue != null)
+            {
+                logger.Debug("Closing dialogue for {Callsign} due to manual acknowledgement", dialogue.Callsign);
+                dialogue.Close(clock.UtcNow());
+            }
+            else
+            {
+                logger.Warning("No dialogue found for uplink message {MessageId}", messageId);
+            }
         }
         finally
         {
@@ -287,6 +306,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration)
 
     public void Dispose()
     {
+        logger.Debug("Disposing message repository");
         _semaphore.Dispose();
     }
 }

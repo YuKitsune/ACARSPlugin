@@ -24,7 +24,7 @@ public class MediatorMessageHandler(IMediator mediator) : IDownlinkHandlerDelega
 
     public void Error(Exception error)
     {
-        Errors.Add(error, Plugin.Name);
+        Plugin.AddError(error, "Error from SignalR Handler Delegate");
         mediator.Send(new DisconnectRequest()).GetAwaiter().GetResult();
     }
 }

@@ -222,39 +222,39 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
     [RelayCommand]
     void SelectMessageCategory(string? messageClass)
     {
-        try
-        {
-            SelectedMessageCategory = messageClass;
-        }
-        catch (Exception ex)
-        {
-            _errorReporter.ReportError(ex);
-        }
+        SelectedMessageCategory = messageClass;
     }
 
     partial void OnSelectedMessageCategoryChanged(string? value)
     {
-        // If no category is selected, show permanent messages
-        if (string.IsNullOrEmpty(value))
+        try
         {
-            DisplayMessageElements(_configuration.UplinkMessages.PermanentMessages);
-        }
-        else
-        {
-            // Find the group by name
-            var group = _configuration.UplinkMessages.Groups
-                .FirstOrDefault(g => g.Name == value);
-
-            if (group == null)
+            // If no category is selected, show permanent messages
+            if (string.IsNullOrEmpty(value))
             {
-                SelectedMessageCategoryElements = [];
-                return;
+                DisplayMessageElements(_configuration.UplinkMessages.PermanentMessages);
+            }
+            else
+            {
+                // Find the group by name
+                var group = _configuration.UplinkMessages.Groups
+                    .FirstOrDefault(g => g.Name == value);
+
+                if (group == null)
+                {
+                    SelectedMessageCategoryElements = [];
+                    return;
+                }
+
+                DisplayMessageElements(group.Messages);
             }
 
-            DisplayMessageElements(group.Messages);
+            // Resolve each message reference to a template view model
         }
-
-        // Resolve each message reference to a template view model
+        catch (Exception exception)
+        {
+            _errorReporter.ReportError(exception, "Error");
+        }
     }
 
     void DisplayMessageElements(IEnumerable<UplinkMessageReference> messageReferences)

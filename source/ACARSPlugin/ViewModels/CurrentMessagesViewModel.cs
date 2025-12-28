@@ -513,7 +513,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         }
         catch (Exception ex)
         {
-            _errorReporter.ReportError(ex);
+            _errorReporter.ReportError(ex, $"Error extending message display for {currentMessageViewModel.OriginalMessage.Id}");
         }
     }
 }

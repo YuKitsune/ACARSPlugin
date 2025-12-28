@@ -17,6 +17,7 @@ using CommunityToolkit.Mvvm.Messaging;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
+using Serilog;
 using vatsys;
 using vatsys.Plugin;
 
@@ -37,6 +38,8 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 #else
     public const string Name = "ACARS Plugin";
 #endif
+
+    static readonly Dictionary<string, DateTimeOffset> ErrorMessages = new();
 
     // Cache for CustomStripOrLabelItem to avoid expensive lookups on every label update
     private readonly ConcurrentDictionary<string, CustomStripOrLabelItem> _labelItemCache = new();
@@ -71,7 +74,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
         catch (Exception ex)
         {
-            Errors.Add(ex, Name);
+            AddError(ex);
         }
     }
 
@@ -90,7 +93,10 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     {
         var serverConfiguration = CreateServerConfiguration(acarsConfiguration.ServerEndpoint);
         
+        var logger = ConfigureLogger(acarsConfiguration);
+        
         ServiceProvider = new ServiceCollection()
+            .AddSingleton(logger)
             .AddSingleton(this) // TODO: Ick... Whatever we're relying on this for, move it into a separate service please.
             .AddSingleton(acarsConfiguration)
             .AddSingleton(serverConfiguration)
@@ -109,34 +115,35 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         ServiceProvider.GetRequiredService<MessageMonitorService>();
     }
 
-    private async void NetworkConnected(object sender, EventArgs e)
+    ILogger ConfigureLogger(AcarsConfiguration configuration)
     {
-        // TODO: Connect if auto-connect enabled
+        var logFileName = Path.Combine(Helpers.GetFilesFolder(), "cpdlc_log.txt");
 
-        // try
-        // {
-        //     if (ConnectionManager is not null)
-        //         ConnectionManager.Dispose();
-        //
-        //     var mediator =  ServiceProvider.GetRequiredService<IMediator>();
-        //     var @delegate = new MediatorMessageHandler(mediator);
-        //
-        //     ConnectionManager = new SignalRConnectionManager(ServerEndpoint, ServerApiKey, @delegate);
-        //     await ConnectionManager.InitializeAsync(StationIdentifier, Network.Callsign);
-        //     await ConnectionManager.StartAsync();
-        //
-        //     // Set ConnectionManager on repository
-        //     var repository = ServiceProvider.GetRequiredService<MessageRepository>();
-        //     repository.ConnectionManager = ConnectionManager;
-        // }
-        // catch (Exception ex)
-        // {
-        //     Errors.Add(ex, Name);
-        // }
+        var logger = new LoggerConfiguration()
+            .WriteTo.File(
+                path: logFileName,
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: configuration.MaxLogFileAgeDays,
+                outputTemplate: "{Timestamp:u} [{Level:u3}] {Message:lj}{NewLine}{Exception}")
+            .MinimumLevel.Is(configuration.LogLevel)
+            .CreateLogger();
+
+        Log.Logger = logger;
+
+        return logger;
+    }
+
+    private void NetworkConnected(object sender, EventArgs e)
+    {
+        Log.Information("Connected to VATSIM as {Callsign}", Network.Callsign);
+        
+        // TODO: Connect if auto-connect enabled
     }
 
     private async void NetworkDisconnected(object sender, EventArgs e)
     {
+        Log.Information("Disconnected from VATSIM");
+
         try
         {
             if (_isDisposed)
@@ -151,8 +158,31 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         catch (Exception ex)
         {
             if (!_isDisposed)
-                Errors.Add(ex, Name);
+                AddError(ex);
         }
+    }
+
+    public static void AddError(Exception exception)
+    {
+        TryAddErrorInternal(exception);
+        Log.Error(exception, "An error has occurred");
+    }
+    
+    public static void AddError(Exception exception, string message)
+    {
+        TryAddErrorInternal(exception);
+        Log.Error(exception, message);
+    }
+
+    static void TryAddErrorInternal(Exception exception)
+    {
+        // Don't flood the error window with the same message over and over again
+        if (ErrorMessages.TryGetValue(exception.Message, out var lastShown) &&
+            DateTimeOffset.Now - lastShown <= TimeSpan.FromMinutes(1))
+            return;
+
+        Errors.Add(exception, Name);
+        ErrorMessages.Add(exception.Message, DateTimeOffset.Now);
     }
 
     void ConfigureTheme()
@@ -257,147 +287,155 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         return false;
     }
     
-    public CustomLabelItem? GetCustomLabelItem(string itemType, Track track, FDP2.FDR flightDataRecord, RDP.RadarTrack radarTrack)
+    public CustomLabelItem? GetCustomLabelItem(
+        string itemType,
+        Track track,
+        FDP2.FDR flightDataRecord,
+        RDP.RadarTrack radarTrack)
     {
+        try
+        {
+            if (itemType.StartsWith("ACARSPLUGIN_TEXTSTATUS"))
+            {
+                return GetTextStatusLabelItem(itemType, flightDataRecord);
+            }
+
+            if (itemType.StartsWith("ACARSPLUGIN_CPDLCSTATUS"))
+            {
+                return GetCpdlcStatusLabelItem(itemType, flightDataRecord);
+            }
+        }
+        catch (Exception ex)
+        {
+            AddError(ex, "Failed to generate custom label item");
+        }
+
+        return null;
+    }
+
+    CustomLabelItem? GetTextStatusLabelItem(string itemType, FDP2.FDR? flightDataRecord)
+    {
+        // vatSys bug: Custom background colours can't be drawn selectively.
+        // vatSys won't draw the custom background if the original colour (specified in the Labels.xml file) is transparent (or empty).
+        // To work around this, we define two label items. One with the background, and one without.
+        // If we need to draw a custom background colour, we return `null` for the one without the background.
+        
+        if (flightDataRecord is null)
+            return null;
+        
+        var lastTextMessage = Network.GetRadioMessages
+            .LastOrDefault(r => r.Address == flightDataRecord.Callsign && !r.Acknowledged);
+        
+        string? text = null;
+        CustomColour? backgroundColour = null;
+
+        if (flightDataRecord.TextOnly)
+        {
+            text = "T";
+        }
+        else if (flightDataRecord.ReceiveOnly)
+        {
+            text = "R";
+        }
+        else if (lastTextMessage is not null)
+        {
+            // Only show "V" when there is an unacknowledged message
+            text = "V";
+            backgroundColour = _cachedDownlinkColor;
+        }
+
+        // Don't take up the space if it's not necessary
+        if (text is null)
+            return null;
+
+        // vatSys bug: custom background colours can't be drawn selectively.
+        // To work around this, we define two label items. One with the background, and one without.
+        if (backgroundColour is not null && itemType != "ACARSPLUGIN_TEXTSTATUS_BG")
+            return null;
+
+        if (backgroundColour is null && itemType != "ACARSPLUGIN_TEXTSTATUS")
+            return null;
+
+        var textLabelItem = new CustomLabelItem
+        {
+            Type = itemType,
+            Text = text,
+            Border = BorderFlags.All
+        };
+
+        if (backgroundColour is not null)
+        {
+            textLabelItem.BackColourIdentity = Colours.Identities.Custom;
+            textLabelItem.CustomBackColour = backgroundColour;
+        }
+
+        // Left-click to open the CPDLC Menu
+        textLabelItem.OnMouseClick = args =>
+        {
+            if (args.Button != CustomLabelItemMouseButton.Left)
+                return;
+
+            if (lastTextMessage is not null)
+            {
+                MMI.OpenCPDLCMenu(lastTextMessage);
+            }
+            else
+            {
+                MMI.OpenCPDLCWindow(flightDataRecord);
+            }
+
+            args.Handled = true;
+        };
+
+        return textLabelItem;
+    }
+
+    CustomLabelItem? GetCpdlcStatusLabelItem(string itemType, FDP2.FDR flightDataRecord)
+    {
+        // vatSys bug: Custom background colours can't be drawn selectively.
+        // vatSys won't draw the custom background if the original colour (specified in the Labels.xml file) is transparent (or empty).
+        // To work around this, we define two label items. One with the background, and one without.
+        // If we need to draw a custom background colour, we return `null` for the one without the background.
+        
+        // Blank by default
         var labelItem = new CustomLabelItem
         {
             Type = itemType,
             Text = " "
         };
         
-        var lastTextMessage = Network.GetRadioMessages
-            .LastOrDefault(r => r.Address == flightDataRecord.Callsign && !r.Acknowledged);
-
-        if (itemType.StartsWith("ACARSPLUGIN_TEXTSTATUS"))
+        var customItem = GetCustomStripOrLabelItem(flightDataRecord);
+        if (customItem is null)
         {
-            string? text = null;
-            CustomColour? backgroundColour = null;
-
-            if (flightDataRecord is not null && flightDataRecord.TextOnly)
-            {
-                text = "T";
-            }
-            else if (flightDataRecord is not null && flightDataRecord.ReceiveOnly)
-            {
-                text = "R";
-            }
-            else if (lastTextMessage is not null)
-            {
-                // Only show "V" when there is an unacknowledged message
-                text = "V";
-                backgroundColour = _cachedDownlinkColor;
-            }
-
-            // Don't take up the space if it's not necessary
-            if (text is null)
+            if (itemType == "ACARSPLUGIN_CPDLCSTATUS_BG")
                 return null;
-
-            // vatSys bug: custom background colours can't be drawn selectively.
-            // To work around this, we define two label items. One with the background, and one without.
-            if (backgroundColour is not null && itemType != "ACARSPLUGIN_TEXTSTATUS_BG")
-            {
-                return null;
-            }
-
-            if (backgroundColour is null && itemType != "ACARSPLUGIN_TEXTSTATUS")
-            {
-                return null;
-            }
-
-            var textLabelItem = new CustomLabelItem
-            {
-                Type = itemType,
-                Text = text,
-                Border = BorderFlags.All
-            };
-
-            if (backgroundColour is not null)
-            {
-                textLabelItem.BackColourIdentity = Colours.Identities.Custom;
-                textLabelItem.CustomBackColour = backgroundColour;
-            }
-
-            // Left-click to open the CPDLC Menu
-            textLabelItem.OnMouseClick = args =>
-            {
-                if (args.Button != CustomLabelItemMouseButton.Left)
-                    return;
-
-                if (lastTextMessage is not null)
-                {
-                    MMI.OpenCPDLCMenu(lastTextMessage);
-                }
-                else
-                {
-                    MMI.OpenCPDLCWindow(flightDataRecord);
-                }
-
-                args.Handled = true;
-            };
-
-            return textLabelItem;
-        }
-
-        try
-        {
-            if (!itemType.StartsWith("ACARSPLUGIN_CPDLCSTATUS"))
-                return labelItem;
-            
-            var customItem = GetCustomStripOrLabelItem(flightDataRecord);
-            if (customItem is null)
-            {
-                if (itemType == "ACARSPLUGIN_CPDLCSTATUS_BG")
-                    return null;
-                
-                return labelItem;
-            }
-
-            labelItem.Text = customItem.Text;
-
-            // vatSys bug: custom background colours can't be drawn selectively.
-            // vatSys won't draw the custom background if the original colour (specified in the Labels.xml file) is transparent (or empty).
-            // To work around this, we define two label items. One with the background, and one without.
-            // If we need to draw a custom background colour, we return `null` for the one without the background
-            if (customItem.BackgroundColour is not null && itemType != "ACARSPLUGIN_CPDLCSTATUS_BG")
-            {
-                return null;
-            }
-            
-            if (customItem.BackgroundColour is null && itemType != "ACARSPLUGIN_CPDLCSTATUS")
-            {
-                return null;
-            }
-            
-            if (customItem.BackgroundColour is not null)
-            {
-                labelItem.BackColourIdentity = Colours.Identities.Custom;
-                labelItem.CustomBackColour = customItem.BackgroundColour;
-            }
-
-            labelItem.OnMouseClick = args =>
-            {
-                switch (args.Button)
-                {
-                    case CustomLabelItemMouseButton.Left:
-                        customItem.LeftClickCallback();
-                        args.Handled = true;
-                        break;
-
-                    case CustomLabelItemMouseButton.Right:
-                        MMI.OpenCPDLCWindow(flightDataRecord);
-                        args.Handled = true;
-                        break;
-                }
-            };
 
             return labelItem;
         }
-        catch (Exception ex)
+
+        labelItem.Text = customItem.Text;
+        if (customItem.BackgroundColour is not null && itemType != "ACARSPLUGIN_CPDLCSTATUS_BG")
+            return null;
+        
+        if (customItem.BackgroundColour is null && itemType != "ACARSPLUGIN_CPDLCSTATUS")
+            return null;
+        
+        if (customItem.BackgroundColour is not null)
         {
-            var wrappedException = new Exception($"Failed to create custom label item: {ex.Message}", ex);
-            Errors.Add(wrappedException, Name);
-            return labelItem;
+            labelItem.BackColourIdentity = Colours.Identities.Custom;
+            labelItem.CustomBackColour = customItem.BackgroundColour;
         }
+
+        labelItem.OnMouseClick = args =>
+        {
+            if (args.Button != CustomLabelItemMouseButton.Left)
+                return;
+            
+            customItem.LeftClickCallback();
+            args.Handled = true;
+        };
+
+        return labelItem;
     }
 
     CustomStripOrLabelItem? GetCustomStripOrLabelItem(FDP2.FDR flightDataRecord)
@@ -410,7 +448,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
         catch (Exception ex)
         {
-            Errors.Add(ex, Name);
+            AddError(ex);
             return null;
         }
     }
@@ -497,7 +535,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                         }
                         catch (Exception ex)
                         {
-                            Errors.Add(ex, Name);
+                            AddError(ex, "Error opening CPDLC Window");
                         }
                     };
                 }
@@ -516,7 +554,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                         }
                         catch (Exception ex)
                         {
-                            Errors.Add(ex, Name);
+                            AddError(ex, "Error opening CPDLC window");
                         }
                     };
 
@@ -550,7 +588,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
         catch (Exception ex)
         {
-            Errors.Add(new Exception($"Failed to rebuild label item cache: {ex.Message}", ex), Name);
+            AddError(ex);
         }
     }
 
@@ -642,7 +680,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         catch (Exception ex)
         {
             if (!_isDisposed)
-                Errors.Add(ex, Name);
+                AddError(ex);
         }
     }
 
@@ -658,7 +696,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         catch (Exception ex)
         {
             if (!_isDisposed)
-                Errors.Add(ex, Name);
+                AddError(ex);
         }
     }
     
@@ -697,7 +735,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         catch (Exception ex)
         {
             if (!_isDisposed)
-                Errors.Add(ex, Name);
+                AddError(ex);
         }
     }
 
@@ -797,7 +835,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             // Log but don't throw during disposal
             try
             {
-                Errors.Add(ex, Name);
+                AddError(ex);
             }
             catch
             {
@@ -839,7 +877,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
         catch (Exception ex)
         {
-            Errors.Add(ex, Name);
+            AddError(ex);
         }
     }
 
@@ -855,7 +893,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
         catch (Exception ex)
         {
-            Errors.Add(ex, Name);
+            AddError(ex);
         }
     }
 

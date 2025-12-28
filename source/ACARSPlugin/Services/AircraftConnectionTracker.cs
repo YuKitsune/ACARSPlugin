@@ -1,12 +1,13 @@
 using ACARSPlugin.Model;
 using ACARSPlugin.Server.Contracts;
+using Serilog;
 
 namespace ACARSPlugin.Services;
 
 /// <summary>
 /// Tracks active aircraft connections to the ACARS server.
 /// </summary>
-public class AircraftConnectionTracker
+public class AircraftConnectionTracker(ILogger logger)
 {
     private readonly List<AircraftConnection> _connectedAircraft = new();
     private readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -16,8 +17,10 @@ public class AircraftConnectionTracker
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
+            logger.Information("Populating aircraft connection tracker with {ConnectionCount} connections", connections.Length);
             _connectedAircraft.Clear();
             _connectedAircraft.AddRange(connections);
+            logger.Debug("Aircraft connections populated: {Callsigns}", string.Join(", ", connections.Select(c => c.Callsign)));
         }
         finally
         {
@@ -30,7 +33,9 @@ public class AircraftConnectionTracker
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
+            logger.Information("Registering aircraft connection: {Callsign}", connection.Callsign);
             _connectedAircraft.Add(connection);
+            logger.Debug("Total connected aircraft: {Count}", _connectedAircraft.Count);
         }
         finally
         {
@@ -43,7 +48,9 @@ public class AircraftConnectionTracker
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            return _connectedAircraft.FirstOrDefault(a => a.Callsign == callsign);
+            var connection = _connectedAircraft.FirstOrDefault(a => a.Callsign == callsign);
+            logger.Debug("Looking up aircraft connection for {Callsign}: {Found}", callsign, connection != null ? "Found" : "Not found");
+            return connection;
         }
         finally
         {
@@ -60,7 +67,16 @@ public class AircraftConnectionTracker
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            _connectedAircraft.RemoveAll(c => c.Callsign == callsign);
+            var removedCount = _connectedAircraft.RemoveAll(c => c.Callsign == callsign);
+            if (removedCount > 0)
+            {
+                logger.Information("Unregistered aircraft connection: {Callsign}", callsign);
+                logger.Debug("Total connected aircraft: {Count}", _connectedAircraft.Count);
+            }
+            else
+            {
+                logger.Warning("Attempted to unregister aircraft {Callsign} but it was not found in the tracker", callsign);
+            }
         }
         finally
         {
@@ -77,6 +93,7 @@ public class AircraftConnectionTracker
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
+            logger.Debug("Retrieving all connected aircraft: {Count} aircraft", _connectedAircraft.Count);
             return _connectedAircraft.ToArray();
         }
         finally
@@ -95,7 +112,9 @@ public class AircraftConnectionTracker
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            return _connectedAircraft.Any(c => c.Callsign == callsign);
+            var isConnected = _connectedAircraft.Any(c => c.Callsign == callsign);
+            logger.Debug("Checking if aircraft {Callsign} is connected: {IsConnected}", callsign, isConnected);
+            return isConnected;
         }
         finally
         {
@@ -111,6 +130,8 @@ public class AircraftConnectionTracker
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
+            var count = _connectedAircraft.Count;
+            logger.Information("Clearing all aircraft connections ({Count} connections)", count);
             _connectedAircraft.Clear();
         }
         finally
