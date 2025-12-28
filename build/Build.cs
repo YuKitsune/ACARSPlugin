@@ -1,15 +1,20 @@
 using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Linq;
 using System.Net.Http;
 using System.Runtime.Versioning;
 using Nuke.Common;
 using Nuke.Common.CI.GitHubActions;
 using Nuke.Common.Git;
 using Nuke.Common.IO;
+using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
 using Nuke.Common.Tools.GitHub;
 using Nuke.Common.Tools.GitVersion;
+using Nuke.Common.Tools.ILRepack;
 using Octokit;
 using Serilog;
 
@@ -147,6 +152,56 @@ class Build : NukeBuild
                 .SetProperty("VatSysPath", VatSysExePath.Parent.Parent));
         });
 
+    Target Repack => _ => _
+        .DependsOn(Compile)
+        .Executes(() =>
+        {
+            var mainAssembly = BuildOutputDirectory / PluginAssemblyFileName;
+            var assembliesToMerge = new[]
+            {
+                BuildOutputDirectory / "Serilog.dll",
+                BuildOutputDirectory / "Serilog.Sinks.File.dll",
+                BuildOutputDirectory / "MediatR.dll",
+                BuildOutputDirectory / "MediatR.Contracts.dll",
+                BuildOutputDirectory / "CommunityToolkit.Mvvm.dll"
+            };
+
+            if (!mainAssembly.FileExists())
+                throw new Exception($"Main assembly not found: {mainAssembly}");
+
+            foreach (var assembly in assembliesToMerge.Where(a => !a.FileExists()))
+                Log.Warning("Assembly not found (will be skipped): {Assembly}", assembly);
+
+            var existingAssemblies = assembliesToMerge.Where(a => a.FileExists()).ToArray();
+            if (existingAssemblies.Length == 0)
+            {
+                Log.Information("No assemblies found to repack, skipping");
+                return;
+            }
+
+            var settings = new ILRepackSettings()
+                .SetAssemblies([mainAssembly.ToString(), ..existingAssemblies.Select(a => a.ToString())])
+                .SetInternalize(true)
+                .SetParallel(true)
+                .SetOutput(mainAssembly.ToString())
+                .SetLib(BuildOutputDirectory.ToString());  // Tell ILRepack where to find referenced assemblies
+
+            Log.Information("Repacking {Count} assemblies into {MainAssembly} with internalization", existingAssemblies.Length, mainAssembly);
+            foreach (var assembly in existingAssemblies)
+                Log.Information("  - {Assembly}", assembly.Name);
+
+            ILRepackTasks.ILRepack(settings);
+
+            // Clean up original merged DLLs
+            foreach (var assembly in existingAssemblies)
+            {
+                assembly.DeleteFile();
+                Log.Information("Deleted {Assembly}", assembly);
+            }
+
+            Log.Information("Repack complete");
+        });
+
     Target TestCore => _ => _
         .Executes(() =>
         {
@@ -210,7 +265,7 @@ class Build : NukeBuild
 
     Target Install => _ => _
         .Requires(() => ProfileName)
-        .DependsOn(Compile)
+        .DependsOn(Repack)
         .DependsOn(Uninstall)
         .Executes(() =>
         {
@@ -236,7 +291,7 @@ class Build : NukeBuild
         });
 
     Target Package => _ => _
-        .DependsOn(Compile)
+        .DependsOn(Repack)
         .Requires(() => Configuration == Configuration.Release)
         .Executes(() =>
         {

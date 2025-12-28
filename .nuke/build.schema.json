@@ -30,6 +30,7 @@
         "Package",
         "PublishServer",
         "Release",
+        "Repack",
         "Test",
         "TestCore",
         "TestServer",
