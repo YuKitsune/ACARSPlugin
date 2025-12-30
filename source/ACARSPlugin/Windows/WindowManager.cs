@@ -31,7 +31,7 @@ public class WindowManager(IGuiInvoker guiInvoker)
                 var helper = new System.Windows.Interop.WindowInteropHelper(window);
                 helper.Owner = mainForm.Handle;
 
-                window.Closed += (_, _) => TryRemoveWindow(key);
+                window.Closed += (_, _) => TryRemoveWindowInternal(key);
                 window.Show();
 
                 _windows[key] = window;
@@ -41,23 +41,30 @@ public class WindowManager(IGuiInvoker guiInvoker)
 
     public void TryRemoveWindow(string key)
     {
+        guiInvoker.InvokeOnGUI(_ =>
+        {
+            lock (_gate)
+            {
+                if (!_windows.TryGetValue(key, out var window))
+                    return;
+
+                try
+                {
+                    window.Close();
+                }
+                catch (InvalidOperationException)
+                {
+                    // Window may have already been closed or disposed
+                }
+            }
+        });
+    }
+
+    void TryRemoveWindowInternal(string key)
+    {
         lock (_gate)
         {
-            if (!_windows.TryGetValue(key, out var window))
-                return;
-
-            try
-            {
-                window.Close();
-            }
-            catch (InvalidOperationException)
-            {
-                // Window may have already been closed or disposed
-            }
-            finally
-            {
-                _windows.Remove(key);
-            }
+            _windows.Remove(key);
         }
     }
 }

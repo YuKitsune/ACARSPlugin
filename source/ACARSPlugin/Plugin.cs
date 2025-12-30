@@ -752,11 +752,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 // Use the filtered GetCurrentDialogues request which only returns dialogues for the current controller
                 var response = await mediator.Send(new GetCurrentDialoguesRequest()).ConfigureAwait(false);
 
-                var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-
                 if (response.Dialogues.Any())
                 {
-                    guiInvoker.InvokeOnGUI(_ => OpenCurrentMessagesWindow());
+                    OpenCurrentMessagesWindow();
                 }
                 else
                 {
