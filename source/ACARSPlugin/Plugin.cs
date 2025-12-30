@@ -517,12 +517,15 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
                 var connection = connectedAircraft.FirstOrDefault(c => c.Callsign == flightDataRecord.Callsign);
 
-                var activeDialogues = await repository.GetCurrentDialogues().ConfigureAwait(false);
+                var openDialogues = await repository.GetCurrentDialogues().ConfigureAwait(false);
 
                 if (cancellationToken.IsCancellationRequested)
                     return;
 
-                var hasActiveDownlinkMessages = activeDialogues.Any();
+                var hasOpenDownlinkMessages = openDialogues
+                    .SelectMany(d => d.Messages)
+                    .OfType<DownlinkMessage>()
+                    .Any(m => !m.IsClosed);
 
                 var isEquipped = new[]
                 {
@@ -535,7 +538,8 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     "J7",
                 }.Any(s => flightDataRecord.AircraftEquip.Contains(s));
 
-                var unacknowledgedUnableReceived = activeDialogues.SelectMany(d => d.Messages)
+                var unacknowledgedUnableReceived = openDialogues
+                    .SelectMany(d => d.Messages)
                     .OfType<DownlinkMessage>()
                     .Any(m => m.Content.Contains("UNABLE") && !m.IsAcknowledged);
 
@@ -595,11 +599,11 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     // Color only changes for the responsible controller
                     if (ShouldDisplayMessage(flightDataRecord))
                     {
-                        if (hasActiveDownlinkMessages && unacknowledgedUnableReceived)
+                        if (unacknowledgedUnableReceived)
                         {
                             backgroundColour = _cachedUnableDownlinkColor;
                         }
-                        else if (hasActiveDownlinkMessages)
+                        else if (hasOpenDownlinkMessages)
                         {
                             backgroundColour = _cachedDownlinkColor;
                         }
