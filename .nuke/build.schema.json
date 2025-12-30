@@ -28,12 +28,9 @@
         "DownloadVatSys",
         "Install",
         "Package",
-        "PublishServer",
         "Release",
         "Repack",
         "Test",
-        "TestCore",
-        "TestServer",
         "Uninstall"
       ]
     },

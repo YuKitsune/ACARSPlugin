@@ -62,11 +62,8 @@ class Build : NukeBuild
     string PluginName => Configuration == Configuration.Debug ? DebugPluginName : ReleasePluginName;
 
     AbsolutePath PluginProjectPath => RootDirectory / "source" / "ACARSPlugin" / "ACARSPlugin.csproj";
-    AbsolutePath ServerProjectPath => RootDirectory / "source" / "ACARSServer" / "ACARSServer.csproj";
     AbsolutePath PluginTestsProjectPath => RootDirectory / "source" / "ACARSPlugin.Tests" / "ACARSPlugin.Tests.csproj";
-    AbsolutePath ServerTestsProjectPath => RootDirectory / "source" / "ACARSServer.Tests" / "ACARSServer.Tests.csproj";
     AbsolutePath BuildOutputDirectory => TemporaryDirectory / "build";
-    AbsolutePath ServerPublishDirectory => RootDirectory / "source" / "ACARSServer" / "bin" / Configuration / "net10.0" / "publish";
     AbsolutePath ZipPath => TemporaryDirectory / $"ACARSPlugin.{GetSemanticVersion()}.zip";
     AbsolutePath PackageDirectory => TemporaryDirectory / "package";
 
@@ -183,7 +180,7 @@ class Build : NukeBuild
                 .SetOutput(mainAssembly.ToString())
                 .SetLib(BuildOutputDirectory.ToString());  // Tell ILRepack where to find referenced assemblies
 
-            Log.Information("Repacking {Count} assemblies into {MainAssembly} with internalization", existingAssemblies.Length, mainAssembly);
+            Log.Information("Repacking {Count} assemblies into {MainAssembly}", existingAssemblies.Length, mainAssembly);
             foreach (var assembly in existingAssemblies)
                 Log.Information("  - {Assembly}", assembly.Name);
 
@@ -199,47 +196,13 @@ class Build : NukeBuild
             Log.Information("Repack complete");
         });
 
-    Target TestCore => _ => _
+    Target Test => _ => _
         .Executes(() =>
         {
-            Log.Information("Running Core tests");
+            Log.Information("Running tests");
             DotNetTasks.DotNetTest(s => s
                 .SetProjectFile(PluginTestsProjectPath)
                 .SetConfiguration(Configuration));
-        });
-
-    Target TestServer => _ => _
-        .Executes(() =>
-        {
-            Log.Information("Running Server tests");
-            DotNetTasks.DotNetTest(s => s
-                .SetProjectFile(ServerTestsProjectPath)
-                .SetConfiguration(Configuration));
-        });
-
-    Target Test => _ => _
-        .DependsOn(TestCore)
-        .DependsOn(TestServer);
-
-    Target PublishServer => _ => _
-        .Executes(() =>
-        {
-            var version = GetSemanticVersion();
-            Log.Information(
-                "Publishing ACARSServer version {Version} with configuration {Configuration}",
-                version,
-                Configuration);
-
-            DotNetTasks.DotNetPublish(s => s
-                .SetProject(ServerProjectPath)
-                .SetConfiguration(Configuration)
-                .SetOutput(ServerPublishDirectory)
-                .SetVersion(version)
-                .SetAssemblyVersion(GitVersion.MajorMinorPatch)
-                .SetFileVersion(GitVersion.MajorMinorPatch)
-                .SetInformationalVersion(version));
-
-            Log.Information("Server published to {OutputDirectory}", ServerPublishDirectory);
         });
 
     Target Uninstall => _ => _
