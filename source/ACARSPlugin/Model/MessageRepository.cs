@@ -75,15 +75,14 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
     void AddMessageToDialogue(IAcarsMessageModel message, string callsign)
     {
         // Find which dialogue this message belongs to
-        var rootMessageId = FindRootMessageId(message);
-        var dialogue = _dialogues.FirstOrDefault(d => d.Callsign == callsign && d.RootMessageId == rootMessageId);
+        var dialogue = _dialogues.FirstOrDefault(d => d.Callsign == callsign && d.RootMessageId == message.ReplyToMessageId);
 
         if (dialogue == null)
         {
             // Create new dialogue (closure rules are applied within the constructor)
             logger.Debug("Creating new dialogue for {Callsign} with root message {RootMessageId}",
-                callsign, rootMessageId);
-            dialogue = new Dialogue(rootMessageId, callsign, message);
+                callsign, message.Id);
+            dialogue = new Dialogue(message.Id, callsign, message);
             _dialogues.Add(dialogue);
             logger.Debug("New dialogue created, total dialogues: {DialogueCount}", _dialogues.Count);
         }
@@ -91,59 +90,58 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         {
             // Add to existing dialogue (closure rules are applied within AddMessage)
             logger.Debug("Adding message {MessageId} to existing dialogue for {Callsign} (Root: {RootMessageId})",
-                message.Id, callsign, rootMessageId);
+                message.Id, callsign, message.ReplyToMessageId);
             dialogue.AddMessage(message);
         }
     }
 
-    int FindRootMessageId(IAcarsMessageModel message)
+    // int FindRootMessageId(IAcarsMessageModel message)
+    // {
+    //     // If this message is not a reply, it's the root
+    //     var replyToId = message switch
+    //     {
+    //         DownlinkMessage dl => dl.ReplyToUplinkId,
+    //         UplinkMessage ul => ul.ReplyToDownlinkId,
+    //         _ => null
+    //     };
+    //
+    //     if (replyToId == null)
+    //         return message.Id;
+    //
+    //     // Traverse up the chain to find the root
+    //     var current = replyToId.Value;
+    //     var visited = new HashSet<int> { message.Id };
+    //
+    //     while (true)
+    //     {
+    //         // Avoid infinite loops
+    //         if (visited.Contains(current))
+    //             return current;
+    //
+    //         visited.Add(current);
+    //
+    //         // Find the parent message
+    //         var parentMessage = FindMessageById(message.current);
+    //         if (parentMessage == null)
+    //             return current; // Can't find parent, assume this is root
+    //
+    //         var parentReplyToId = parentMessage switch
+    //         {
+    //             DownlinkMessage dl => dl.ReplyToUplinkId,
+    //             UplinkMessage ul => ul.ReplyToDownlinkId,
+    //             _ => null
+    //         };
+    //
+    //         if (parentReplyToId == null)
+    //             return current; // Parent is root
+    //
+    //         current = parentReplyToId.Value;
+    //     }
+    // }
+
+    IAcarsMessageModel? FindMessageById(string recipient, int id)
     {
-        // If this message is not a reply, it's the root
-        var replyToId = message switch
-        {
-            DownlinkMessage dl => dl.ReplyToUplinkId,
-            UplinkMessage ul => ul.ReplyToDownlinkId,
-            _ => null
-        };
-
-        if (replyToId == null)
-            return message.Id;
-
-        // Traverse up the chain to find the root
-        var current = replyToId.Value;
-        var visited = new HashSet<int> { message.Id };
-
-        while (true)
-        {
-            // Avoid infinite loops
-            if (visited.Contains(current))
-                return current;
-
-            visited.Add(current);
-
-            // Find the parent message
-            var parentMessage = FindMessageById(current);
-            if (parentMessage == null)
-                return current; // Can't find parent, assume this is root
-
-            var parentReplyToId = parentMessage switch
-            {
-                DownlinkMessage dl => dl.ReplyToUplinkId,
-                UplinkMessage ul => ul.ReplyToDownlinkId,
-                _ => null
-            };
-
-            if (parentReplyToId == null)
-                return current; // Parent is root
-
-            current = parentReplyToId.Value;
-        }
-    }
-
-    IAcarsMessageModel? FindMessageById(int id)
-    {
-        // Search all dialogues
-        foreach (var dialogue in _dialogues)
+        foreach (var dialogue in _dialogues.Where(d => d.Callsign == recipient))
         {
             var message = dialogue.Messages.FirstOrDefault(m => m.Id == id);
             if (message != null)
@@ -230,12 +228,12 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         }
     }
 
-    internal async Task AcknowledgeDownlink(int messageId)
+    internal async Task AcknowledgeDownlink(string callsign, int messageId)
     {
         await _semaphore.WaitAsync();
         try
         {
-            var message = FindMessageById(messageId);
+            var message = FindMessageById(callsign, messageId);
             if (message is not DownlinkMessage downlinkMessage)
             {
                 logger.Warning("Cannot acknowledge downlink {MessageId}: message not found or not a downlink", messageId);
@@ -251,12 +249,12 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         }
     }
 
-    internal async Task ManuallyAcknowledgeUplink(int messageId)
+    internal async Task ManuallyAcknowledgeUplink(string callsign, int messageId)
     {
         await _semaphore.WaitAsync();
         try
         {
-            var message = FindMessageById(messageId);
+            var message = FindMessageById(callsign, messageId);
             if (message is not UplinkMessage uplinkMessage)
             {
                 logger.Warning("Cannot manually acknowledge uplink {MessageId}: message not found or not an uplink", messageId);

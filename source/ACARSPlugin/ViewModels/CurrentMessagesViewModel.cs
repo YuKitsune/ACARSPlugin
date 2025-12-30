@@ -439,7 +439,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            await _mediator.Send(new AcknowledgeDownlinkMessageRequest(currentMessageViewModel.OriginalMessage.Id));
+            await _mediator.Send(new AcknowledgeDownlinkMessageRequest(currentMessageViewModel.Callsign, currentMessageViewModel.OriginalMessage.Id));
         }
         catch (Exception ex)
         {
@@ -452,7 +452,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            await _mediator.Send(new AcknowledgeUplinkMessageRequest(currentMessageViewModel.OriginalMessage.Id));
+            await _mediator.Send(new AcknowledgeUplinkMessageRequest(currentMessageViewModel.Callsign, currentMessageViewModel.OriginalMessage.Id));
         }
         catch (Exception ex)
         {
