@@ -6,6 +6,7 @@ namespace ACARSPlugin.Windows;
 public class WindowManager(IGuiInvoker guiInvoker)
 {
     readonly IDictionary<string, Window> _windows = new Dictionary<string, Window>();
+    readonly object _gate = new();
 
     public void FocusOrCreateWindow(
         string key,
@@ -13,44 +14,50 @@ public class WindowManager(IGuiInvoker guiInvoker)
     {
         guiInvoker.InvokeOnGUI(mainForm =>
         {
-            if (_windows.TryGetValue(key, out var existingWindowHandle))
+            lock (_gate)
             {
-                existingWindowHandle.Focus();
-                return;
+                if (_windows.TryGetValue(key, out var existingWindowHandle))
+                {
+                    existingWindowHandle.Focus();
+                    return;
+                }
+
+                var windowHandle = new WpfWindowHandle();
+                var window = createWindow(windowHandle);
+                windowHandle.SetWindow(window);
+
+                ElementHost.EnableModelessKeyboardInterop(window);
+
+                var helper = new System.Windows.Interop.WindowInteropHelper(window);
+                helper.Owner = mainForm.Handle;
+
+                window.Closed += (_, _) => TryRemoveWindow(key);
+                window.Show();
+
+                _windows[key] = window;
             }
-
-            var windowHandle = new WpfWindowHandle();
-            var window = createWindow(windowHandle);
-            windowHandle.SetWindow(window);
-
-            ElementHost.EnableModelessKeyboardInterop(window);
-            
-            var helper = new System.Windows.Interop.WindowInteropHelper(window);
-            helper.Owner = mainForm.Handle;
-            
-            window.Closed += (_, _) => _windows.Remove(key);
-            window.Show();
-
-            _windows[key] = window;
         });
     }
 
     public void TryRemoveWindow(string key)
     {
-        if (!_windows.TryGetValue(key, out var window))
-            return;
+        lock (_gate)
+        {
+            if (!_windows.TryGetValue(key, out var window))
+                return;
 
-        try
-        {
-            window.Close();
-        }
-        catch (InvalidOperationException)
-        {
-            // Window may have already been closed or disposed
-        }
-        finally
-        {
-            _windows.Remove(key);
+            try
+            {
+                window.Close();
+            }
+            catch (InvalidOperationException)
+            {
+                // Window may have already been closed or disposed
+            }
+            finally
+            {
+                _windows.Remove(key);
+            }
         }
     }
 }
