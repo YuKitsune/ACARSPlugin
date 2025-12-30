@@ -11,16 +11,18 @@ public class Dialogue
     readonly List<IAcarsMessageModel> _messages = [];
     DateTimeOffset? _closedTime;
 
-    public Dialogue(int rootMessageId, string callsign, IAcarsMessageModel firstMessage)
+    public Dialogue(int rootMessageId, string aircraftCallsign, string controllerCallsign, IAcarsMessageModel firstMessage)
     {
         RootMessageId = rootMessageId;
-        Callsign = callsign;
+        AircraftCallsign = aircraftCallsign;
+        ControllerCallsign = controllerCallsign;
         Opened = firstMessage.Time;
         AddMessage(firstMessage);
     }
 
     public int RootMessageId { get; }
-    public string Callsign { get; }
+    public string AircraftCallsign { get; }
+    public string ControllerCallsign { get; }
     public IReadOnlyList<IAcarsMessageModel> Messages => _messages.AsReadOnly();
     public bool IsInHistory { get; set; }
     public DateTimeOffset Opened { get; }

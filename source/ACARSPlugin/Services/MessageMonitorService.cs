@@ -91,7 +91,7 @@ public class MessageMonitorService : IAsyncDisposable
                         if (CheckUplinkTimeout(uplink, now))
                         {
                             anyChanges = true;
-                            timedOutMessages.Add($"Uplink {uplink.Id} to {dialogue.Callsign}");
+                            timedOutMessages.Add($"Uplink {uplink.Id} to {dialogue.AircraftCallsign}");
                         }
                         break;
 
@@ -99,7 +99,7 @@ public class MessageMonitorService : IAsyncDisposable
                         if (CheckDownlinkTimeout(downlink, now))
                         {
                             anyChanges = true;
-                            timedOutMessages.Add($"Downlink {downlink.Id} from {dialogue.Callsign}");
+                            timedOutMessages.Add($"Downlink {downlink.Id} from {dialogue.AircraftCallsign}");
                         }
                         break;
                 }
@@ -132,9 +132,9 @@ public class MessageMonitorService : IAsyncDisposable
             if (now < archiveTime)
                 continue;
 
-            _logger.Debug("Archiving dialogue for {Callsign}", dialogue.Callsign);
+            _logger.Debug("Archiving dialogue for {Callsign}", dialogue.AircraftCallsign);
             dialogue.IsInHistory = true;
-            archivedCallsigns.Add(dialogue.Callsign);
+            archivedCallsigns.Add(dialogue.AircraftCallsign);
             anyChanges = true;
         }
 

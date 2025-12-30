@@ -8,7 +8,11 @@ namespace ACARSPlugin.Messages;
 
 public record DownlinkMessageReceivedNotification(IDownlinkMessage DownlinkMessage) : INotification;
 
-public class DownlinkMessageReceivedNotificationHandler(MessageRepository messageRepository, AircraftConnectionTracker aircraftConnectionTracker, IPublisher publisher, ILogger logger)
+public class DownlinkMessageReceivedNotificationHandler(
+    MessageRepository messageRepository,
+    AircraftConnectionTracker aircraftConnectionTracker,
+    IMediator mediator,
+    ILogger logger)
     : INotificationHandler<DownlinkMessageReceivedNotification>
 {
     public async Task Handle(DownlinkMessageReceivedNotification notification, CancellationToken cancellationToken)
@@ -22,7 +26,11 @@ public class DownlinkMessageReceivedNotificationHandler(MessageRepository messag
         logger.Information("Received downlink message {MessageId} from {Sender}",
             cpdlcDownlink.Id, notification.DownlinkMessage.Sender);
 
-        await messageRepository.AddDownlinkMessage(cpdlcDownlink, cancellationToken);
+        var trackingController = await mediator.Send(
+            new GetTrackingControllerRequest(notification.DownlinkMessage.Sender),
+            cancellationToken);
+
+        await messageRepository.AddDownlinkMessage(cpdlcDownlink, trackingController.ControllerCallsign, cancellationToken);
 
         // Promote the aircraft to CDA
         // The server already does this, but I'm too lazy to implement the signalr stuff
@@ -35,6 +43,6 @@ public class DownlinkMessageReceivedNotificationHandler(MessageRepository messag
             connection.DataAuthorityState = DataAuthorityState.CurrentDataAuthority;
         }
 
-        await publisher.Publish(new CurrentMessagesChanged(), cancellationToken);
+        await mediator.Publish(new CurrentMessagesChanged(), cancellationToken);
     }
 }

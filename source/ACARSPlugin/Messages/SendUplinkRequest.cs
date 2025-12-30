@@ -12,7 +12,7 @@ public record SendUplinkRequest(
     string Content)
     : IRequest;
 
-public class SendUplinkRequestHandler(Plugin plugin, MessageRepository messageRepository, IPublisher publisher, ILogger logger)
+public class SendUplinkRequestHandler(Plugin plugin, MessageRepository messageRepository, IMediator mediator, ILogger logger)
     : IRequestHandler<SendUplinkRequest>
 {
     public async Task Handle(SendUplinkRequest request, CancellationToken cancellationToken)
@@ -33,8 +33,10 @@ public class SendUplinkRequestHandler(Plugin plugin, MessageRepository messageRe
             request.Content,
             cancellationToken);
 
-        await messageRepository.AddUplinkMessage(uplinkMessage, cancellationToken);
+        var trackingController = await mediator.Send(new GetTrackingControllerRequest(request.Recipient),  cancellationToken);
+
+        await messageRepository.AddUplinkMessage(uplinkMessage, trackingController.ControllerCallsign, cancellationToken);
         logger.Debug("Uplink message {UplinkId} added to repository", uplinkMessage.Id);
-        await publisher.Publish(new CurrentMessagesChanged(), cancellationToken);
+        await mediator.Publish(new CurrentMessagesChanged(), cancellationToken);
     }
 }

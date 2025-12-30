@@ -721,7 +721,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<CurrentMessa
 
             foreach (var dialogue in response.Dialogues)
             {
-                if (dialogue.Callsign != Callsign)
+                if (dialogue.AircraftCallsign != Callsign)
                     continue;
 
                 foreach (var message in dialogue.Messages)

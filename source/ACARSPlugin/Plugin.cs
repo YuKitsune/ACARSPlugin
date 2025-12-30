@@ -4,6 +4,7 @@ using System.IO;
 using System.Threading.Channels;
 using System.Windows;
 using System.Windows.Forms;
+using System.Windows.Forms.VisualStyles;
 using System.Windows.Media;
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
@@ -289,19 +290,25 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated) {}
 
-    public static bool ShouldDisplayMessage(string callsign)
+    public static bool ShouldDisplayMessage(Dialogue dialogue)
     {
-        var fdr = FDP2.GetFDRs.FirstOrDefault(f => f.Callsign == callsign);
+        var fdr = FDP2.GetFDRs.FirstOrDefault(f => f.Callsign == dialogue.AircraftCallsign);
         if (fdr == null)
             return false;
 
-        return ShouldDisplayMessage(fdr);
+        return ShouldDisplayMessage(dialogue, fdr);
     }
 
-    static bool ShouldDisplayMessage(FDP2.FDR fdr)
+    static bool ShouldDisplayMessage(Dialogue dialogue, FDP2.FDR fdr)
     {
         // If we have jurisdiction, show the message
         if (fdr.IsTrackedByMe)
+        {
+            return true;
+        }
+
+        // VATSIM-ISM: If the dialogue was with us, then show the messages
+        if (dialogue.ControllerCallsign == Network.Callsign)
         {
             return true;
         }
@@ -527,6 +534,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     .OfType<DownlinkMessage>()
                     .Any(m => !m.IsClosed);
 
+                // TODO: Check if they're connected to the ACARS network. Equipment flags are unreliable.
                 var isEquipped = new[]
                 {
                     "J1",
@@ -541,7 +549,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                 var unacknowledgedUnableReceived = openDialogues
                     .SelectMany(d => d.Messages)
                     .OfType<DownlinkMessage>()
-                    .Any(m => m.Content.Contains("UNABLE") && !m.IsAcknowledged);
+                    .Any(m => m.Sender == flightDataRecord.Callsign && m.Content.Contains("UNABLE") && !m.IsAcknowledged);
 
                 // TODO: Suspended messages
                 var hasSuspendedMessage = false;
@@ -597,7 +605,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
                     };
 
                     // Color only changes for the responsible controller
-                    if (ShouldDisplayMessage(flightDataRecord))
+                    if (flightDataRecord.IsTrackedByMe)
                     {
                         if (unacknowledgedUnableReceived)
                         {
@@ -786,7 +794,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
                 foreach (var dialogue in response.Dialogues)
                 {
-                    if (dialogue.Callsign != callsign)
+                    if (dialogue.AircraftCallsign != callsign)
                         continue;
 
                     foreach (var message in dialogue.Messages)

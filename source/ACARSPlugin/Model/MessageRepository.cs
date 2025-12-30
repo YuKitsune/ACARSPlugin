@@ -10,7 +10,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
     readonly List<Dialogue> _dialogues = [];
     readonly SemaphoreSlim _semaphore = new(1, 1);
 
-    public async Task AddDownlinkMessage(CpdlcDownlink downlinkMessage, CancellationToken cancellationToken)
+    public async Task AddDownlinkMessage(CpdlcDownlink downlinkMessage, string trackingController, CancellationToken cancellationToken)
     {
         await _semaphore.WaitAsync(cancellationToken);
         try
@@ -34,7 +34,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
                 configuration.SpecialDownlinkMessages.Contains(downlinkMessage.Content),
                 downlinkMessage.ReplyToUplinkId);
 
-            AddMessageToDialogue(model, model.Sender);
+            AddMessageToDialogue(model, model.Sender, trackingController);
             logger.Information("Downlink message {MessageId} from {Sender} added to repository",
                 downlinkMessage.Id, downlinkMessage.Sender);
         }
@@ -44,7 +44,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         }
     }
 
-    public async Task AddUplinkMessage(CpdlcUplink uplinkMessage, CancellationToken cancellationToken)
+    public async Task AddUplinkMessage(CpdlcUplink uplinkMessage, string controllerCallsign, CancellationToken cancellationToken)
     {
         await _semaphore.WaitAsync(cancellationToken);
         try
@@ -62,7 +62,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
                 configuration.SpecialUplinkMessages.Contains(uplinkMessage.Content),
                 uplinkMessage.ReplyToDownlinkId);
 
-            AddMessageToDialogue(model, model.Recipient);
+            AddMessageToDialogue(model, model.Recipient, controllerCallsign);
             logger.Information("Uplink message {MessageId} to {Recipient} added to repository",
                 uplinkMessage.Id, uplinkMessage.Recipient);
         }
@@ -72,17 +72,17 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         }
     }
 
-    void AddMessageToDialogue(IAcarsMessageModel message, string callsign)
+    void AddMessageToDialogue(IAcarsMessageModel message, string aircraftCallsign, string controllerCallsign)
     {
         // Find which dialogue this message belongs to
-        var dialogue = _dialogues.FirstOrDefault(d => d.Callsign == callsign && d.RootMessageId == message.ReplyToMessageId);
+        var dialogue = _dialogues.FirstOrDefault(d => d.AircraftCallsign == aircraftCallsign && d.RootMessageId == message.ReplyToMessageId);
 
         if (dialogue == null)
         {
             // Create new dialogue (closure rules are applied within the constructor)
             logger.Debug("Creating new dialogue for {Callsign} with root message {RootMessageId}",
-                callsign, message.Id);
-            dialogue = new Dialogue(message.Id, callsign, message);
+                aircraftCallsign, message.Id);
+            dialogue = new Dialogue(message.Id, aircraftCallsign, controllerCallsign, message);
             _dialogues.Add(dialogue);
             logger.Debug("New dialogue created, total dialogues: {DialogueCount}", _dialogues.Count);
         }
@@ -90,58 +90,14 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         {
             // Add to existing dialogue (closure rules are applied within AddMessage)
             logger.Debug("Adding message {MessageId} to existing dialogue for {Callsign} (Root: {RootMessageId})",
-                message.Id, callsign, message.ReplyToMessageId);
+                message.Id, aircraftCallsign, message.ReplyToMessageId);
             dialogue.AddMessage(message);
         }
     }
 
-    // int FindRootMessageId(IAcarsMessageModel message)
-    // {
-    //     // If this message is not a reply, it's the root
-    //     var replyToId = message switch
-    //     {
-    //         DownlinkMessage dl => dl.ReplyToUplinkId,
-    //         UplinkMessage ul => ul.ReplyToDownlinkId,
-    //         _ => null
-    //     };
-    //
-    //     if (replyToId == null)
-    //         return message.Id;
-    //
-    //     // Traverse up the chain to find the root
-    //     var current = replyToId.Value;
-    //     var visited = new HashSet<int> { message.Id };
-    //
-    //     while (true)
-    //     {
-    //         // Avoid infinite loops
-    //         if (visited.Contains(current))
-    //             return current;
-    //
-    //         visited.Add(current);
-    //
-    //         // Find the parent message
-    //         var parentMessage = FindMessageById(message.current);
-    //         if (parentMessage == null)
-    //             return current; // Can't find parent, assume this is root
-    //
-    //         var parentReplyToId = parentMessage switch
-    //         {
-    //             DownlinkMessage dl => dl.ReplyToUplinkId,
-    //             UplinkMessage ul => ul.ReplyToDownlinkId,
-    //             _ => null
-    //         };
-    //
-    //         if (parentReplyToId == null)
-    //             return current; // Parent is root
-    //
-    //         current = parentReplyToId.Value;
-    //     }
-    // }
-
     IAcarsMessageModel? FindMessageById(string recipient, int id)
     {
-        foreach (var dialogue in _dialogues.Where(d => d.Callsign == recipient))
+        foreach (var dialogue in _dialogues.Where(d => d.AircraftCallsign == recipient))
         {
             var message = dialogue.Messages.FirstOrDefault(m => m.Id == id);
             if (message != null)
@@ -149,25 +105,6 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         }
 
         return null;
-    }
-
-    public async Task<IReadOnlyList<Dialogue>> GetCurrentDialoguesFor(string callsign)
-    {
-        await _semaphore.WaitAsync();
-        try
-        {
-            var dialogues = _dialogues
-                .Where(d => !d.IsInHistory && d.Callsign == callsign)
-                .OrderBy(d => d.Opened)
-                .ToArray();
-
-            logger.Debug("Retrieved {DialogueCount} current dialogues for {Callsign}", dialogues.Length, callsign);
-            return dialogues;
-        }
-        finally
-        {
-            _semaphore.Release();
-        }
     }
 
     public async Task<IReadOnlyList<Dialogue>> GetCurrentDialogues()
@@ -214,8 +151,8 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         try
         {
             var dialogues = _dialogues
-                .Where(d => d.IsInHistory && d.Callsign == callsign)
-                .OrderBy(d => d.Callsign)
+                .Where(d => d.IsInHistory && d.AircraftCallsign == callsign)
+                .OrderBy(d => d.AircraftCallsign)
                 .ThenBy(d => d.Closed ?? d.Opened)
                 .ToArray();
 
@@ -270,7 +207,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
             var dialogue = _dialogues.FirstOrDefault(d => d.Messages.Contains(uplinkMessage));
             if (dialogue != null)
             {
-                logger.Debug("Closing dialogue for {Callsign} due to manual acknowledgement", dialogue.Callsign);
+                logger.Debug("Closing dialogue for {Callsign} due to manual acknowledgement", dialogue.AircraftCallsign);
                 dialogue.Close(clock.UtcNow());
             }
             else
@@ -290,7 +227,7 @@ public class MessageRepository(IClock clock, AcarsConfiguration configuration, I
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            return _dialogues.Where(d => d.Callsign == sender)
+            return _dialogues.Where(d => d.AircraftCallsign == sender)
                 .SelectMany(d => d.Messages)
                 .OfType<DownlinkMessage>()
                 .OrderBy(d => d.Received)

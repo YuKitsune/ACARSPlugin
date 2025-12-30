@@ -18,7 +18,7 @@ public class GetCurrentDialoguesRequestHandler(MessageRepository messageReposito
 
         // Filter to only include dialogues for the current controller
         var filteredGroups = groups
-            .Where(dialogue => Plugin.ShouldDisplayMessage(dialogue.Callsign))
+            .Where(Plugin.ShouldDisplayMessage)
             .ToList();
 
         logger.Debug("Found {TotalDialogues} total dialogues, {FilteredDialogues} after filtering for current controller",
