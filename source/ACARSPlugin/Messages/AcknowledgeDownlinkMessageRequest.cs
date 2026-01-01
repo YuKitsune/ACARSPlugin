@@ -18,5 +18,9 @@ public class AcknowledgeDownlinkMessageRequestHandler(Plugin plugin, ILogger log
         }
 
         await plugin.ConnectionManager.AcknowledgeDownlink(request.DialogueId, request.MessageId, cancellationToken);
+
+        logger.Debug("Acknowledged downlink with id {MessageId} in dialogue {DialogueId}",
+            request.MessageId,
+            request.DialogueId);
     }
 }

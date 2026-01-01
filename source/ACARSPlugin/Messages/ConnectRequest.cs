@@ -11,16 +11,17 @@ public class ConnectRequestHandler(Plugin plugin, IMediator mediator, ILogger lo
 {
     public async Task Handle(ConnectRequest request, CancellationToken cancellationToken)
     {
-        logger.Information("Processing connect request to {ServerEndpoint} for station {StationId}",
+        logger.Information("Connecting to {ServerEndpoint} for station {StationId}",
             request.ServerEndpoint, request.StationId);
 
         // If already connected, disconnect first
         if (plugin.ConnectionManager is not null)
         {
-            logger.Information("Existing connection found, disconnecting first");
+            logger.Information("Existing connection found, disconnecting");
             if (plugin.ConnectionManager.IsConnected)
             {
                 await plugin.ConnectionManager.StopAsync();
+                logger.Information("Existing connection stopped");
             }
 
             plugin.ConnectionManager.Dispose();
@@ -29,11 +30,11 @@ public class ConnectRequestHandler(Plugin plugin, IMediator mediator, ILogger lo
 
         if (!Network.IsConnected)
         {
-            logger.Error("Cannot connect to ACARS server: not connected to VATSIM");
+            logger.Warning("Cannot connect to server: not connected to VATSIM");
             throw new Exception("Not connected to VATSIM");
         }
 
-        logger.Debug("Creating SignalR connection manager");
+        logger.Debug("Creating SignalR connection");
         var downlinkHandler = new MediatorMessageHandler(mediator);
         plugin.ConnectionManager = new SignalRConnectionManager(
             request.ServerEndpoint,
@@ -41,12 +42,14 @@ public class ConnectRequestHandler(Plugin plugin, IMediator mediator, ILogger lo
             logger.ForContext<SignalRConnectionManager>());
 
         // Initialize the connection with the station ID and current callsign
+        logger.Debug("Initializing SignalR connection");
         await plugin.ConnectionManager.InitializeAsync(request.StationId, Network.Callsign);
 
         // Start the connection
+        logger.Debug("Starting SignalR connection");
         await plugin.ConnectionManager.StartAsync();
 
-        logger.Information("Successfully connected to ACARS server");
+        logger.Debug("Connected to server");
         await mediator.Publish(new ConnectedNotification(request.StationId), cancellationToken);
     }
 }

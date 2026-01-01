@@ -9,24 +9,24 @@ public class DisconnectRequestHandler(Plugin plugin, IPublisher publisher, ILogg
 {
     public async Task Handle(DisconnectRequest request, CancellationToken cancellationToken)
     {
-        logger.Information("Processing disconnect request");
+        logger.Information("Disconnecting from server");
 
         if (plugin.ConnectionManager is null)
         {
-            logger.Information("No connection manager found, already disconnected");
+            logger.Warning("No connection manager found, already disconnected");
             return;
         }
 
         if (plugin.ConnectionManager.IsConnected)
         {
-            logger.Information("Stopping active connection");
+            logger.Debug("Stopping active connection");
             await plugin.ConnectionManager.StopAsync();
         }
 
         plugin.ConnectionManager.Dispose();
         plugin.ConnectionManager = null;
 
-        logger.Information("Successfully disconnected from ACARS server");
+        logger.Debug("Disconnected from server");
         await publisher.Publish(new DisconnectedNotification(), cancellationToken);
     }
 }

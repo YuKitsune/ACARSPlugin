@@ -45,8 +45,6 @@ public class SignalRConnectionManager(
     /// </summary>
     public async Task InitializeAsync(string stationId, string callsign)
     {
-        logger.Information("Initializing SignalR connection for station {StationId} with callsign {Callsign}", stationId, callsign);
-
         if (_connection != null)
         {
             logger.Debug("Disposing existing connection before re-initialization");
@@ -80,7 +78,6 @@ public class SignalRConnectionManager(
         RegisterConnectionEvents();
 
         StationIdentifier = stationId;
-        logger.Information("SignalR connection initialized successfully");
     }
 
     /// <summary>
@@ -90,26 +87,22 @@ public class SignalRConnectionManager(
     {
         if (_connection == null)
         {
-            logger.Error("Cannot start connection: not initialized");
             throw new InvalidOperationException("Connection not initialized. Call InitializeAsync first.");
         }
 
         if (_connection.State == HubConnectionState.Connected)
         {
-            logger.Debug("Connection already active, skipping start");
+            logger.Warning("Connection already active, skipping start");
             return;
         }
 
         try
         {
-            logger.Information("Starting SignalR connection to server");
             await _connection.StartAsync();
             OnConnectionStateChanged(HubConnectionState.Connected);
-            logger.Information("SignalR connection started successfully");
         }
         catch (Exception ex)
         {
-            logger.Error(ex, "Failed to start SignalR connection");
             OnConnectionError(ex);
             throw;
         }
@@ -122,22 +115,19 @@ public class SignalRConnectionManager(
     {
         if (_connection == null || _connection.State == HubConnectionState.Disconnected)
         {
-            logger.Debug("Connection already stopped or not initialized, skipping stop");
+            logger.Warning("Connection already stopped or not initialized, skipping stop");
             return;
         }
 
         try
         {
-            logger.Information("Stopping SignalR connection");
             await _connection.StopAsync();
             OnConnectionStateChanged(HubConnectionState.Disconnected);
 
             StationIdentifier = string.Empty;
-            logger.Information("SignalR connection stopped successfully");
         }
         catch (Exception ex)
         {
-            logger.Error(ex, "Error while stopping SignalR connection");
             OnConnectionError(ex);
             throw;
         }
@@ -172,9 +162,6 @@ public class SignalRConnectionManager(
         string content,
         CancellationToken cancellationToken)
     {
-        logger.Debug("Sending uplink to {Recipient} (ReplyTo: {ReplyToDownlinkId}, Type: {ResponseType})",
-            recipient, replyToDownlinkId, responseType);
-
         EnsureConnected();
         var result = await _connection!.InvokeAsync<UplinkMessageDto>(
             "SendUplink",
@@ -184,82 +171,51 @@ public class SignalRConnectionManager(
             content,
             cancellationToken: cancellationToken);
 
-        logger.Information("Uplink sent successfully to {Recipient} with ID {UplinkId}",
-            recipient, result.MessageId);
-
         return result;
     }
 
     public async Task<AircraftConnectionDto[]> GetConnectedAircraft(CancellationToken cancellationToken)
     {
-        logger.Debug("Requesting connected aircraft from server");
-
         EnsureConnected();
         var aircraft = await _connection!.InvokeAsync<AircraftConnectionDto[]>(
             "GetConnectedAircraft",
             cancellationToken);
-
-        logger.Debug("Received {AircraftCount} connected aircraft from server", aircraft.Length);
 
         return aircraft;
     }
 
     public async Task AcknowledgeDownlink(Guid dialogueId, int downlinkMessageId, CancellationToken cancellationToken)
     {
-        logger.Debug("Acknowledging downlink with id {MessageId} in dialogue {DialogueId}",
-            downlinkMessageId,
-            dialogueId);
-
         EnsureConnected();
         await _connection!.InvokeAsync(
             "AcknowledgeDownlink",
             dialogueId,
             downlinkMessageId,
             cancellationToken);
-
-        logger.Debug("Downlink with id {MessageId} in dialogue {DialogueId} acknowledged",
-            downlinkMessageId,
-            dialogueId);
     }
 
     public async Task AcknowledgeUplink(Guid dialogueId, int uplinkMessageId, CancellationToken cancellationToken)
     {
-        logger.Debug("Acknowledging uplink with id {MessageId} in dialogue {DialogueId}",
-            uplinkMessageId,
-            dialogueId);
-
         EnsureConnected();
         await _connection!.InvokeAsync(
             "AcknowledgeUplink",
             dialogueId,
             uplinkMessageId,
             cancellationToken);
-
-        logger.Debug("Uplink with id {MessageId} in dialogue {DialogueId} acknowledged",
-            uplinkMessageId,
-            dialogueId);
     }
 
     public async Task ArchiveDialogue(Guid dialogueId, CancellationToken cancellationToken)
     {
-        logger.Debug("Archiving dialogue {DialogueId}", dialogueId);
-
         EnsureConnected();
         await _connection!.InvokeAsync("ArchiveDialogue", dialogueId, cancellationToken);
-
-        logger.Debug("Dialogue {DialogueId} archived", dialogueId);
     }
 
     public async Task<DialogueDto[]> GetAllDialogues(CancellationToken cancellationToken)
     {
-        logger.Debug("Requesting all dialogues from server");
-
         EnsureConnected();
         var dialogues = await _connection!.InvokeAsync<DialogueDto[]>(
             "GetAllDialogues",
             cancellationToken);
-
-        logger.Debug("Received {DialogueCount} dialogues from server", dialogues.Length);
 
         return dialogues;
     }
@@ -282,7 +238,7 @@ public class SignalRConnectionManager(
             }
             else
             {
-                logger.Information("SignalR connection closed");
+                logger.Debug("SignalR connection closed");
             }
 
             OnConnectionStateChanged(HubConnectionState.Disconnected);

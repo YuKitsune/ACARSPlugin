@@ -1,9 +1,8 @@
 using ACARSPlugin.Server.Contracts;
-using Serilog;
 
 namespace ACARSPlugin;
 
-public class AircraftConnectionStore(ILogger logger)
+public class AircraftConnectionStore
 {
     readonly List<AircraftConnectionDto> _connectedAircraft = new();
     readonly SemaphoreSlim _semaphore = new(1, 1);
@@ -13,10 +12,8 @@ public class AircraftConnectionStore(ILogger logger)
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            logger.Information("Populating aircraft connection tracker with {ConnectionCount} connections", connections.Length);
             _connectedAircraft.Clear();
             _connectedAircraft.AddRange(connections);
-            logger.Debug("Aircraft connections populated: {Callsigns}", string.Join(", ", connections.Select(c => c.Callsign)));
         }
         finally
         {
@@ -29,7 +26,6 @@ public class AircraftConnectionStore(ILogger logger)
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            logger.Information("Upserting aircraft connection: {Callsign}", connection.Callsign);
             var existing = _connectedAircraft.FirstOrDefault(c => c.Callsign == connection.Callsign);
             if (existing is not null)
             {
@@ -37,7 +33,6 @@ public class AircraftConnectionStore(ILogger logger)
             }
 
             _connectedAircraft.Add(connection);
-            logger.Debug("Total connected aircraft: {Count}", _connectedAircraft.Count);
         }
         finally
         {
@@ -51,7 +46,6 @@ public class AircraftConnectionStore(ILogger logger)
         try
         {
             var connection = _connectedAircraft.FirstOrDefault(a => a.Callsign == callsign);
-            logger.Debug("Looking up aircraft connection for {Callsign}: {Found}", callsign, connection != null ? "Found" : "Not found");
             return connection;
         }
         finally
@@ -65,7 +59,6 @@ public class AircraftConnectionStore(ILogger logger)
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            logger.Debug("Retrieving all connected aircraft: {Count} aircraft", _connectedAircraft.Count);
             return _connectedAircraft.ToArray();
         }
         finally
@@ -80,8 +73,7 @@ public class AircraftConnectionStore(ILogger logger)
         try
         {
             var isConnected = _connectedAircraft.Any(c => c.Callsign == callsign);
-            logger.Debug("Checking if aircraft {Callsign} is connected: {IsConnected}", callsign, isConnected);
-            return isConnected;
+             return isConnected;
         }
         finally
         {
@@ -89,21 +81,12 @@ public class AircraftConnectionStore(ILogger logger)
         }
     }
 
-    public async Task Remove(string callsign, CancellationToken cancellationToken = default)
+    public async Task<bool> Remove(string callsign, CancellationToken cancellationToken = default)
     {
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            var removedCount = _connectedAircraft.RemoveAll(c => c.Callsign == callsign);
-            if (removedCount > 0)
-            {
-                logger.Information("Unregistered aircraft connection: {Callsign}", callsign);
-                logger.Debug("Total connected aircraft: {Count}", _connectedAircraft.Count);
-            }
-            else
-            {
-                logger.Warning("Attempted to unregister aircraft {Callsign} but it was not found in the tracker", callsign);
-            }
+            return _connectedAircraft.RemoveAll(c => c.Callsign == callsign) > 0;
         }
         finally
         {
@@ -116,8 +99,6 @@ public class AircraftConnectionStore(ILogger logger)
         await _semaphore.WaitAsync(cancellationToken);
         try
         {
-            var count = _connectedAircraft.Count;
-            logger.Information("Clearing all aircraft connections ({Count} connections)", count);
             _connectedAircraft.Clear();
         }
         finally

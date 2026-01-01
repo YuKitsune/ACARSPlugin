@@ -11,7 +11,7 @@ public class ConnectedNotificationHandler(Plugin plugin, DialogueStore dialogueS
 {
     public async Task Handle(ConnectedNotification notification, CancellationToken cancellationToken)
     {
-        logger.Information("Connected to server as station {StationId}, loading all dialogues", notification.StationId);
+        logger.Information("Connected to server as station {StationId}", notification.StationId);
         if (plugin.ConnectionManager is null || !plugin.ConnectionManager.IsConnected)
         {
             logger.Warning("Not connected to server");
@@ -19,14 +19,16 @@ public class ConnectedNotificationHandler(Plugin plugin, DialogueStore dialogueS
         }
 
         // Load dialogues
+        logger.Debug("Loading all dialogues");
         var dialogues = await plugin.ConnectionManager.GetAllDialogues(cancellationToken);
         await dialogueStore.Populate(dialogues, cancellationToken);
-        logger.Information("Loaded {DialogueCount} dialogue(s) from server", dialogues.Length);
+        logger.Debug("Loaded {DialogueCount} dialogue(s)", dialogues.Length);
 
         // Load aircraft connections
+        logger.Debug("Loading all aircraft connections");
         var connectedAircraft = await plugin.ConnectionManager.GetConnectedAircraft(cancellationToken);
         await aircraftConnectionStore.Populate(connectedAircraft, cancellationToken);
-        logger.Information("Loaded {ConnectionCount} aircraft connection(s) from server", connectedAircraft.Length);
+        logger.Debug("Loaded {ConnectionCount} aircraft connection(s)", connectedAircraft.Length);
 
         // Relay notification to UI
         WeakReferenceMessenger.Default.Send(notification);

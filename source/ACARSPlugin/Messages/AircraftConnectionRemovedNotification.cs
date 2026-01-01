@@ -11,9 +11,12 @@ public class AircraftConnectionRemovedNotificationNotificationHandler(AircraftCo
 {
     public async Task Handle(AircraftConnectionRemovedNotification notification, CancellationToken cancellationToken)
     {
-        logger.Information("Aircraft {Callsign} disconnected", notification.Callsign);
+        logger.Debug("Aircraft {Callsign} disconnected", notification.Callsign);
 
-        await aircraftConnectionStore.Remove(notification.Callsign, cancellationToken);
+        if (!await aircraftConnectionStore.Remove(notification.Callsign, cancellationToken))
+        {
+            logger.Warning("Aircraft {Callsign} was not tracked", notification.Callsign);
+        }
 
         WeakReferenceMessenger.Default.Send(new ConnectedAircraftChanged());
     }
