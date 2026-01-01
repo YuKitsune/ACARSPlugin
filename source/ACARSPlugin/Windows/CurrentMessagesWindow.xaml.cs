@@ -2,7 +2,6 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
-using ACARSPlugin.Model;
 using ACARSPlugin.Server.Contracts;
 using ACARSPlugin.ViewModels;
 using CommunityToolkit.Mvvm.Input;
@@ -21,7 +20,6 @@ public partial class CurrentMessagesWindow : Window
         _viewModel = viewModel;
         DataContext = viewModel;
 
-        // Dispose view model when window closes
         Closed += (_, _) => _viewModel.Dispose();
 
         // Wire up button click events
@@ -171,7 +169,7 @@ public partial class CurrentMessagesWindow : Window
         HistoryButton.Visibility = Visibility.Collapsed;
 
         // Show buttons based on message type and state
-        if (currentMessage is { IsDownlink: true, OriginalMessage: DownlinkMessage { ResponseType: CpdlcDownlinkResponseType.ResponseRequired, IsClosed: false } })
+        if (currentMessage is { IsDownlink: true, Message: DownlinkMessageDto { ResponseType: CpdlcDownlinkResponseType.ResponseRequired, IsClosed: false } })
         {
             StandbyButton.Visibility = Visibility.Visible;
             DeferredButton.Visibility = Visibility.Visible;
@@ -179,12 +177,12 @@ public partial class CurrentMessagesWindow : Window
             UnableTrafficButton.Visibility = Visibility.Visible;
             UnableAirspaceButton.Visibility = Visibility.Visible;
         }
-        else if (currentMessage is { IsDownlink: false, OriginalMessage: UplinkMessage { IsPilotLate: true, IsClosed: false } })
+        else if (currentMessage is { IsDownlink: false, Message: UplinkMessageDto { IsPilotLate: true, IsClosed: false } })
         {
             ManualAckButton.Visibility = Visibility.Visible;
             HistoryButton.Visibility = Visibility.Visible;
         }
-        else if (currentMessage.OriginalMessage is UplinkMessage { IsTransmissionFailed: true, IsClosed: false })
+        else if (currentMessage.Message is UplinkMessageDto { IsTransmissionFailed: true, IsClosed: false })
         {
             HistoryButton.Visibility = Visibility.Visible;
             ReissueButton.Visibility = Visibility.Visible;

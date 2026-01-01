@@ -1,7 +1,7 @@
 using System.Collections.ObjectModel;
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
-using ACARSPlugin.Model;
+using ACARSPlugin.Server.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
@@ -9,19 +9,25 @@ using MediatR;
 
 namespace ACARSPlugin.ViewModels;
 
-// TODO: Extended view.
 
-public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<CurrentMessagesChanged>, IDisposable
+public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<DialogueChangedNotification>, IDisposable
 {
-    readonly AcarsConfiguration _configuration;
+    readonly PluginConfiguration _configuration;
+    readonly DialogueStore _dialogueStore;
     readonly IMediator _mediator;
     readonly IGuiInvoker _guiInvoker;
     readonly IErrorReporter _errorReporter;
     bool _disposed;
 
-    public CurrentMessagesViewModel(AcarsConfiguration configuration, IMediator mediator, IGuiInvoker guiInvoker, IErrorReporter errorReporter)
+    public CurrentMessagesViewModel(
+        PluginConfiguration configuration,
+        DialogueStore dialogueStore,
+        IMediator mediator,
+        IGuiInvoker guiInvoker,
+        IErrorReporter errorReporter)
     {
         _configuration = configuration;
+        _dialogueStore = dialogueStore;
         _mediator = mediator;
         _guiInvoker = guiInvoker;
         _errorReporter = errorReporter;
@@ -37,272 +43,459 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         if (_disposed)
             return;
 
-        WeakReferenceMessenger.Default.Unregister<CurrentMessagesChanged>(this);
+        WeakReferenceMessenger.Default.Unregister<DialogueChangedNotification>(this);
         _disposed = true;
     }
 
 #if DEBUG
     // Test constructor for design-time data - shows all possible message states
-    public CurrentMessagesViewModel()
+    public CurrentMessagesViewModel(DialogueStore dialogueStore)
     {
-        var currentMessagesConfiguration = new CurrentMessagesConfiguration();
+        _dialogueStore = dialogueStore;
+        var mexMessageDisplayLength = 40;
+
         var testGroups = new ObservableCollection<DialogueViewModel>();
         var messageId = 1;
 
+        // Helper to create a dialogue DTO with messages
+        DialogueDto CreateDialogue(string callsign, params CpdlcMessageDto[] messages)
+        {
+            return new DialogueDto(
+                Id: Guid.NewGuid(),
+                AircraftCallsign: callsign,
+                Messages: messages,
+                Opened: messages.Min(m => m.Time),
+                Closed: messages.Any(m => m.IsClosed) ? messages.Where(m => m.IsClosed).Max(m => m.Closed) : null,
+                Archived: null);
+        }
+
         // Group 1: Regular Uplink/Downlink messages (not acknowledged)
-        var group1 = new DialogueViewModel
+        var group1Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST1",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.WilcoUnable,
+            Content = "UPLINK REGULAR NOT ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-48),
+            IsPilotLate = false,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group1Downlink = new DownlinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Sender = "TEST1",
+            ResponseType = CpdlcDownlinkResponseType.ResponseRequired,
+            Content = "DOWNLINK REGULAR NOT ACK",
+            Received = DateTimeOffset.UtcNow.AddMinutes(-47),
+            IsControllerLate = false
+        };
+        var group1Dialogue = CreateDialogue("TEST1", group1Uplink, group1Downlink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-48),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group1.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST1", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-                "UPLINK REGULAR NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-48), false),
-            currentMessagesConfiguration));
-
-        group1.Messages.Add(new CurrentMessageViewModel(
-            new Model.DownlinkMessage(messageId++, "TEST1", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-                "DOWNLINK REGULAR NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-47), false),
-            currentMessagesConfiguration));
-
-        testGroups.Add(group1);
+            Messages =
+            [
+                new(group1Dialogue, group1Uplink, mexMessageDisplayLength),
+                new(group1Dialogue, group1Downlink, mexMessageDisplayLength)
+            ]
+        });
 
         // Group 3: Urgent messages (not acknowledged)
-        var group3 = new DialogueViewModel
+        var group3Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.High,
+            Recipient = "TEST3",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.WilcoUnable,
+            Content = "UPLINK URGENT NOT ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-45),
+            IsPilotLate = false,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group3Downlink = new DownlinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.High,
+            Sender = "TEST3",
+            ResponseType = CpdlcDownlinkResponseType.ResponseRequired,
+            Content = "DOWNLINK URGENT NOT ACK",
+            Received = DateTimeOffset.UtcNow.AddMinutes(-44),
+            IsControllerLate = false
+        };
+        var group3Dialogue = CreateDialogue("TEST3", group3Uplink, group3Downlink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-45),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group3.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST3", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-                "UPLINK URGENT NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-45), false) { IsUrgent = true },
-            currentMessagesConfiguration));
-
-        group3.Messages.Add(new CurrentMessageViewModel(
-            new Model.DownlinkMessage(messageId++, "TEST3", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-                "DOWNLINK URGENT NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-44), false) { IsUrgent = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group3);
+            Messages =
+            [
+                new(group3Dialogue, group3Uplink, mexMessageDisplayLength),
+                new(group3Dialogue, group3Downlink, mexMessageDisplayLength)
+            ]
+        });
 
         // Group 5: Closed messages (not acknowledged)
-        var group5 = new DialogueViewModel
+        var group5Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST5",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.Roger,
+            Content = "UPLINK CLOSED NOT ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-42),
+            Closed = DateTimeOffset.UtcNow.AddMinutes(-42),
+            IsPilotLate = false,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group5Downlink = new DownlinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Sender = "TEST5",
+            ResponseType = CpdlcDownlinkResponseType.NoResponse,
+            Content = "DOWNLINK CLOSED NOT ACK",
+            Received = DateTimeOffset.UtcNow.AddMinutes(-41),
+            Closed = DateTimeOffset.UtcNow.AddMinutes(-41),
+            IsControllerLate = false
+        };
+        var group5Dialogue = CreateDialogue("TEST5", group5Uplink, group5Downlink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-42),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group5.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST5", Server.Contracts.CpdlcUplinkResponseType.Roger,
-                "UPLINK CLOSED NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-42), false) { IsClosed = true },
-            currentMessagesConfiguration));
-
-        group5.Messages.Add(new CurrentMessageViewModel(
-            new Model.DownlinkMessage(messageId++, "TEST5", Server.Contracts.CpdlcDownlinkResponseType.NoResponse,
-                "DOWNLINK CLOSED NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-41), false) { IsClosed = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group5);
+            Messages =
+            [
+                new(group5Dialogue, group5Uplink, mexMessageDisplayLength),
+                new(group5Dialogue, group5Downlink, mexMessageDisplayLength)
+            ]
+        });
 
         // Group 7: Special Closed messages (not acknowledged)
-        var group7 = new DialogueViewModel
+        var group7Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST7",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.Roger,
+            Content = "STANDBY",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-39),
+            Closed = DateTimeOffset.UtcNow.AddMinutes(-39),
+            IsPilotLate = false,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group7Dialogue = CreateDialogue("TEST7", group7Uplink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-39),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group7.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST7", Server.Contracts.CpdlcUplinkResponseType.Roger,
-                "UPLINK SPECIAL CLOSED NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-39), true) { IsClosed = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group7);
+            Messages = [new(group7Dialogue, group7Uplink, mexMessageDisplayLength)]
+        });
 
         // Group 9: Failed messages (not acknowledged)
-        var group9 = new DialogueViewModel
+        var group9Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST9",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.WilcoUnable,
+            Content = "UPLINK FAILED NOT ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-37),
+            IsPilotLate = false,
+            IsTransmissionFailed = true,
+            IsClosedManually = false
+        };
+        var group9Dialogue = CreateDialogue("TEST9", group9Uplink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-37),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group9.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST9", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-                "UPLINK FAILED NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-37), false) { IsTransmissionFailed = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group9);
+            Messages = [new(group9Dialogue, group9Uplink, mexMessageDisplayLength)]
+        });
 
         // Group 11: Pilot Late messages (not acknowledged)
-        var group11 = new DialogueViewModel
+        var group11Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST11",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.WilcoUnable,
+            Content = "UPLINK PILOT LATE NOT ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-35),
+            IsPilotLate = true,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group11Dialogue = CreateDialogue("TEST11", group11Uplink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-35),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group11.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST11", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-                "UPLINK PILOT LATE NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-35), false) { IsPilotLate = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group11);
+            Messages = [new(group11Dialogue, group11Uplink, mexMessageDisplayLength)]
+        });
 
         // Group 13: Controller Late messages (not acknowledged)
-        var group13 = new DialogueViewModel
+        var group13Downlink = new DownlinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Sender = "TEST13",
+            ResponseType = CpdlcDownlinkResponseType.ResponseRequired,
+            Content = "DOWNLINK CONTROLLER LATE NOT ACK",
+            Received = DateTimeOffset.UtcNow.AddMinutes(-33),
+            IsControllerLate = true
+        };
+        var group13Dialogue = CreateDialogue("TEST13", group13Downlink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-33),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group13.Messages.Add(new CurrentMessageViewModel(
-            new Model.DownlinkMessage(messageId++, "TEST13", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-                "DOWNLINK CONTROLLER LATE NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-33), false) { IsControllerLate = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group13);
+            Messages = [new(group13Dialogue, group13Downlink, mexMessageDisplayLength)]
+        });
 
         // Group 15: Special Closed Timeout (pilot late special - Normal video)
-        var group15 = new DialogueViewModel
+        var group15Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST15",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.Roger,
+            Content = "STANDBY",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-31),
+            Closed = DateTimeOffset.UtcNow.AddMinutes(-31),
+            IsPilotLate = true,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group15Dialogue = CreateDialogue("TEST15", group15Uplink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-31),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group15.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST15", Server.Contracts.CpdlcUplinkResponseType.Roger,
-                "UPLINK SPECIAL TIMEOUT NOT ACK", DateTimeOffset.UtcNow.AddMinutes(-31), true) { IsPilotLate = true, IsClosed = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group15);
+            Messages = [new(group15Dialogue, group15Uplink, mexMessageDisplayLength)]
+        });
 
         // Group 16: Overflow message (shows asterisk prefix)
-        var group16 = new DialogueViewModel
+        var group16Downlink = new DownlinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Sender = "TEST16",
+            ResponseType = CpdlcDownlinkResponseType.ResponseRequired,
+            Content = "DOWNLINK OVERFLOW MESSAGE SHOWING ASTERISK PREFIX NOT ACKNOWLEDGED VERY LONG TEXT THAT EXCEEDS MAX LENGTH",
+            Received = DateTimeOffset.UtcNow.AddMinutes(-29),
+            IsControllerLate = false
+        };
+        var group16Dialogue = CreateDialogue("TEST16", group16Downlink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-29),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group16.Messages.Add(new CurrentMessageViewModel(
-            new Model.DownlinkMessage(messageId++, "TEST16", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-                "DOWNLINK OVERFLOW MESSAGE SHOWING ASTERISK PREFIX NOT ACKNOWLEDGED VERY LONG TEXT THAT EXCEEDS MAX LENGTH",
-                DateTimeOffset.UtcNow.AddMinutes(-29), false),
-            currentMessagesConfiguration));
-
-        testGroups.Add(group16);
+            Messages = [new(group16Dialogue, group16Downlink, mexMessageDisplayLength)]
+        });
 
         // Group 2: Regular messages (acknowledged)
-        var group2 = new DialogueViewModel
+        var group2Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST2",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.WilcoUnable,
+            Content = "UPLINK REGULAR ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-27),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-26),
+            IsPilotLate = false,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group2Downlink = new DownlinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Sender = "TEST2",
+            ResponseType = CpdlcDownlinkResponseType.ResponseRequired,
+            Content = "DOWNLINK REGULAR ACK",
+            Received = DateTimeOffset.UtcNow.AddMinutes(-26),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-25),
+            IsControllerLate = false
+        };
+        var group2Dialogue = CreateDialogue("TEST2", group2Uplink, group2Downlink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-27),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group2.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST2", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-                "UPLINK REGULAR ACK", DateTimeOffset.UtcNow.AddMinutes(-27), false) { IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        group2.Messages.Add(new CurrentMessageViewModel(
-            new Model.DownlinkMessage(messageId++, "TEST2", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-                "DOWNLINK REGULAR ACK", DateTimeOffset.UtcNow.AddMinutes(-26), false) { IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group2);
+            Messages =
+            [
+                new(group2Dialogue, group2Uplink, mexMessageDisplayLength),
+                new(group2Dialogue, group2Downlink, mexMessageDisplayLength)
+            ]
+        });
 
         // Group 4: Urgent messages (acknowledged)
-        var group4 = new DialogueViewModel
+        var group4Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.High,
+            Recipient = "TEST4",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.WilcoUnable,
+            Content = "UPLINK URGENT ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-24),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-23),
+            IsPilotLate = false,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group4Downlink = new DownlinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.High,
+            Sender = "TEST4",
+            ResponseType = CpdlcDownlinkResponseType.ResponseRequired,
+            Content = "DOWNLINK URGENT ACK",
+            Received = DateTimeOffset.UtcNow.AddMinutes(-23),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-22),
+            IsControllerLate = false
+        };
+        var group4Dialogue = CreateDialogue("TEST4", group4Uplink, group4Downlink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-24),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group4.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST4", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-                "UPLINK URGENT ACK", DateTimeOffset.UtcNow.AddMinutes(-24), false) { IsUrgent = true, IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        group4.Messages.Add(new CurrentMessageViewModel(
-            new Model.DownlinkMessage(messageId++, "TEST4", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-                "DOWNLINK URGENT ACK", DateTimeOffset.UtcNow.AddMinutes(-23), false) { IsUrgent = true, IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group4);
+            Messages =
+            [
+                new(group4Dialogue, group4Uplink, mexMessageDisplayLength),
+                new(group4Dialogue, group4Downlink, mexMessageDisplayLength)
+            ]
+        });
 
         // Group 6: Closed messages (acknowledged)
-        var group6 = new DialogueViewModel
+        var group6Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST6",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.Roger,
+            Content = "UPLINK CLOSED ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-21),
+            Closed = DateTimeOffset.UtcNow.AddMinutes(-21),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-20),
+            IsPilotLate = false,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group6Downlink = new DownlinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Sender = "TEST6",
+            ResponseType = CpdlcDownlinkResponseType.NoResponse,
+            Content = "DOWNLINK CLOSED ACK",
+            Received = DateTimeOffset.UtcNow.AddMinutes(-20),
+            Closed = DateTimeOffset.UtcNow.AddMinutes(-20),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-19),
+            IsControllerLate = false
+        };
+        var group6Dialogue = CreateDialogue("TEST6", group6Uplink, group6Downlink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-21),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group6.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST6", Server.Contracts.CpdlcUplinkResponseType.Roger,
-                "UPLINK CLOSED ACK", DateTimeOffset.UtcNow.AddMinutes(-21), false) { IsClosed = true, IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        group6.Messages.Add(new CurrentMessageViewModel(
-            new Model.DownlinkMessage(messageId++, "TEST6", Server.Contracts.CpdlcDownlinkResponseType.NoResponse,
-                "DOWNLINK CLOSED ACK", DateTimeOffset.UtcNow.AddMinutes(-20), false) { IsClosed = true, IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group6);
+            Messages =
+            [
+                new(group6Dialogue, group6Uplink, mexMessageDisplayLength),
+                new(group6Dialogue, group6Downlink, mexMessageDisplayLength)
+            ]
+        });
 
         // Group 8: Special Closed messages (acknowledged)
-        var group8 = new DialogueViewModel
+        var group8Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST8",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.Roger,
+            Content = "STANDBY",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-18),
+            Closed = DateTimeOffset.UtcNow.AddMinutes(-18),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-17),
+            IsPilotLate = false,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group8Dialogue = CreateDialogue("TEST8", group8Uplink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-18),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group8.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST8", Server.Contracts.CpdlcUplinkResponseType.Roger,
-                "UPLINK SPECIAL CLOSED ACK", DateTimeOffset.UtcNow.AddMinutes(-18), true) { IsClosed = true, IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group8);
+            Messages = [new(group8Dialogue, group8Uplink, mexMessageDisplayLength)]
+        });
 
         // Group 10: Failed messages (acknowledged)
-        var group10 = new DialogueViewModel
+        var group10Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST10",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.WilcoUnable,
+            Content = "UPLINK FAILED ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-16),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-15),
+            IsPilotLate = false,
+            IsTransmissionFailed = true,
+            IsClosedManually = false
+        };
+        var group10Dialogue = CreateDialogue("TEST10", group10Uplink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-16),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group10.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST10", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-                "UPLINK FAILED ACK", DateTimeOffset.UtcNow.AddMinutes(-16), false) { IsTransmissionFailed = true, IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group10);
+            Messages = [new(group10Dialogue, group10Uplink, mexMessageDisplayLength)]
+        });
 
         // Group 12: Pilot Late messages (acknowledged)
-        var group12 = new DialogueViewModel
+        var group12Uplink = new UplinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Recipient = "TEST12",
+            SenderCallsign = "CONTROLLER",
+            ResponseType = CpdlcUplinkResponseType.WilcoUnable,
+            Content = "UPLINK PILOT LATE ACK",
+            Sent = DateTimeOffset.UtcNow.AddMinutes(-14),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-13),
+            IsPilotLate = true,
+            IsTransmissionFailed = false,
+            IsClosedManually = false
+        };
+        var group12Dialogue = CreateDialogue("TEST12", group12Uplink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-14),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group12.Messages.Add(new CurrentMessageViewModel(
-            new Model.UplinkMessage(messageId++, "TEST12", Server.Contracts.CpdlcUplinkResponseType.WilcoUnable,
-                "UPLINK PILOT LATE ACK", DateTimeOffset.UtcNow.AddMinutes(-14), false) { IsPilotLate = true, IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group12);
+            Messages = [new(group12Dialogue, group12Uplink, mexMessageDisplayLength)]
+        });
 
         // Group 14: Controller Late messages (acknowledged)
-        var group14 = new DialogueViewModel
+        var group14Downlink = new DownlinkMessageDto
+        {
+            MessageId = messageId++,
+            AlertType = AlertType.None,
+            Sender = "TEST14",
+            ResponseType = CpdlcDownlinkResponseType.ResponseRequired,
+            Content = "DOWNLINK CONTROLLER LATE ACK",
+            Received = DateTimeOffset.UtcNow.AddMinutes(-12),
+            Acknowledged = DateTimeOffset.UtcNow.AddMinutes(-11),
+            IsControllerLate = true
+        };
+        var group14Dialogue = CreateDialogue("TEST14", group14Downlink);
+        testGroups.Add(new DialogueViewModel
         {
             FirstMessageTime = DateTimeOffset.UtcNow.AddMinutes(-12),
-            Messages = new ObservableCollection<CurrentMessageViewModel>()
-        };
-
-        group14.Messages.Add(new CurrentMessageViewModel(
-            new Model.DownlinkMessage(messageId++, "TEST14", Server.Contracts.CpdlcDownlinkResponseType.ResponseRequired,
-                "DOWNLINK CONTROLLER LATE ACK", DateTimeOffset.UtcNow.AddMinutes(-12), false) { IsControllerLate = true, IsAcknowledged = true },
-            currentMessagesConfiguration));
-
-        testGroups.Add(group14);
+            Messages = [new(group14Dialogue, group14Downlink, mexMessageDisplayLength)]
+        });
 
         Dialogues = testGroups;
     }
@@ -316,24 +509,33 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
 
     async Task LoadDialoguesAsync()
     {
-        var response = await _mediator.Send(new GetCurrentDialoguesRequest());
-
-        Dialogues.Clear();
-        var dialogueViewModels = response.Dialogues
-            .Select(d => new DialogueViewModel
-            {
-                Messages = new ObservableCollection<CurrentMessageViewModel>(d.Messages.Select(m =>
-                    new CurrentMessageViewModel(m, _configuration.CurrentMessages))),
-                FirstMessageTime = d.Messages.OrderBy(m => m.Time).First().Time
-            });
-
-        foreach (var dialogueViewModel in dialogueViewModels)
+        try
         {
-            Dialogues.Add(dialogueViewModel);
+            var dialogues = (await _dialogueStore.All(CancellationToken.None))
+                .Where(d => !d.IsArchived && Plugin.ShouldDisplayMessage(d))
+                .ToArray();
+
+            Dialogues.Clear();
+            var dialogueViewModels = dialogues
+                .Select(d => new DialogueViewModel
+                {
+                    Messages = new ObservableCollection<CurrentMessageViewModel>(d.Messages.Select(m =>
+                        new CurrentMessageViewModel(d, m, _configuration.MaxDisplayMessageLength))),
+                    FirstMessageTime = d.Messages.OrderBy(m => m.Time).First().Time
+                });
+
+            foreach (var dialogueViewModel in dialogueViewModels)
+            {
+                Dialogues.Add(dialogueViewModel);
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorReporter.ReportError(ex);
         }
     }
 
-    public void Receive(CurrentMessagesChanged message)
+    public void Receive(DialogueChangedNotification message)
     {
         if (_disposed)
             return;
@@ -343,14 +545,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
             if (_disposed)
                 return;
 
-            try
-            {
-                await LoadDialoguesAsync();
-            }
-            catch (Exception ex)
-            {
-                _errorReporter.ReportError(ex);
-            }
+            await LoadDialoguesAsync();
         });
     }
 
@@ -359,10 +554,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.Message is not DownlinkMessageDto downlink)
                 return;
 
-            await _mediator.Send(new SendStandbyUplinkRequest(downlink.Id, downlink.Sender));
+            await _mediator.Send(new SendStandbyUplinkRequest(downlink.MessageId, downlink.Sender));
         }
         catch (Exception ex)
         {
@@ -375,10 +570,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.Message is not DownlinkMessageDto downlink)
                 return;
 
-            await _mediator.Send(new SendDeferredUplinkRequest(downlink.Id, downlink.Sender));
+            await _mediator.Send(new SendDeferredUplinkRequest(downlink.MessageId, downlink.Sender));
         }
         catch (Exception ex)
         {
@@ -391,10 +586,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.Message is not DownlinkMessageDto downlink)
                 return;
 
-            await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender));
+            await _mediator.Send(new SendUnableUplinkRequest(downlink.MessageId, downlink.Sender));
         }
         catch (Exception ex)
         {
@@ -407,10 +602,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.Message is not DownlinkMessageDto downlink)
                 return;
 
-            await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO TRAFFIC"));
+            await _mediator.Send(new SendUnableUplinkRequest(downlink.MessageId, downlink.Sender, Reason: "DUE TO TRAFFIC"));
         }
         catch (Exception ex)
         {
@@ -423,10 +618,10 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            if (currentMessageViewModel.OriginalMessage is not DownlinkMessage downlink)
+            if (currentMessageViewModel.Message is not DownlinkMessageDto downlink)
                 return;
 
-            await _mediator.Send(new SendUnableUplinkRequest(downlink.Id, downlink.Sender, Reason: "DUE TO AIRSPACE RESTRICTION"));
+            await _mediator.Send(new SendUnableUplinkRequest(downlink.MessageId, downlink.Sender, Reason: "DUE TO AIRSPACE RESTRICTION"));
         }
         catch (Exception ex)
         {
@@ -439,7 +634,9 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            await _mediator.Send(new AcknowledgeDownlinkMessageRequest(currentMessageViewModel.Callsign.Trim(), currentMessageViewModel.OriginalMessage.Id));
+            await _mediator.Send(new AcknowledgeDownlinkMessageRequest(
+                currentMessageViewModel.Dialogue.Id,
+                currentMessageViewModel.Message.MessageId));
         }
         catch (Exception ex)
         {
@@ -452,7 +649,9 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            await _mediator.Send(new AcknowledgeUplinkMessageRequest(currentMessageViewModel.Callsign.Trim(), currentMessageViewModel.OriginalMessage.Id));
+            await _mediator.Send(new AcknowledgeUplinkMessageRequest(
+                currentMessageViewModel.Dialogue.Id,
+                currentMessageViewModel.Message.MessageId));
         }
         catch (Exception ex)
         {
@@ -465,7 +664,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            await _mediator.Send(new MoveToHistoryRequest(currentMessageViewModel.OriginalMessage.Id));
+            await _mediator.Send(new ArchiveRequest(currentMessageViewModel.Dialogue.Id));
             // TODO: Close if there are no more current messages
         }
         catch (Exception ex)
@@ -479,7 +678,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
     {
         try
         {
-            if (currentMessageViewModel.OriginalMessage is UplinkMessage uplink)
+            if (currentMessageViewModel.Message is UplinkMessageDto uplink)
             {
                 // TODO: await _mediator.Send(new ReissueMessageRequest(uplink.Id));
             }
@@ -504,8 +703,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
             }
 
             // Collapse previously extended message
-            if (CurrentlyExtendedMessage != null)
-                CurrentlyExtendedMessage.IsExtended = false;
+            CurrentlyExtendedMessage?.IsExtended = false;
 
             // Extend this message
             currentMessageViewModel.IsExtended = true;
@@ -513,7 +711,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Cur
         }
         catch (Exception ex)
         {
-            _errorReporter.ReportError(ex, $"Error extending message display for {currentMessageViewModel.OriginalMessage.Id}");
+            _errorReporter.ReportError(ex, $"Error extending message display for {currentMessageViewModel.Message.MessageId}");
         }
     }
 }

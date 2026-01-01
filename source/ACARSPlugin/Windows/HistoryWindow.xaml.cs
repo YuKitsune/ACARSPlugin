@@ -81,10 +81,10 @@ public partial class HistoryWindow : Window
 
     void ScrollViewer_ScrollChanged(object sender, ScrollChangedEventArgs e)
     {
-        if (e.VerticalChange != 0)
-        {
-            CollapseExtendedMessage();
-        }
+        if (e.VerticalChange == 0)
+            return;
+
+        CollapseExtendedMessage();
     }
 
     void CollapseExtendedMessage()

@@ -1,11 +1,11 @@
 ﻿using System.Windows.Media;
-using ACARSPlugin.Model;
+using ACARSPlugin.Server.Contracts;
 
 namespace ACARSPlugin.ViewModels;
 
 public class MessageColours
 {
-    public static ColorPair GetMessageColors(IAcarsMessageModel message)
+    public static ColorPair GetMessageColors(CpdlcMessageDto message)
     {
         var background = Theme.CPDLCBackgroundColor;
 
@@ -19,20 +19,20 @@ public class MessageColours
             // Failed message background is CPDLCClosedColor.
             return new ColorPair(Theme.CPDLCClosedColor, Theme.CPDLCFailedColor).InvertIf(!message.IsAcknowledged);
         }
-        
-        if (IsClosed(message) && message is UplinkMessage)
+
+        if (IsClosed(message) && message is UplinkMessageDto)
         {
             return new ColorPair(background, Theme.CPDLCClosedColor);
         }
 
-        if (IsClosed(message) && message is DownlinkMessage)
+        if (IsClosed(message) && message is DownlinkMessageDto)
         {
             return new ColorPair(background, Theme.CPDLCClosedColor).InvertIf(!message.IsAcknowledged);
         }
 
         // Special closed timeout: Special uplink that timed out before acknowledgement
         // Shows Normal video (not inverted) with pilot late color
-        if (message is UplinkMessage { IsSpecial: true, IsClosed: true, IsPilotLate: true, IsAcknowledged: false })
+        if (message is UplinkMessageDto { IsSpecial: true, IsClosed: true, IsPilotLate: true, IsAcknowledged: false })
         {
             return new ColorPair(background, Theme.CPDLCPilotLateColor);
         }
@@ -40,7 +40,7 @@ public class MessageColours
         // Special Closed: For a special Uplink Message that is closed by itself
         // After acknowledgement (even if it timed out), show Normal video with CPDLCClosedColor
         // Before acknowledgement (and hasn't timed out), show Inverse video with CPDLCClosedColor
-        if (message is UplinkMessage { IsSpecial: true, IsClosed: true } ul)
+        if (message is UplinkMessageDto { IsSpecial: true, IsClosed: true } ul)
         {
             return new ColorPair(background, Theme.CPDLCClosedColor).InvertIf(!ul.IsAcknowledged);
         }
@@ -56,63 +56,63 @@ public class MessageColours
             // Time Out (pilot or Controller) message background is CPDLCClosedColor
             return new ColorPair(Theme.CPDLCClosedColor, Theme.CPDLCControllerLateColor).InvertIf(!message.IsAcknowledged);
         }
-        
-        if (message is DownlinkMessage)
+
+        if (message is DownlinkMessageDto)
         {
             return new ColorPair(background, Theme.CPDLCDownlinkColor).InvertIf(!message.IsAcknowledged);
         }
 
-        if (message is UplinkMessage)
+        if (message is UplinkMessageDto)
         {
             return new ColorPair(background, Theme.CPDLCUplinkColor).Invert();
         }
-        
+
         return new ColorPair(background, Theme.CPDLCClosedColor);
 
-        bool IsUrgent(IAcarsMessageModel message)
+        bool IsUrgent(CpdlcMessageDto message)
         {
             return message switch
             {
-                DownlinkMessage downlinkMessage => downlinkMessage.IsUrgent,
-                UplinkMessage uplinkMessage => uplinkMessage.IsUrgent,
+                DownlinkMessageDto downlinkMessage => downlinkMessage.AlertType != AlertType.None,
+                UplinkMessageDto uplinkMessage => uplinkMessage.AlertType != AlertType.None,
                 _ => false
             };
         }
 
-        bool IsFailed(IAcarsMessageModel message)
+        bool IsFailed(CpdlcMessageDto message)
         {
             return message switch
             {
-                DownlinkMessage downlinkMessage => downlinkMessage.Content.StartsWith("ERROR"), // TODO: Move to model
-                UplinkMessage uplinkMessage => uplinkMessage.IsTransmissionFailed,
+                DownlinkMessageDto downlinkMessage => downlinkMessage.Content.StartsWith("ERROR"),
+                UplinkMessageDto uplinkMessage => uplinkMessage.IsTransmissionFailed,
                 _ => false
             };
         }
 
-        bool IsPilotLate(IAcarsMessageModel message)
+        bool IsPilotLate(CpdlcMessageDto message)
         {
             return message switch
             {
-                UplinkMessage uplinkMessage => uplinkMessage.IsPilotLate,
+                UplinkMessageDto uplinkMessage => uplinkMessage.IsPilotLate,
                 _ => false
             };
         }
 
-        bool IsControllerLate(IAcarsMessageModel message)
+        bool IsControllerLate(CpdlcMessageDto message)
         {
             return message switch
             {
-                DownlinkMessage downlinkMessage => downlinkMessage.IsControllerLate,
+                DownlinkMessageDto downlinkMessage => downlinkMessage.IsControllerLate,
                 _ => false
             };
         }
 
-        bool IsClosed(IAcarsMessageModel message)
+        bool IsClosed(CpdlcMessageDto message)
         {
             return message switch
             {
-                DownlinkMessage downlinkMessage => downlinkMessage.IsClosed,
-                UplinkMessage uplinkMessage => uplinkMessage.IsClosed,
+                DownlinkMessageDto downlinkMessage => downlinkMessage.IsClosed,
+                UplinkMessageDto uplinkMessage => uplinkMessage.IsClosed,
                 _ => false
             };
         }

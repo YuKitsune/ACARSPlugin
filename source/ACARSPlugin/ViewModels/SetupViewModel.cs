@@ -13,6 +13,7 @@ public partial class SetupViewModel : ObservableObject,
 {
     readonly IMediator _mediator;
     readonly IErrorReporter _errorReporter;
+    readonly IWindowHandle _windowHandle;
 
     [ObservableProperty] string serverEndpoint;
     [ObservableProperty] string[] availableStationIdentifiers;
@@ -22,6 +23,7 @@ public partial class SetupViewModel : ObservableObject,
     public SetupViewModel(
         IMediator mediator,
         IErrorReporter errorReporter,
+        IWindowHandle windowHandle,
         string serverEndpoint,
         string[] availableStationIdentifiers,
         string selectedStationIdentifier,
@@ -29,6 +31,7 @@ public partial class SetupViewModel : ObservableObject,
     {
         _mediator = mediator;
         _errorReporter = errorReporter;
+        _windowHandle = windowHandle;
         ServerEndpoint = serverEndpoint;
         AvailableStationIdentifiers = availableStationIdentifiers;
         SelectedStationIdentifier = selectedStationIdentifier;
@@ -50,7 +53,6 @@ public partial class SetupViewModel : ObservableObject,
             }
             else
             {
-                await _mediator.Send(new ChangeConfigurationRequest(ServerEndpoint, SelectedStationIdentifier));
                 await _mediator.Send(new ConnectRequest(ServerEndpoint, SelectedStationIdentifier));
             }
         }
@@ -58,6 +60,12 @@ public partial class SetupViewModel : ObservableObject,
         {
             _errorReporter.ReportError(e);
         }
+    }
+
+    [RelayCommand]
+    void Close()
+    {
+        _windowHandle.Close();
     }
 
     public void Receive(ConnectedNotification message)

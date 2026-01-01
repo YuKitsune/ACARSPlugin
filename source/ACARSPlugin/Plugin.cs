@@ -4,20 +4,17 @@ using System.IO;
 using System.Threading.Channels;
 using System.Windows;
 using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 using System.Windows.Media;
 using ACARSPlugin.Configuration;
+using ACARSPlugin.Extensions;
 using ACARSPlugin.Messages;
-using ACARSPlugin.Model;
 using ACARSPlugin.Server;
 using ACARSPlugin.Server.Contracts;
-using ACARSPlugin.Services;
 using ACARSPlugin.ViewModels;
 using ACARSPlugin.Windows;
 using CommunityToolkit.Mvvm.Messaging;
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Win32;
 using Serilog;
 using vatsys;
 using vatsys.Plugin;
@@ -32,7 +29,7 @@ namespace ACARSPlugin;
 // TODO: Strip items
 
 [Export(typeof(IPlugin))]
-public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipient<ConnectedAircraftChanged>
+public class Plugin : ILabelPlugin, IRecipient<DialogueChangedNotification>, IRecipient<ConnectedAircraftChanged>
 {
 #if DEBUG
     public const string Name = "ACARS Plugin - Debug";
@@ -43,15 +40,11 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     static readonly Dictionary<string, DateTimeOffset> ErrorMessages = new();
 
     // Cache for CustomStripOrLabelItem to avoid expensive lookups on every label update
-    readonly ConcurrentDictionary<string, CustomStripOrLabelItem> _labelItemCache = new();
+    readonly LabelItemCache _labelItemCache = new();
+    readonly ColourCache _colourCache;
 
     readonly Channel<Func<Task>> _workQueue = Channel.CreateUnbounded<Func<Task>>();
     readonly Task _worker;
-
-    // Cached theme colors to avoid deadlock when accessing from non-GUI threads
-    CustomColour _cachedDownlinkColor = new(0, 105, 0);
-    CustomColour _cachedUnableDownlinkColor = new(230, 127, 127);
-    CustomColour _cachedSuspendedColor = new(255, 255, 255);
 
     string IPlugin.Name => Name;
 
@@ -63,11 +56,14 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     {
         try
         {
-            EnsureDpiAwareness();
+            DpiAwareness.EnsureDpiAwareness();
 
-            var configuration = LoadConfiguration();
-            ConfigureServices(configuration);
             ConfigureTheme();
+            _colourCache = CacheLabelColours();
+
+            var configuration = ConfigurationLoader.Load();
+            ConfigureServices(configuration);
+
             AddToolbarItems();
 
             Network.Connected += NetworkConnected;
@@ -75,7 +71,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
             FDP2.FDRsChanged += FDP2OnFDRsChanged;
 
-            WeakReferenceMessenger.Default.Register<CurrentMessagesChanged>(this);
+            WeakReferenceMessenger.Default.Register<DialogueChangedNotification>(this);
             WeakReferenceMessenger.Default.Register<ConnectedAircraftChanged>(this);
 
             _worker = Worker(CancellationToken.None);
@@ -114,44 +110,27 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
     }
 
-    AcarsConfiguration LoadConfiguration()
+    void ConfigureServices(PluginConfiguration pluginConfiguration)
     {
-        var configuration = ConfigurationLoader.Load();
-        return configuration;
-    }
-
-    ServerConfiguration CreateServerConfiguration(string serverEndpoint)
-    {
-        return new ServerConfiguration { ServerEndpoint = serverEndpoint };
-    }
-
-    void ConfigureServices(AcarsConfiguration acarsConfiguration)
-    {
-        var serverConfiguration = CreateServerConfiguration(acarsConfiguration.ServerEndpoint);
-
-        var logger = ConfigureLogger(acarsConfiguration);
+        var logger = ConfigureLogger(pluginConfiguration);
 
         ServiceProvider = new ServiceCollection()
             .AddSingleton(logger)
             .AddSingleton(this) // TODO: Ick... Whatever we're relying on this for, move it into a separate service please.
-            .AddSingleton(acarsConfiguration)
-            .AddSingleton(serverConfiguration)
+            .AddSingleton(pluginConfiguration)
             .AddSingleton<IClock>(new SystemClock())
-            .AddSingleton<MessageRepository>()
             .AddSingleton<IGuiInvoker, GuiInvoker>()
-            .AddSingleton<MessageMonitorService>()
             .AddSingleton<IErrorReporter, ErrorReporter>()
-            .AddSingleton<AircraftConnectionTracker>()
+            .AddSingleton<AircraftConnectionStore>()
             .AddSingleton<WindowManager>()
+            .AddSingleton<DialogueStore>()
+            .AddSingleton(_labelItemCache)
+            .AddSingleton(_colourCache)
             .AddMediatR(c => c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly))
             .BuildServiceProvider();
-
-        // Activate the monitor
-        // TODO: Do this a better way...
-        ServiceProvider.GetRequiredService<MessageMonitorService>();
     }
 
-    ILogger ConfigureLogger(AcarsConfiguration configuration)
+    ILogger ConfigureLogger(PluginConfiguration configuration)
     {
         var logFileName = Path.Combine(Helpers.GetFilesFolder(), "cpdlc_log.txt");
 
@@ -182,11 +161,14 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
         try
         {
-            var mediator =  ServiceProvider.GetService<IMediator>();
-            if (mediator is null)
-                return;
+            _workQueue.Writer.TryWrite(async () =>
+            {
+                var mediator =  ServiceProvider.GetService<IMediator>();
+                if (mediator is null)
+                    return;
 
-            _workQueue.Writer.TryWrite(async () => await mediator.Send(new DisconnectRequest()).ConfigureAwait(false));
+                await mediator.Send(new DisconnectRequest()).ConfigureAwait(false);
+            });
         }
         catch (Exception ex)
         {
@@ -235,26 +217,31 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         Theme.FontSize = MMI.eurofont_xsml.Size;
         Theme.FontWeight = MMI.eurofont_xsml.Bold ? FontWeights.Bold : FontWeights.Regular;
 
-        CacheLabelColours();
-
         SolidColorBrush GetColour(Colours.Identities identity)
         {
             return new SolidColorBrush(Colours.GetColour(identity).ToWindowsColor());
         }
     }
 
-    void CacheLabelColours()
+    ColourCache CacheLabelColours()
     {
         // Need to cache these for thread-safe access
 
         var downlinkColor = Theme.CPDLCDownlinkColor.Color;
-        _cachedDownlinkColor = new CustomColour(downlinkColor.R, downlinkColor.G, downlinkColor.B);
+        var customDownlinkColor = new CustomColour(downlinkColor.R, downlinkColor.G, downlinkColor.B);
 
         var unableColor = Theme.CPDLCUnableDownlinkColor.Color;
-        _cachedUnableDownlinkColor = new CustomColour(unableColor.R, unableColor.G, unableColor.B);
+        var customUnableDownlinkColor = new CustomColour(unableColor.R, unableColor.G, unableColor.B);
 
         var suspendedColor = Theme.CPDLCSuspendedColor.Color;
-        _cachedSuspendedColor = new CustomColour(suspendedColor.R, suspendedColor.G, suspendedColor.B);
+        var customSuspendedColor = new CustomColour(suspendedColor.R, suspendedColor.G, suspendedColor.B);
+
+        return new ColourCache
+        {
+            DownlinkBackgroundColour = customDownlinkColor,
+            UnableBackgroundColour = customUnableDownlinkColor,
+            SuspendedForegroundColour = customSuspendedColor
+        };
     }
 
     void AddToolbarItems()
@@ -265,7 +252,14 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             CustomToolStripMenuItemWindowType.Main,
             menuItemCategory,
             new ToolStripMenuItem("Setup"));
-        setupMenuItem.Item.Click += (_, _) => OpenSetupWindow();
+        setupMenuItem.Item.Click += (_, _) =>
+        {
+            _workQueue.Writer.TryWrite(async () =>
+            {
+                var mediator = ServiceProvider.GetRequiredService<IMediator>();
+                await mediator.Send(new OpenSetupWindowRequest());
+            });
+        };
 
         MMI.AddCustomMenuItem(setupMenuItem);
 
@@ -273,7 +267,14 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             CustomToolStripMenuItemWindowType.Main,
             menuItemCategory,
             new ToolStripMenuItem("Current Messages"));
-        currentMessagesMenuItem.Item.Click += (_, _) => OpenCurrentMessagesWindow();
+        currentMessagesMenuItem.Item.Click += (_, _) =>
+        {
+            _workQueue.Writer.TryWrite(async () =>
+            {
+                var mediator = ServiceProvider.GetRequiredService<IMediator>();
+                await mediator.Send(new OpenCurrentMessagesWindowRequest());
+            });
+        };
 
         MMI.AddCustomMenuItem(currentMessagesMenuItem);
 
@@ -281,7 +282,16 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             CustomToolStripMenuItemWindowType.Main,
             menuItemCategory,
             new ToolStripMenuItem("History"));
-        historyMenuItem.Item.Click += (_, _) => OpenHistoryWindow();
+        historyMenuItem.Item.Click += (_, _) =>
+        {
+            _workQueue.Writer.TryWrite(async () =>
+            {
+                var selectedCallsign = MMI.SelectedTrack?.GetFDR()?.Callsign;
+
+                var mediator = ServiceProvider.GetRequiredService<IMediator>();
+                await mediator.Send(new OpenHistoryWindowRequest(selectedCallsign));
+            });
+        };
 
         MMI.AddCustomMenuItem(historyMenuItem);
     }
@@ -290,7 +300,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated) {}
 
-    public static bool ShouldDisplayMessage(Dialogue dialogue)
+    public static bool ShouldDisplayMessage(DialogueDto dialogue)
     {
         var fdr = FDP2.GetFDRs.FirstOrDefault(f => f.Callsign == dialogue.AircraftCallsign);
         if (fdr == null)
@@ -299,7 +309,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         return ShouldDisplayMessage(dialogue, fdr);
     }
 
-    static bool ShouldDisplayMessage(Dialogue dialogue, FDP2.FDR fdr)
+    static bool ShouldDisplayMessage(DialogueDto dialogue, FDP2.FDR fdr)
     {
         // If we have jurisdiction, show the message
         if (fdr.IsTrackedByMe)
@@ -307,8 +317,9 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             return true;
         }
 
-        // VATSIM-ISM: If the dialogue was with us, then show the messages
-        if (dialogue.ControllerCallsign == Network.Callsign)
+        // VATSIM-ISM: If we're involved in the dialogue, then we should see the messages
+        var hasSentUplink = dialogue.Messages.OfType<UplinkMessageDto>().Any(um => um.SenderCallsign == Network.Callsign);
+        if (hasSentUplink)
         {
             return true;
         }
@@ -381,7 +392,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         {
             // Only show "V" when there is an unacknowledged message
             text = "V";
-            backgroundColour = _cachedDownlinkColor;
+            backgroundColour = _colourCache.DownlinkBackgroundColour;
         }
 
         // Don't take up the space if it's not necessary
@@ -482,9 +493,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     {
         try
         {
-            return _labelItemCache.TryGetValue(flightDataRecord.Callsign, out var cachedItem)
-                ? cachedItem
-                : null;
+            return _labelItemCache.Find(flightDataRecord.Callsign);
         }
         catch (Exception ex)
         {
@@ -492,11 +501,6 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             return null;
         }
     }
-
-    record CustomStripOrLabelItem(
-        string Text,
-        CustomColour? BackgroundColour,
-        Action LeftClickCallback);
 
     public CustomColour? SelectASDTrackColour(Track track) => null;
 
@@ -506,214 +510,13 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
     {
         try
         {
-            var allExistingKeys = _labelItemCache.Keys;
-            var allUpdatedKeys = new List<string>();
-
-            _labelItemCache.Clear();
-
-            var repository = ServiceProvider.GetRequiredService<MessageRepository>();
-            var aircraftTracker = ServiceProvider.GetRequiredService<AircraftConnectionTracker>();
-
-            var connectedAircraft = await aircraftTracker.GetConnectedAircraft(cancellationToken).ConfigureAwait(false);
-
-            foreach (var flightDataRecord in FDP2.GetFDRs)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                    return;
-
-                if (flightDataRecord is null)
-                    continue;
-
-                var connection = connectedAircraft.FirstOrDefault(c => c.Callsign == flightDataRecord.Callsign);
-
-                var openDialogues = await repository.GetCurrentDialogues().ConfigureAwait(false);
-
-                if (cancellationToken.IsCancellationRequested)
-                    return;
-
-                var hasOpenDownlinkMessages = openDialogues
-                    .SelectMany(d => d.Messages)
-                    .OfType<DownlinkMessage>()
-                    .Any(m => !m.IsClosed);
-
-                // TODO: Check if they're connected to the ACARS network. Equipment flags are unreliable.
-                var isEquipped = new[]
-                {
-                    "J1",
-                    "J2",
-                    "J3",
-                    "J4",
-                    "J5",
-                    "J6",
-                    "J7",
-                }.Any(s => flightDataRecord.AircraftEquip.Contains(s));
-
-                var unacknowledgedUnableReceived = openDialogues
-                    .SelectMany(d => d.Messages)
-                    .OfType<DownlinkMessage>()
-                    .Any(m => m.Sender == flightDataRecord.Callsign && m.Content.Contains("UNABLE") && !m.IsAcknowledged);
-
-                // TODO: Suspended messages
-                var hasSuspendedMessage = false;
-
-                var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-
-                var text = " ";
-                CustomColour? backgroundColour = null;
-                CustomColour? foregroundColour = null;
-                Action leftClickAction = () => { };
-
-                if (isEquipped && connection is null)
-                {
-                    text = ".";
-                    // TODO: Left click will initiate a manual connection
-                }
-                else if (connection is not null && connection.DataAuthorityState == DataAuthorityState.NextDataAuthority)
-                {
-                    text = "-";
-                    leftClickAction = () =>
-                    {
-                        try
-                        {
-                            // TODO: Better async stuff here
-                            guiInvoker.InvokeOnGUI(_ =>
-                            {
-                                OpenCpdlcWindow(flightDataRecord.Callsign, CancellationToken.None);
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            AddError(ex, "Error opening CPDLC Window");
-                        }
-                    };
-                }
-                else if (connection is not null && connection.DataAuthorityState == DataAuthorityState.CurrentDataAuthority)
-                {
-                    text = "+";
-                    leftClickAction = () =>
-                    {
-                        try
-                        {
-                            // TODO: Better async stuff here
-                            guiInvoker.InvokeOnGUI(_ =>
-                            {
-                                OpenCpdlcWindow(flightDataRecord.Callsign, CancellationToken.None);
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            AddError(ex, "Error opening CPDLC window");
-                        }
-                    };
-
-                    // Color only changes for the responsible controller
-                    if (flightDataRecord.IsTrackedByMe)
-                    {
-                        if (unacknowledgedUnableReceived)
-                        {
-                            backgroundColour = _cachedUnableDownlinkColor;
-                        }
-                        else if (hasOpenDownlinkMessages)
-                        {
-                            backgroundColour = _cachedDownlinkColor;
-                        }
-                    }
-                }
-
-                _labelItemCache[flightDataRecord.Callsign] = new CustomStripOrLabelItem(
-                    text,
-                    backgroundColour,
-                    leftClickAction);
-
-                allUpdatedKeys.Add(flightDataRecord.Callsign);
-            }
-
-            var missingKeys = allExistingKeys.Except(allUpdatedKeys);
-            foreach (var missingKey in missingKeys)
-            {
-                _labelItemCache.TryRemove(missingKey, out _);
-            }
+            var mediator =  ServiceProvider.GetRequiredService<IMediator>();
+            await mediator.Send(new RebuildLabelItemCacheRequest(), cancellationToken);
         }
         catch (Exception ex)
         {
             AddError(ex);
         }
-    }
-
-    void OpenSetupWindow()
-    {
-        var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
-
-        windowManager.FocusOrCreateWindow(
-            WindowKeys.Setup,
-            windowHandle =>
-            {
-                var acarsConfiguration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
-                var mediator = ServiceProvider.GetRequiredService<IMediator>();
-
-                // Create the view model with current configuration and connection state
-                var isConnected = ConnectionManager?.IsConnected ?? false;
-                var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
-                var viewModel = new SetupViewModel(
-                    mediator,
-                    errorReporter,
-                    acarsConfiguration.ServerEndpoint,
-                    acarsConfiguration.Stations,
-                    isConnected ? ConnectionManager!.StationIdentifier : acarsConfiguration.Stations.First(),
-                    isConnected);
-
-                var control = new SetupWindow(viewModel);
-                return control;
-            });
-    }
-
-    void OpenHistoryWindow()
-    {
-        var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
-
-        windowManager.FocusOrCreateWindow(
-            WindowKeys.History,
-            windowHandle =>
-            {
-                var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
-                var mediator = ServiceProvider.GetRequiredService<IMediator>();
-                var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-                var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
-
-                var selectedCallsign = MMI.SelectedTrack?.GetFDR()?.Callsign;
-
-                var viewModel = new HistoryViewModel(
-                    configuration,
-                    mediator,
-                    guiInvoker,
-                    errorReporter,
-                    selectedCallsign);
-
-                return new HistoryWindow(viewModel);
-            });
-    }
-
-    void OpenCurrentMessagesWindow()
-    {
-        var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
-
-        windowManager.FocusOrCreateWindow(
-            WindowKeys.CurrentMessages,
-            windowHandle =>
-            {
-                var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
-                var mediator = ServiceProvider.GetRequiredService<IMediator>();
-                var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-                var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
-
-                var viewModel = new CurrentMessagesViewModel(
-                    configuration,
-                    mediator,
-                    guiInvoker,
-                    errorReporter);
-
-                return new CurrentMessagesWindow(viewModel);
-            });
     }
 
     void FDP2OnFDRsChanged(object sender, FDP2.FDRsChangedEventArgs e)
@@ -740,7 +543,7 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
         }
     }
 
-    public void Receive(CurrentMessagesChanged _)
+    public void Receive(DialogueChangedNotification dialogueChangedNotification)
     {
         try
         {
@@ -748,158 +551,20 @@ public class Plugin : ILabelPlugin, IRecipient<CurrentMessagesChanged>, IRecipie
             {
                 await RebuildLabelItemCache().ConfigureAwait(false);
 
+                // Try to open the Current Messages Window if this dialogue is relevant to the controller
+                if (dialogueChangedNotification.Dialogue.IsArchived ||
+                    !ShouldDisplayMessage(dialogueChangedNotification.Dialogue))
+                {
+                    return;
+                }
+
                 var mediator = ServiceProvider.GetRequiredService<IMediator>();
-                var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
-
-                // Use the filtered GetCurrentDialogues request which only returns dialogues for the current controller
-                var response = await mediator.Send(new GetCurrentDialoguesRequest()).ConfigureAwait(false);
-
-                if (response.Dialogues.Any())
-                {
-                    OpenCurrentMessagesWindow();
-                }
-                else
-                {
-                    windowManager.TryRemoveWindow(WindowKeys.CurrentMessages);
-                }
+                await mediator.Send(new OpenCurrentMessagesWindowRequest());
             });
         }
         catch (Exception ex)
         {
             AddError(ex);
-        }
-    }
-
-    void OpenCpdlcWindow(string callsign, CancellationToken cancellationToken)
-    {
-        var windowManager = ServiceProvider.GetRequiredService<WindowManager>();
-
-        // Close any existing editor window before opening a new one
-        // Each editor is specific to a callsign, so we always want a fresh window
-        windowManager.TryRemoveWindow(WindowKeys.Editor);
-
-        windowManager.FocusOrCreateWindow(
-            WindowKeys.Editor,
-            windowHandle =>
-            {
-                var configuration = ServiceProvider.GetRequiredService<AcarsConfiguration>();
-                var mediator = ServiceProvider.GetRequiredService<IMediator>();
-
-                var response = mediator.Send(new GetCurrentDialoguesRequest(), cancellationToken)
-                    .ConfigureAwait(false)
-                    .GetAwaiter()
-                    .GetResult();
-
-                var downlinkMessageViewModels = new List<DownlinkMessageViewModel>();
-
-                foreach (var dialogue in response.Dialogues)
-                {
-                    if (dialogue.AircraftCallsign != callsign)
-                        continue;
-
-                    foreach (var message in dialogue.Messages)
-                    {
-                        if (message is not DownlinkMessage downlinkMessage || downlinkMessage.IsClosed || downlinkMessage.ResponseType == CpdlcDownlinkResponseType.NoResponse)
-                            continue;
-
-                        var downlinkMessageViewModel = new DownlinkMessageViewModel(
-                            downlinkMessage,
-                            standbySent: dialogue.HasStandbyResponse(downlinkMessage.Id),
-                            deferred: dialogue.HasDeferredResponse(downlinkMessage.Id));
-
-                        downlinkMessageViewModels.Add(downlinkMessageViewModel);
-                    }
-                }
-
-                var errorReporter = ServiceProvider.GetRequiredService<IErrorReporter>();
-                var guiInvoker = ServiceProvider.GetRequiredService<IGuiInvoker>();
-
-                var viewModel = new EditorViewModel(
-                    callsign,
-                    downlinkMessageViewModels.ToArray(),
-                    configuration,
-                    mediator,
-                    errorReporter,
-                    guiInvoker,
-                    windowHandle);
-
-                var control = new EditorWindow(viewModel);
-                return control;
-            });
-    }
-
-    void EnsureDpiAwareness()
-    {
-        try
-        {
-            if (!TryGetVatSysExecutablePath(out var vatSysExecutablePath))
-                return;
-
-            const string registryPath = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers";
-            const string dpiValue = "DPIUNAWARE";
-
-            using var key = Registry.CurrentUser.OpenSubKey(registryPath, writable: false);
-            var existingValue = key?.GetValue(vatSysExecutablePath) as string;
-
-            // If already set, exit early
-            if (existingValue != null && existingValue.Contains(dpiValue))
-                return;
-
-            // Set the registry key
-            using var writableKey = Registry.CurrentUser.OpenSubKey(registryPath, writable: true)
-                ?? Registry.CurrentUser.CreateSubKey(registryPath);
-
-            writableKey.SetValue(vatSysExecutablePath, dpiValue, RegistryValueKind.String);
-
-            // Restart vatSys to apply the DPI setting
-            RestartVatSys();
-        }
-        catch (Exception ex)
-        {
-            AddError(ex);
-        }
-    }
-
-    void RestartVatSys()
-    {
-        try
-        {
-            if (!TryGetVatSysExecutablePath(out var vatSysExecutablePath))
-                return;
-
-            System.Diagnostics.Process.Start(vatSysExecutablePath);
-            Environment.Exit(0);
-        }
-        catch (Exception ex)
-        {
-            AddError(ex);
-        }
-    }
-
-    bool TryGetVatSysInstallationPath(out string? installationPath)
-    {
-        using var key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\Sawbe\vatSys");
-        installationPath = key?.GetValue("Path") as string;
-        return !string.IsNullOrEmpty(installationPath) && Directory.Exists(installationPath);
-    }
-
-    bool TryGetVatSysExecutablePath(out string? executablePath)
-    {
-        try
-        {
-            if (!TryGetVatSysInstallationPath(out var installationPath))
-            {
-                executablePath = null;
-                return false;
-            }
-
-            executablePath = Path.Combine(installationPath, "bin", "vatSys.exe");
-            return File.Exists(executablePath);
-        }
-        catch
-        {
-            executablePath = null;
-            return false;
         }
     }
 }

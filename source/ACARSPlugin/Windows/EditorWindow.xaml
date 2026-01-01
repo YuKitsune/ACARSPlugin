@@ -18,7 +18,7 @@
             <ResourceDictionary.MergedDictionaries>
                 <ResourceDictionary Source="/ACARSPlugin;component/Styles.xaml" />
             </ResourceDictionary.MergedDictionaries>
-            
+
             <Style TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}"/>
 
             <Style x:Key="DownlinkMessageBackground" TargetType="Border">
@@ -54,7 +54,7 @@
             <Style x:Key="MessageClassButton" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
                 <Setter Property="Height" Value="28"/>
                 <Setter Property="Margin" Value="1"/>
-                
+
                 <Style.Triggers>
                     <DataTrigger Value="True">
                         <DataTrigger.Binding>
@@ -63,24 +63,24 @@
                                 <Binding Path="DataContext.SelectedMessageCategory" RelativeSource="{RelativeSource Mode=FindAncestor, AncestorType={x:Type Window}}" Mode="OneWay"/>
                             </MultiBinding>
                         </DataTrigger.Binding>
-                        
+
                         <Setter Property="Background" Value="{x:Static local:Theme.InteractiveTextColor}"/>
                         <Setter Property="Foreground" Value="{x:Static local:Theme.BackgroundColor}"/>
                     </DataTrigger>
                 </Style.Triggers>
             </Style>
-            
+
             <Style x:Key="Mode2Button" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
                 <Setter Property="Width" Value="80"/>
                 <Setter Property="Height" Value="32"/>
                 <Setter Property="Margin" Value="4"/>
             </Style>
-            
+
             <Style x:Key="HotButton" TargetType="Button" BasedOn="{StaticResource Mode2Button}">
                 <Setter Property="Foreground" Value="White"/>
                 <Setter Property="Background" Value="{x:Static local:Theme.CPDLCHotButtonBackgroundColor}"/>
             </Style>
-            
+
             <Style x:Key="SendButton" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
                 <Setter Property="MinWidth" Value="80"/>
                 <Setter Property="Foreground" Value="White"/>
@@ -102,7 +102,7 @@
                 <Setter Property="Margin" Value="0"/>
                 <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             </Style>
-            
+
             <Style x:Key="ActionButton" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
                 <Setter Property="Width" Value="64"/>
                 <Setter Property="Height" Value="32"/>
@@ -135,9 +135,10 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
-        
+
         <!-- Downlink Messages -->
         <ListBox
+            x:Name="DownlinkMessagesListBox"
             Grid.Row="0"
             Margin="8"
             ItemsSource="{Binding DownlinkMessages}"
@@ -154,7 +155,7 @@
                 </DataTemplate>
             </ListBox.ItemTemplate>
         </ListBox>
-        
+
         <!-- Message Class Button (Mode 1) -->
         <ItemsControl Grid.Row="1" Margin="8" ItemsSource="{Binding MessageCategoryNames}" Visibility="{Binding ShowMessageCategories, Converter={StaticResource BoolToVisibilityConverter}}">
             <ItemsControl.ItemsPanel>
@@ -171,7 +172,7 @@
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
-        
+
         <!-- Hot Buttons (Mode 2) -->
         <Grid Grid.Row="1" Visibility="{Binding ShowHotButtons, Converter={StaticResource BoolToVisibilityConverter}}">
             <Grid.RowDefinitions>
@@ -186,60 +187,60 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
-            
+
             <controls:BeveledLine Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="5" Height="{x:Static local:Theme.BeveledLineWidth}" Flipped="true"/>
-        
+
             <!-- Delay Response section -->
             <Grid Grid.Row="1" Grid.Column="0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="30"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-        
+
                 <TextBlock Grid.Row="0" Text="Delay Response" TextAlignment="Center"/>
-        
+
                 <WrapPanel Grid.Row="1" HorizontalAlignment="Center">
                     <Button Content="Standby" Style="{StaticResource HotButton}" Command="{Binding SendStandbyUplinkMessageCommand}"/>
                     <Button Content="Deferred" Style="{StaticResource HotButton}" Command="{Binding DeferCommand}" />
                 </WrapPanel>
             </Grid>
-        
+
             <controls:BeveledLine Grid.Row="1" Grid.Column="1" Width="{x:Static local:Theme.BeveledLineWidth}" Orientation="Vertical" Flipped="true"/>
-        
+
             <!-- To Editor section -->
             <Grid Grid.Row="1" Grid.Column="2">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="30"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-        
+
                 <TextBlock Grid.Row="0" Text="To Editor" TextAlignment="Center"/>
-        
+
                 <WrapPanel Grid.Row="1" HorizontalAlignment="Center">
                     <Button Content="Edit" Style="{StaticResource Mode2Button}" Command="{Binding EditCommand}" />
                 </WrapPanel>
             </Grid>
-        
+
             <controls:BeveledLine Grid.Row="1" Grid.Column="3" Width="{x:Static local:Theme.BeveledLineWidth}" Orientation="Vertical" Flipped="true"/>
-        
+
             <!-- Unable section -->
             <Grid Grid.Row="1" Grid.Column="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="30"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
-        
+
                 <TextBlock Grid.Row="0" Text="Unable Due To" TextAlignment="Center"/>
-        
+
                 <WrapPanel Grid.Row="1" HorizontalAlignment="Center">
                     <Button Content="Traffic" Style="{StaticResource HotButton}" Command="{Binding SendUnableDueTrafficUplinkMessageCommand}" />
                     <Button Content="Airspace" Style="{StaticResource HotButton}" Command="{Binding SendUnableDueAirspaceUplinkMessageCommand}" />
                 </WrapPanel>
             </Grid>
-            
+
             <controls:BeveledLine Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="5" Height="{x:Static local:Theme.BeveledLineWidth}" Flipped="true"/>
         </Grid>
-        
+
         <!-- Class Elements Display Area -->
         <!-- TODO: Prefix with * if the text needs to overflow. Right-click to extend the display area. -->
         <!-- TODO: Prefix with F if uplink id is 169 -->
@@ -261,7 +262,7 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
-        
+
         <!-- Message Construction Area -->
         <Grid Grid.Row="3" Margin="8">
             <Grid.ColumnDefinitions>
@@ -353,7 +354,7 @@
                                         </Style.Triggers>
                                     </Style>
                                 </Border.Style>
-                                
+
                                 <!-- Message Element Parts -->
                                 <ItemsControl
                                     ItemsSource="{Binding Parts}"
@@ -416,7 +417,7 @@
                 </ItemsControl>
             </controls:BeveledBorder>
         </Grid>
-        
+
         <!-- Action Buttons -->
         <Border Grid.Row="4" BorderThickness="1" BorderBrush="{x:Static local:Theme.GenericTextColor}" Margin="8" Padding="4">
             <Grid>
@@ -429,7 +430,7 @@
                     <Button Content="Restore" Style="{StaticResource ActionButton}" Margin="4,0,4,0" Command="{Binding RestoreCommand}"/>
                     <Button Content="Suspend" Style="{StaticResource ActionButton}" Margin="4,0,0,0" Command="{Binding SuspendCommand}"/>
                 </WrapPanel>
-                
+
                 <Button Grid.Column="1" Style="{StaticResource SendButton}" HorizontalAlignment="Right" Command="{Binding SendUplinkMessageCommand}">
                     <TextBlock Foreground="White">
                         <Run Text="Send"/>

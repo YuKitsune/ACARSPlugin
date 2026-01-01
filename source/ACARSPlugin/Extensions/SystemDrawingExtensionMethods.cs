@@ -1,4 +1,4 @@
-﻿namespace ACARSPlugin;
+﻿namespace ACARSPlugin.Extensions;
 
 public static class SystemDrawingExtensionMethods
 {

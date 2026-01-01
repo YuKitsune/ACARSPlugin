@@ -37,6 +37,7 @@ public class SignalRConnectionManager(
     /// </summary>
     public event EventHandler<Exception>? ConnectionError;
 
+    public string ServerEndpoint { get; } = serverEndpoint;
     public string StationIdentifier { get; set; } = string.Empty;
 
     /// <summary>
@@ -52,7 +53,7 @@ public class SignalRConnectionManager(
             await DisposeConnectionAsync();
         }
 
-        var url = $"{serverEndpoint}?network=VATSIM&stationId={stationId}&callsign={callsign}";
+        var url = $"{ServerEndpoint}?network=VATSIM&stationId={stationId}&callsign={callsign}";
         logger.Debug("Building SignalR connection to {Url}", url);
 
         var hubConnectionBuilder = new HubConnectionBuilder()
@@ -70,11 +71,7 @@ public class SignalRConnectionManager(
                 };
 #endif
             })
-            .AddJsonProtocol(options =>
-            {
-                // Configure JSON to handle polymorphic types
-                options.PayloadSerializerOptions.TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver();
-            })
+            .AddJsonProtocol()
             .WithAutomaticReconnect();
 
         _connection = hubConnectionBuilder.Build();
@@ -151,12 +148,12 @@ public class SignalRConnectionManager(
         if (_connection == null) return;
 
         logger.Debug("Registering SignalR message handlers");
-        _connection.On<CpdlcDownlink>("DownlinkReceived", downlink =>
-            WithCancellationToken<IDownlinkMessage>(downlinkHandlerDelegate.DownlinkReceived)(downlink));
-        _connection.On<ConnectedAircraftInfo>("AircraftConnected", connectedAircraftInfo =>
-            WithCancellationToken<ConnectedAircraftInfo>(downlinkHandlerDelegate.AircraftConnected)(connectedAircraftInfo));
-        _connection.On<string>("AircraftDisconnected", callsign =>
-            WithCancellationToken<string>(downlinkHandlerDelegate.AircraftDisconnected)(callsign));
+        _connection.On<DialogueDto>("DialogueChanged", downlink =>
+            WithCancellationToken<DialogueDto>(downlinkHandlerDelegate.DialogueChanged)(downlink));
+        _connection.On<AircraftConnectionDto>("AircraftConnectionUpdated", connectedAircraftInfo =>
+            WithCancellationToken<AircraftConnectionDto>(downlinkHandlerDelegate.AircraftConnectionUpdated)(connectedAircraftInfo));
+        _connection.On<string>("AircraftConnectionRemoved", callsign =>
+            WithCancellationToken<string>(downlinkHandlerDelegate.AircraftConnectionRemoved)(callsign));
     }
 
     Func<T, Task> WithCancellationToken<T>(Func<T, CancellationToken, Task> action)
@@ -168,10 +165,7 @@ public class SignalRConnectionManager(
         return x => action(x, cancellationTokenSource.Token);
     }
 
-    /// <summary>
-    /// Sends a generic message to the server.
-    /// </summary>
-    public async Task<CpdlcUplink> SendUplink(
+    public async Task<UplinkMessageDto> SendUplink(
         string recipient,
         int? replyToDownlinkId,
         CpdlcUplinkResponseType responseType,
@@ -182,36 +176,93 @@ public class SignalRConnectionManager(
             recipient, replyToDownlinkId, responseType);
 
         EnsureConnected();
-        var result = await _connection!.InvokeAsync<SendUplinkResult>(
+        var result = await _connection!.InvokeAsync<UplinkMessageDto>(
             "SendUplink",
             recipient,
             replyToDownlinkId,
-            responseType, content,
+            responseType,
+            content,
             cancellationToken: cancellationToken);
 
         logger.Information("Uplink sent successfully to {Recipient} with ID {UplinkId}",
-            recipient, result.UplinkMessage.Id);
+            recipient, result.MessageId);
 
-        return result.UplinkMessage;
+        return result;
     }
 
-    public record SendUplinkResult(CpdlcUplink UplinkMessage);
-
-    public async Task<ConnectedAircraftInfo[]> GetConnectedAircraft(CancellationToken cancellationToken)
+    public async Task<AircraftConnectionDto[]> GetConnectedAircraft(CancellationToken cancellationToken)
     {
         logger.Debug("Requesting connected aircraft from server");
 
         EnsureConnected();
-        var result = await _connection!.InvokeAsync<GetConnectedAircraftResult>(
+        var aircraft = await _connection!.InvokeAsync<AircraftConnectionDto[]>(
             "GetConnectedAircraft",
             cancellationToken);
 
-        logger.Debug("Received {AircraftCount} connected aircraft from server", result.Aircraft.Length);
+        logger.Debug("Received {AircraftCount} connected aircraft from server", aircraft.Length);
 
-        return result.Aircraft;
+        return aircraft;
     }
 
-    record GetConnectedAircraftResult(ConnectedAircraftInfo[] Aircraft);
+    public async Task AcknowledgeDownlink(Guid dialogueId, int downlinkMessageId, CancellationToken cancellationToken)
+    {
+        logger.Debug("Acknowledging downlink with id {MessageId} in dialogue {DialogueId}",
+            downlinkMessageId,
+            dialogueId);
+
+        EnsureConnected();
+        await _connection!.InvokeAsync(
+            "AcknowledgeDownlink",
+            dialogueId,
+            downlinkMessageId,
+            cancellationToken);
+
+        logger.Debug("Downlink with id {MessageId} in dialogue {DialogueId} acknowledged",
+            downlinkMessageId,
+            dialogueId);
+    }
+
+    public async Task AcknowledgeUplink(Guid dialogueId, int uplinkMessageId, CancellationToken cancellationToken)
+    {
+        logger.Debug("Acknowledging uplink with id {MessageId} in dialogue {DialogueId}",
+            uplinkMessageId,
+            dialogueId);
+
+        EnsureConnected();
+        await _connection!.InvokeAsync(
+            "AcknowledgeUplink",
+            dialogueId,
+            uplinkMessageId,
+            cancellationToken);
+
+        logger.Debug("Uplink with id {MessageId} in dialogue {DialogueId} acknowledged",
+            uplinkMessageId,
+            dialogueId);
+    }
+
+    public async Task ArchiveDialogue(Guid dialogueId, CancellationToken cancellationToken)
+    {
+        logger.Debug("Archiving dialogue {DialogueId}", dialogueId);
+
+        EnsureConnected();
+        await _connection!.InvokeAsync("ArchiveDialogue", dialogueId, cancellationToken);
+
+        logger.Debug("Dialogue {DialogueId} archived", dialogueId);
+    }
+
+    public async Task<DialogueDto[]> GetAllDialogues(CancellationToken cancellationToken)
+    {
+        logger.Debug("Requesting all dialogues from server");
+
+        EnsureConnected();
+        var dialogues = await _connection!.InvokeAsync<DialogueDto[]>(
+            "GetAllDialogues",
+            cancellationToken);
+
+        logger.Debug("Received {DialogueCount} dialogues from server", dialogues.Length);
+
+        return dialogues;
+    }
 
     /// <summary>
     /// Registers connection lifecycle event handlers.

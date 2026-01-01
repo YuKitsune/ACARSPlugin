@@ -1,15 +1,6 @@
-﻿namespace ACARSPlugin.Server.Contracts;
+﻿using System.Text.Json.Serialization;
 
-// Copied from https://github.com/YuKitsune/ACARSServer/blob/main/source/ACARSServer/Contracts/AcarsMessages.cs
-public interface IUplinkMessage
-{
-    string Recipient { get; }
-}
-
-public interface IDownlinkMessage
-{
-    string Sender { get; }
-}
+namespace ACARSPlugin.Server.Contracts;
 
 public enum CpdlcDownlinkResponseType
 {
@@ -25,32 +16,93 @@ public enum CpdlcUplinkResponseType
     Roger
 }
 
-public interface ICpdlcMessage
+public enum AlertType
 {
-    int Id { get; }
+    High,
+    Medium,
+    Low,
+    None
 }
 
-public interface ICpdlcUplink : IUplinkMessage, ICpdlcMessage
-{
-    CpdlcUplinkResponseType ResponseType { get; } 
-    string Content { get; }
-}
-
-public interface ICpdlcDownlink : IDownlinkMessage, ICpdlcMessage
-{
-    CpdlcDownlinkResponseType ResponseType { get; }  
-    string Content { get; }
-}
-
-public record CpdlcUplink(int Id, string Recipient, int? ReplyToDownlinkId, CpdlcUplinkResponseType ResponseType, string Content) : ICpdlcUplink;
-
-public record CpdlcDownlink(int Id, string Sender, int? ReplyToUplinkId, CpdlcDownlinkResponseType ResponseType, string Content) : ICpdlcDownlink;
-
-public record ConnectedAircraftInfo(
+public record AircraftConnectionDto(
     string Callsign,
     string StationId,
     string FlightSimulationNetwork,
     DataAuthorityState DataAuthorityState);
+
+public record DialogueDto(
+    Guid Id,
+    string AircraftCallsign,
+    IReadOnlyList<CpdlcMessageDto> Messages,
+    DateTimeOffset Opened,
+    DateTimeOffset? Closed,
+    DateTimeOffset? Archived)
+{
+    public bool IsClosed => Closed is not null;
+    public bool IsArchived => Archived is not null;
+}
+
+[JsonDerivedType(typeof(UplinkMessageDto), "uplink")]
+[JsonDerivedType(typeof(DownlinkMessageDto), "downlink")]
+[JsonPolymorphic(TypeDiscriminatorPropertyName = "$type")]
+public abstract class CpdlcMessageDto
+{
+    public required int MessageId { get; init; }
+
+    public int? MessageReference { get; init; }
+
+    public required AlertType AlertType { get; init; }
+
+    public abstract DateTimeOffset Time { get; }
+
+    public DateTimeOffset? Closed { get; init; }
+
+    public DateTimeOffset? Acknowledged { get; init; }
+
+    [JsonIgnore]
+    public bool IsClosed => Closed is not null;
+
+    [JsonIgnore]
+    public bool IsAcknowledged => Acknowledged is not null;
+}
+
+public class UplinkMessageDto : CpdlcMessageDto
+{
+    public override DateTimeOffset Time => Sent;
+
+    public required string Recipient { get; init; }
+
+    public required string SenderCallsign { get; init; }
+
+    public required CpdlcUplinkResponseType ResponseType { get; init; }
+
+    public required string Content { get; init; }
+
+    public required DateTimeOffset Sent { get; init; }
+
+    public required bool IsPilotLate { get; init; }
+
+    public required bool IsTransmissionFailed { get; init; }
+
+    public required bool IsClosedManually { get; init; }
+
+    public bool IsSpecial => Content is "STANDBY" or "REQUEST DEFERRED";
+}
+
+public class DownlinkMessageDto : CpdlcMessageDto
+{
+    public override DateTimeOffset Time => Received;
+
+    public required string Sender { get; init; }
+
+    public required CpdlcDownlinkResponseType ResponseType { get; init; }
+
+    public required string Content { get; init; }
+
+    public required DateTimeOffset Received { get; init; }
+
+    public required bool IsControllerLate { get; init; }
+}
 
 public enum DataAuthorityState
 {

@@ -114,7 +114,8 @@
                     </Border>
                 </Popup>
                 
-                <ScrollViewer Style="{StaticResource CustomScrollViewerStyle}"
+                <ScrollViewer x:Name="MessagesScrollViewer"
+                              Style="{StaticResource CustomScrollViewerStyle}"
                               ScrollChanged="ScrollViewer_ScrollChanged">
                     <ItemsControl ItemsSource="{Binding Dialogues}">
                         <!-- Each DialogueHistoryViewModel -->

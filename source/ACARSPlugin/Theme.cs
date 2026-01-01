@@ -1,5 +1,6 @@
 ﻿using System.Windows;
 using System.Windows.Media;
+using ACARSPlugin.Extensions;
 
 namespace ACARSPlugin;
 
@@ -26,12 +27,12 @@ public static class Theme
     public static SolidColorBrush CPDLCFailedColor { get; set; } = CreateColor(255, 255, 255, 0);
     public static SolidColorBrush CPDLCHotButtonBackgroundColor { get; set; } = CreateColor(255, 101,101,255);
     public static SolidColorBrush CPDLCSendBackgroundColor { get; set; } = CreateColor(255, 101,101,255);
-    
+
     public static SolidColorBrush CPDLCUnableDownlinkColor { get; set; } = CreateColor(255, 230, 127, 127);
     public static SolidColorBrush CPDLCSuspendedColor { get; set; } = CreateColor(255, 255, 255, 255);
 
     public static SolidColorBrush SelectedUtilityColor { get; set; } = CreateColor(255, 0, 255, 255);
-    
+
     // TODO: Support live updating font sizes
     public static FontFamily FontFamily { get; set; } = new("Terminus (TTF)");
     public static double FontSize { get; set; } = 16.0;

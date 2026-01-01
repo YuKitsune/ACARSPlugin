@@ -1,18 +1,22 @@
-﻿using ACARSPlugin.Model;
-using MediatR;
+﻿using MediatR;
 using Serilog;
 
 namespace ACARSPlugin.Messages;
 
-public record AcknowledgeDownlinkMessageRequest(string Callsign, int MessageId) : IRequest;
+public record AcknowledgeDownlinkMessageRequest(Guid DialogueId, int MessageId) : IRequest;
 
-public class AcknowledgeDownlinkMessageRequestHandler(MessageRepository repository, IPublisher publisher, ILogger logger)
+public class AcknowledgeDownlinkMessageRequestHandler(Plugin plugin, ILogger logger)
     : IRequestHandler<AcknowledgeDownlinkMessageRequest>
 {
     public async Task Handle(AcknowledgeDownlinkMessageRequest request, CancellationToken cancellationToken)
     {
-        logger.Information("Acknowledging downlink message {MessageId} from {Callsign}", request.MessageId, request.Callsign);
-        await repository.AcknowledgeDownlink(request.Callsign, request.MessageId);
-        await publisher.Publish(new CurrentMessagesChanged(), cancellationToken);
+        logger.Information("Acknowledging downlink message {MessageId} from dialogue {Dialogue}", request.MessageId, request.DialogueId);
+        if (plugin.ConnectionManager is null || !plugin.ConnectionManager.IsConnected)
+        {
+            logger.Warning("Not connected to server");
+            return;
+        }
+
+        await plugin.ConnectionManager.AcknowledgeDownlink(request.DialogueId, request.MessageId, cancellationToken);
     }
 }

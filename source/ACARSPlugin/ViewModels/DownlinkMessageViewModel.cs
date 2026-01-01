@@ -1,18 +1,18 @@
 using System.Text;
-using System.Windows.Media;
-using ACARSPlugin.Model;
+using ACARSPlugin.Server.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ACARSPlugin.ViewModels;
 
 public partial class DownlinkMessageViewModel : ObservableObject
 {
-    public DownlinkMessageViewModel(DownlinkMessage message, bool standbySent = false, bool deferred = false)
+    public DownlinkMessageViewModel(DialogueDto dialogue, DownlinkMessageDto message)
     {
+        Dialogue = dialogue;
         OriginalMessage = message;
         Received = message.Received;
-        StandbySent = standbySent;
-        Deferred = deferred;
+        StandbySent = StandbyReceived(dialogue, message);
+        Deferred = DeferredReceived(dialogue, message);
         Message = message.Content;
         MaxCharacters = 250; // TODO: Calculate based on view width
         DisplayText = GetDisplayText(Message, Received, StandbySent, Deferred, MaxCharacters);
@@ -33,7 +33,8 @@ public partial class DownlinkMessageViewModel : ObservableObject
     }
 #endif
 
-    public DownlinkMessage OriginalMessage { get; }
+    public DialogueDto Dialogue { get; }
+    public DownlinkMessageDto OriginalMessage { get; }
 
     [ObservableProperty] DateTimeOffset received;
     [ObservableProperty] bool standbySent;
@@ -81,5 +82,19 @@ public partial class DownlinkMessageViewModel : ObservableObject
         }
 
         return sb.ToString();
+    }
+
+    static bool StandbyReceived(DialogueDto dialogue, DownlinkMessageDto downlinkMessageDto)
+    {
+        return dialogue.Messages.OfType<UplinkMessageDto>()
+            .Where(d => d.MessageReference == downlinkMessageDto.MessageId)
+            .Any(m => m.Content.Equals("STANDBY"));
+    }
+
+    static bool DeferredReceived(DialogueDto dialogue, DownlinkMessageDto downlinkMessageDto)
+    {
+        return dialogue.Messages.OfType<UplinkMessageDto>()
+            .Where(d => d.MessageReference == downlinkMessageDto.MessageId)
+            .Any(m => m.Content.Equals("REQUEST DEFERRED"));
     }
 }

@@ -109,7 +109,7 @@
                 </Border>
             </Popup>
 
-            <ScrollViewer Style="{StaticResource CustomScrollViewerStyle}">
+            <ScrollViewer x:Name="MessagesScrollViewer" Style="{StaticResource CustomScrollViewerStyle}">
                 <ItemsControl ItemsSource="{Binding Dialogues}">
                     <!-- Each DialogueGroupViewModel -->
                     <ItemsControl.ItemTemplate>

@@ -1,39 +1,45 @@
 using System.Text;
 using System.Windows.Media;
-using ACARSPlugin.Configuration;
-using ACARSPlugin.Model;
+using ACARSPlugin.Extensions;
+using ACARSPlugin.Server.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ACARSPlugin.ViewModels;
 
 public partial class CurrentMessageViewModel : ObservableObject
 {
-    readonly CurrentMessagesConfiguration _config;
+    readonly int _maxMessageDisplayLength;
 
-    public CurrentMessageViewModel(IAcarsMessageModel message, CurrentMessagesConfiguration config)
+    public CurrentMessageViewModel(DialogueDto dialogue, CpdlcMessageDto message, int maxMessageDisplayLength)
     {
-        _config = config;
-        UpdateMessage(message);
+        _maxMessageDisplayLength = maxMessageDisplayLength;
+        UpdateMessage(dialogue, message);
     }
 
-    public IAcarsMessageModel OriginalMessage { get; set; }
+    public DialogueDto Dialogue { get; private set; }
+    public CpdlcMessageDto Message { get; private set; }
 
-    public void UpdateMessage(IAcarsMessageModel newMessage)
+    public void UpdateMessage(DialogueDto dialogue, CpdlcMessageDto newMessage)
     {
-        OriginalMessage = newMessage;
+        Dialogue = dialogue;
+        Message = newMessage;
 
         Callsign = GetCallsignFromMessage(newMessage);
         Time = FormatTime(GetTimeFromMessage(newMessage));
 
-        var formattedContent = newMessage is UplinkMessage uplinkMessage
-            ? uplinkMessage.FormattedContent
-            : newMessage.Content;
+        var formattedContent = newMessage switch
+        {
+            UplinkMessageDto uplinkMessageDto => uplinkMessageDto.FormattedContent(),
+            DownlinkMessageDto downlinkMessageDto => downlinkMessageDto.Content,
+            _ => string.Empty
+        };
+
         FullContent = formattedContent;
         Content = GetDisplayContent(formattedContent);
-        Prefix = CalculatePrefix(newMessage);
-        IsDownlink = newMessage is DownlinkMessage;
+        Prefix = CalculatePrefix(formattedContent);
+        IsDownlink = newMessage is DownlinkMessageDto;
 
-        var (background, foreground) = MessageColours.GetMessageColors(OriginalMessage);
+        var (background, foreground) = MessageColours.GetMessageColors(Message);
         BackgroundColor = background;
         ForegroundColor = foreground;
     }
@@ -65,12 +71,12 @@ public partial class CurrentMessageViewModel : ObservableObject
     [ObservableProperty]
     SolidColorBrush backgroundColor = Theme.BackgroundColor;
 
-    string GetCallsignFromMessage(IAcarsMessageModel message)
+    string GetCallsignFromMessage(CpdlcMessageDto message)
     {
         var callsign = message switch
         {
-            DownlinkMessage dl => dl.Sender,
-            UplinkMessage ul => ul.Recipient,
+            DownlinkMessageDto dl => dl.Sender,
+            UplinkMessageDto ul => ul.Recipient,
             _ => string.Empty
         };
 
@@ -78,12 +84,12 @@ public partial class CurrentMessageViewModel : ObservableObject
         return callsign.PadRight(8);
     }
 
-    DateTimeOffset GetTimeFromMessage(IAcarsMessageModel message)
+    DateTimeOffset GetTimeFromMessage(CpdlcMessageDto message)
     {
         return message switch
         {
-            DownlinkMessage dl => dl.Received,
-            UplinkMessage ul => ul.Sent,
+            DownlinkMessageDto dl => dl.Received,
+            UplinkMessageDto ul => ul.Sent,
             _ => DateTimeOffset.MinValue
         };
     }
@@ -95,23 +101,23 @@ public partial class CurrentMessageViewModel : ObservableObject
 
     string GetDisplayContent(string fullContent)
     {
-        if (fullContent.Length >= _config.MaxDisplayMessageLength)
-            return fullContent.Substring(0, _config.MaxDisplayMessageLength);
+        if (fullContent.Length >= _maxMessageDisplayLength)
+            return fullContent.Substring(0, _maxMessageDisplayLength);
 
         // Pad with spaces to reach max length so background extends to full width
-        return fullContent.PadRight(_config.MaxDisplayMessageLength);
+        return fullContent.PadRight(_maxMessageDisplayLength);
     }
 
-    string CalculatePrefix(IAcarsMessageModel message)
+    string CalculatePrefix(string content)
     {
         var sb = new StringBuilder();
 
-        sb.Append(message.Content.Length > _config.MaxDisplayMessageLength ? "*" : " ");
+        sb.Append(content.Length > _maxMessageDisplayLength ? "*" : " ");
 
-        var isHighPriority = false;
+        var isHighPriority = Message.AlertType != AlertType.None;
         sb.Append(isHighPriority ? "!" : " ");
 
-        var hasPilotFreeText = false;
+        var hasPilotFreeText = false; // TODO
         sb.Append(hasPilotFreeText ? "P" : " ");
 
         return sb.ToString();

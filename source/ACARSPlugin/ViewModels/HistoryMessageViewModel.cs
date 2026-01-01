@@ -1,32 +1,35 @@
 ﻿using System.Text;
 using System.Windows.Media;
-using ACARSPlugin.Configuration;
-using ACARSPlugin.Model;
+using ACARSPlugin.Extensions;
+using ACARSPlugin.Server.Contracts;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ACARSPlugin.ViewModels;
 
 public partial class HistoryMessageViewModel : ObservableObject
 {
-    readonly HistoryConfiguration _config;
+    readonly int _maxMessageDisplayLength;
 
-    public IAcarsMessageModel OriginalMessage { get; }
+    public CpdlcMessageDto OriginalMessage { get; }
 
-    public HistoryMessageViewModel(IAcarsMessageModel message, HistoryConfiguration config)
+    public HistoryMessageViewModel(CpdlcMessageDto message, int maxMessageDisplayLength)
     {
         OriginalMessage = message;
-        _config = config;
+        _maxMessageDisplayLength = maxMessageDisplayLength;
 
         Callsign = GetCallsignFromMessage(message);
         Time = FormatTime(GetTimeFromMessage(message));
 
-        var formattedContent = message is UplinkMessage uplinkMessage
-            ? uplinkMessage.FormattedContent
-            : message.Content;
+        var formattedContent = message switch
+        {
+            UplinkMessageDto uplinkMessage => uplinkMessage.FormattedContent(),
+            DownlinkMessageDto downlinkMessage => downlinkMessage.Content,
+            _ => string.Empty
+        };
 
         Content = GetDisplayText(message, formattedContent);
         FullContent = GetExtendedDisplayText(message, formattedContent);
-        Prefix = CalculatePrefix(message);
+        Prefix = CalculatePrefix(formattedContent);
 
         var (background, foreground) = MessageColours.GetMessageColors(message);
         BackgroundColor = background;
@@ -57,12 +60,12 @@ public partial class HistoryMessageViewModel : ObservableObject
     [ObservableProperty]
     SolidColorBrush backgroundColor = Theme.BackgroundColor;
 
-    string GetCallsignFromMessage(IAcarsMessageModel message)
+    string GetCallsignFromMessage(CpdlcMessageDto message)
     {
         var callsign = message switch
         {
-            DownlinkMessage dl => dl.Sender,
-            UplinkMessage ul => ul.Recipient,
+            DownlinkMessageDto dl => dl.Sender,
+            UplinkMessageDto ul => ul.Recipient,
             _ => string.Empty
         };
 
@@ -75,41 +78,42 @@ public partial class HistoryMessageViewModel : ObservableObject
         return time.ToString("HH:mm");
     }
 
-    DateTimeOffset GetTimeFromMessage(IAcarsMessageModel message)
+    DateTimeOffset GetTimeFromMessage(CpdlcMessageDto message)
     {
         return message switch
         {
-            DownlinkMessage dl => dl.Received,
-            UplinkMessage ul => ul.Sent,
+            DownlinkMessageDto dl => dl.Received,
+            UplinkMessageDto ul => ul.Sent,
             _ => DateTimeOffset.MinValue
         };
     }
 
-    string GetDisplayText(IAcarsMessageModel message, string fullContent)
+    string GetDisplayText(CpdlcMessageDto message, string fullContent)
     {
         var fullText = GetFormattedContent(message, fullContent);
-        if (fullText.Length >= _config.MaxDisplayMessageLength)
-            return fullText.Substring(0, _config.MaxDisplayMessageLength);
+        if (fullText.Length >= _maxMessageDisplayLength)
+            return fullText.Substring(0, _maxMessageDisplayLength);
 
-        return fullText.PadRight(_config.MaxDisplayMessageLength);
+        return fullText.PadRight(_maxMessageDisplayLength);
     }
 
-    string GetExtendedDisplayText(IAcarsMessageModel message, string fullContent)
+    string GetExtendedDisplayText(CpdlcMessageDto message, string fullContent)
     {
         return GetFormattedContent(message, fullContent);
     }
 
-    string GetFormattedContent(IAcarsMessageModel message, string fullContent)
+    string GetFormattedContent(CpdlcMessageDto message, string fullContent)
     {
         var contentPrefix = GetMessageContentPrefix(message);
         return contentPrefix + fullContent;
     }
 
-    string GetMessageContentPrefix(IAcarsMessageModel message)
+    string GetMessageContentPrefix(CpdlcMessageDto message)
     {
         var sb = new StringBuilder();
-        if (message is DownlinkMessage dl)
+        if (message is DownlinkMessageDto dl)
         {
+            // TODO
             // if (dl.HasPilotFreeText)
             // {
             //     sb.Append("P");
@@ -118,10 +122,14 @@ public partial class HistoryMessageViewModel : ObservableObject
             // {
             //     sb.Append(" ");
             // }
+            sb.Append(" ");
         }
 
-        sb.Append(message is UplinkMessage { CanAction: true, Actioned: false } ? "X" : " ");
-        sb.Append(message is UplinkMessage { IsManuallyAcknowledged: true } ? "M" : " ");
+        // TODO: Revisit actioning messages
+        // sb.Append(message is UplinkMessageDto { CanAction: true, Actioned: false } ? "X" : " ");
+        sb.Append(" ");
+
+        sb.Append(message is UplinkMessageDto { IsClosedManually: true } ? "M" : " ");
 
         var isHighPriority = false;
         sb.Append(isHighPriority ? "!" : " ");
@@ -130,10 +138,10 @@ public partial class HistoryMessageViewModel : ObservableObject
         return sb.ToString();
     }
 
-    string CalculatePrefix(IAcarsMessageModel message)
+    string CalculatePrefix(string content)
     {
         var sb = new StringBuilder();
-        sb.Append(message.Content.Length > _config.MaxDisplayMessageLength ? "*" : " ");
+        sb.Append(content.Length > _maxMessageDisplayLength ? "*" : " ");
         return sb.ToString();
     }
 }

@@ -4,8 +4,8 @@ namespace ACARSPlugin.Server;
 
 public interface IDownlinkHandlerDelegate
 {
-    Task DownlinkReceived(IDownlinkMessage downlink, CancellationToken cancellationToken);
-    Task AircraftConnected(ConnectedAircraftInfo connectedAircraftInfo, CancellationToken cancellationToken);
-    Task AircraftDisconnected(string callsign, CancellationToken cancellationToken);
+    Task DialogueChanged(DialogueDto dialogue, CancellationToken cancellationToken);
+    Task AircraftConnectionUpdated(AircraftConnectionDto aircraftConnectionDto, CancellationToken cancellationToken);
+    Task AircraftConnectionRemoved(string callsign, CancellationToken cancellationToken);
     void Error(Exception exception);
 }

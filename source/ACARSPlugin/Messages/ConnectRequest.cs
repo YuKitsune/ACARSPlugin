@@ -48,7 +48,5 @@ public class ConnectRequestHandler(Plugin plugin, IMediator mediator, ILogger lo
 
         logger.Information("Successfully connected to ACARS server");
         await mediator.Publish(new ConnectedNotification(request.StationId), cancellationToken);
-
-        await mediator.Send(new RefreshAircraftConnectionTrackerRequest(), cancellationToken);
     }
 }

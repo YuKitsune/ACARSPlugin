@@ -2,9 +2,6 @@
 
 namespace ACARSPlugin.Configuration;
 
-/// <summary>
-/// Parameter types for uplink message templates
-/// </summary>
 public enum ParameterType
 {
     Altimeter,
@@ -29,9 +26,6 @@ public enum ParameterType
     VerticalRate
 }
 
-/// <summary>
-/// Defines a parameter in an uplink message template
-/// </summary>
 public class UplinkMessageParameter
 {
     public required string Name { get; init; }

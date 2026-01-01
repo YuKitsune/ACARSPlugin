@@ -244,7 +244,7 @@ class Build : NukeBuild
             }
 
             // Copy config
-            var configFile = RootDirectory / "ACARS.json";
+            var configFile = RootDirectory / "CPDLC.json";
             configFile.CopyToDirectory(pluginDirectory, ExistsPolicy.MergeAndOverwrite);
 
             Log.Information("Plugin installed to {PluginDirectory}", pluginDirectory);
@@ -257,7 +257,7 @@ class Build : NukeBuild
         {
             var dpiAwareFixScript = RootDirectory / "dpiawarefix.bat";
             var unblockDllsScript = RootDirectory / "unblock-dlls.bat";
-            var configFile = RootDirectory / "ACARS.json";
+            var configFile = RootDirectory / "CPDLC.json";
 
             PackageDirectory.CreateOrCleanDirectory();
 

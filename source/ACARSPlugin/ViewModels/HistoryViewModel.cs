@@ -4,29 +4,28 @@ using ACARSPlugin.Messages;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CommunityToolkit.Mvvm.Messaging;
-using MediatR;
 
 namespace ACARSPlugin.ViewModels;
 
 public partial class HistoryViewModel : ObservableObject,
-    IRecipient<HistoryMessagesChanged>,
+    IRecipient<DialogueChangedNotification>,
     IDisposable
 {
-    readonly AcarsConfiguration _configuration;
-    readonly IMediator _mediator;
+    readonly PluginConfiguration _configuration;
+    readonly DialogueStore _dialogueStore;
     readonly IGuiInvoker _guiInvoker;
     readonly IErrorReporter _errorReporter;
     bool _disposed;
 
     public HistoryViewModel(
-        AcarsConfiguration configuration,
-        IMediator mediator,
+        PluginConfiguration configuration,
+        DialogueStore dialogueStore,
         IGuiInvoker guiInvoker,
         IErrorReporter errorReporter,
         string? initialCallsign = null)
     {
         _configuration = configuration;
-        _mediator = mediator;
+        _dialogueStore = dialogueStore;
         _guiInvoker = guiInvoker;
         _errorReporter = errorReporter;
 
@@ -63,13 +62,14 @@ public partial class HistoryViewModel : ObservableObject,
                 return;
             }
 
-            var response = await _mediator.Send(new GetHistoryDialoguesRequest(Callsign));
+            var dialogues = (await _dialogueStore.All(CancellationToken.None))
+                .Where(d => d.AircraftCallsign == Callsign && d.IsArchived);
 
-            var dialogueViewModels = response.Dialogues
+            var dialogueViewModels = dialogues
                 .Select(d => new DialogueHistoryViewModel
                 {
                     Messages = new ObservableCollection<HistoryMessageViewModel>(
-                        d.Messages.Select(m => new HistoryMessageViewModel(m, _configuration.History))),
+                        d.Messages.Select(m => new HistoryMessageViewModel(m, _configuration.MaxDisplayMessageLength))),
                     FirstMessageTime = d.Messages.OrderBy(m => m.Time).First().Time
                 })
                 .ToArray();
@@ -103,20 +103,22 @@ public partial class HistoryViewModel : ObservableObject,
         }
     }
 
-    public void Receive(HistoryMessagesChanged message)
+    public void Receive(DialogueChangedNotification notification)
     {
         if (_disposed)
             return;
 
-        _guiInvoker.InvokeOnGUI(async _ =>
+        _guiInvoker.InvokeOnGUI(mainForm =>
         {
             if (_disposed)
                 return;
 
             try
             {
-                if (!string.IsNullOrWhiteSpace(Callsign))
-                    await LoadDialoguesAsync();
+                if (string.IsNullOrWhiteSpace(Callsign))
+                    return;
+
+                _ = LoadDialoguesAsync();
             }
             catch (Exception ex)
             {
@@ -130,6 +132,7 @@ public partial class HistoryViewModel : ObservableObject,
     {
         try
         {
+            // If this message is already extended, collapse it
             if (CurrentlyExtendedMessage == messageViewModel)
             {
                 messageViewModel.IsExtended = false;
@@ -137,9 +140,10 @@ public partial class HistoryViewModel : ObservableObject,
                 return;
             }
 
-            if (CurrentlyExtendedMessage != null)
-                CurrentlyExtendedMessage.IsExtended = false;
+            // Collapse previously extended message
+            CurrentlyExtendedMessage?.IsExtended = false;
 
+            // Extend this message
             messageViewModel.IsExtended = true;
             CurrentlyExtendedMessage = messageViewModel;
         }
@@ -154,7 +158,7 @@ public partial class HistoryViewModel : ObservableObject,
         if (_disposed)
             return;
 
-        WeakReferenceMessenger.Default.Unregister<HistoryMessagesChanged>(this);
+        WeakReferenceMessenger.Default.Unregister<DialogueChangedNotification>(this);
         _disposed = true;
     }
 }

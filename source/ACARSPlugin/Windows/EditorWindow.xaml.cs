@@ -14,22 +14,18 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
         InitializeComponent();
         DataContext = viewModel;
 
-        // Register for disconnect notifications
-        WeakReferenceMessenger.Default.Register<DisconnectedNotification>(this);
+        WeakReferenceMessenger.Default.Register(this);
     }
 
     public void Receive(DisconnectedNotification message)
     {
-        // Close the window when disconnected from the server
         Close();
     }
 
     protected override void OnClosed(EventArgs e)
     {
-        // Unregister from notifications when window closes
         WeakReferenceMessenger.Default.Unregister<DisconnectedNotification>(this);
 
-        // Dispose the view model to unregister from message updates
         if (DataContext is EditorViewModel viewModel)
         {
             viewModel.Dispose();
@@ -82,15 +78,21 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
 
         switch (e.ChangedButton)
         {
+            // Left click: Start editing
+            // TODO: Type-specific popup
             case MouseButton.Left:
-                // Left click: Start editing
                 templatePart.IsEditing = true;
                 break;
 
+            // Middle click: Clear the value
             case MouseButton.Middle:
-                // Middle click: Clear the value
                 templatePart.Value = null;
                 e.Handled = true;
+                break;
+
+            // Right-click for manual text entry
+            case MouseButton.Right:
+                templatePart.IsEditing = true;
                 break;
         }
     }
@@ -101,41 +103,42 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
             return;
 
         // Only focus when becoming visible
-        if (e.NewValue is bool isVisible && isVisible)
+        if (e.NewValue is true)
         {
-            textBox.Dispatcher.BeginInvoke(new Action(() =>
-            {
-                textBox.Focus();
-                Keyboard.Focus(textBox);
-                textBox.SelectAll();
-            }), System.Windows.Threading.DispatcherPriority.Input);
+            textBox.Dispatcher.BeginInvoke(
+                new Action(() =>
+                {
+                    textBox.Focus();
+                    Keyboard.Focus(textBox);
+                    textBox.SelectAll();
+                }),
+                System.Windows.Threading.DispatcherPriority.Input);
         }
     }
 
     void TemplatePartTextBox_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (sender is not FrameworkElement element ||
-            element.DataContext is not UplinkMessageTemplateElementComponentViewModel templatePart)
+        if (sender is not FrameworkElement { DataContext: UplinkMessageTemplateElementComponentViewModel templatePart })
             return;
 
-        // Enter: Save and exit editing
-        if (e.Key == Key.Enter)
+        switch (e.Key)
         {
-            templatePart.IsEditing = false;
-            e.Handled = true;
-        }
-        // Escape: Cancel editing (revert to original value would require storing it)
-        else if (e.Key == Key.Escape)
-        {
-            templatePart.IsEditing = false;
-            e.Handled = true;
+            // Enter: Save and exit editing
+            case Key.Enter:
+                templatePart.IsEditing = false;
+                e.Handled = true;
+                break;
+            // Escape: Cancel editing (revert to original value would require storing it)
+            case Key.Escape:
+                templatePart.IsEditing = false;
+                e.Handled = true;
+                break;
         }
     }
 
     void TemplatePartTextBox_LostFocus(object sender, RoutedEventArgs e)
     {
-        if (sender is not FrameworkElement element ||
-            element.DataContext is not UplinkMessageTemplateElementComponentViewModel templatePart)
+        if (sender is not FrameworkElement { DataContext: UplinkMessageTemplateElementComponentViewModel templatePart })
             return;
 
         templatePart.IsEditing = false;
@@ -143,28 +146,21 @@ public partial class EditorWindow : Window, IRecipient<DisconnectedNotification>
 
     void DownlinkMessage_Click(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not FrameworkElement element ||
-            element.DataContext is not DownlinkMessageViewModel clickedMessage ||
+        if (sender is not FrameworkElement { DataContext: DownlinkMessageViewModel clickedMessage } ||
             DataContext is not EditorViewModel viewModel)
             return;
 
         // Toggle selection: if clicking on the already selected message, deselect it
-        if (viewModel.SelectedDownlinkMessage == clickedMessage)
-        {
-            viewModel.SelectedDownlinkMessage = null;
-        }
-        else
-        {
-            viewModel.SelectedDownlinkMessage = clickedMessage;
-        }
+        viewModel.SelectedDownlinkMessage = viewModel.SelectedDownlinkMessage == clickedMessage
+            ? null
+            : clickedMessage;
 
         e.Handled = true;
     }
 
     void DownlinkMessage_RightClick(object sender, MouseButtonEventArgs e)
     {
-        if (sender is not FrameworkElement element ||
-            element.DataContext is not DownlinkMessageViewModel downlinkMessage ||
+        if (sender is not FrameworkElement { DataContext: DownlinkMessageViewModel downlinkMessage } element ||
             DataContext is not EditorViewModel viewModel)
             return;
 

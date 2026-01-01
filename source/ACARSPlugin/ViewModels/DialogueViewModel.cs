@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using ACARSPlugin.Model;
 using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace ACARSPlugin.ViewModels;
