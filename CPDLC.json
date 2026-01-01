@@ -1,6 +1,6 @@
 {
-  "ServerEndpoint": "http://localhost:5261/hubs/controller",
-  "Stations": ["YBBB", "YMMM", "YZZZ"],
+  "ServerEndpoint": "https://acars.eoinmotherway.dev/hubs/controller",
+  "Stations": ["YBBB", "YMMM"],
   "MaxCurrentMessages": 50,
   "MaxArchivedMessages": 50,
   "MaxDisplayMessageLength": 40,
