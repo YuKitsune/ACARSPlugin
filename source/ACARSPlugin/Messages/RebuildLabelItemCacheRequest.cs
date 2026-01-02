@@ -19,6 +19,7 @@ public class RebuildLabelItemCacheRequestHandler(
     DialogueStore dialogueStore,
     AircraftConnectionStore aircraftConnectionStore,
     SuspendedMessageStore suspendedMessageStore,
+    IJurisdictionChecker jurisdictionChecker,
     IMediator mediator,
     IGuiInvoker guiInvoker,
     IErrorReporter errorReporter) : IRequestHandler<RebuildLabelItemCacheRequest>
@@ -112,8 +113,8 @@ public class RebuildLabelItemCacheRequestHandler(
                         }
                     };
 
-                    // Color only changes for the responsible controller
-                    if (flightDataRecord.IsTrackedByMe)
+                    // Color only changes if it's relevent to us
+                    if (openDialogues.Any(jurisdictionChecker.ShouldDisplayDialogue))
                     {
                         if (unacknowledgedUnableReceived)
                         {

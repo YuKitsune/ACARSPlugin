@@ -60,7 +60,7 @@ public class JurisdictionChecker(ControllerConnectionStore controllerConnectionS
             return true;
         }
 
-        if (_lastKnownOwners.TryGetValue(fdr.Callsign, out var owners))
+        if (!_lastKnownOwners.TryGetValue(fdr.Callsign, out var owners))
             return false;
 
         // If nobody has jurisdiction, and we were the last owner, show the message
