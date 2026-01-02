@@ -69,8 +69,6 @@ public class Plugin : ILabelPlugin, IRecipient<DialogueChangedNotification>, IRe
             Network.Connected += NetworkConnected;
             Network.Disconnected += NetworkDisconnected;
 
-            FDP2.FDRsChanged += FDP2OnFDRsChanged;
-
             WeakReferenceMessenger.Default.Register<DialogueChangedNotification>(this);
             WeakReferenceMessenger.Default.Register<ConnectedAircraftChanged>(this);
 
@@ -121,6 +119,7 @@ public class Plugin : ILabelPlugin, IRecipient<DialogueChangedNotification>, IRe
             .AddSingleton<IClock>(new SystemClock())
             .AddSingleton<IGuiInvoker, GuiInvoker>()
             .AddSingleton<IErrorReporter, ErrorReporter>()
+            .AddSingleton<IJurisdictionChecker, JurisdictionChecker>()
             .AddSingleton<AircraftConnectionStore>()
             .AddSingleton<WindowManager>()
             .AddSingleton<DialogueStore>()
@@ -297,47 +296,49 @@ public class Plugin : ILabelPlugin, IRecipient<DialogueChangedNotification>, IRe
         MMI.AddCustomMenuItem(historyMenuItem);
     }
 
-    public void OnFDRUpdate(FDP2.FDR updated) { }
+    public void OnFDRUpdate(FDP2.FDR updated)
+    {
+        try
+        {
+            // Record the last known owner of each FDR
+            _workQueue.Writer.TryWrite(() =>
+            {
+                if (updated.ControllerTracking is not null)
+                {
+                    var jurisdictionChecker = ServiceProvider.GetRequiredService<IJurisdictionChecker>();
+                    jurisdictionChecker.RecordFdrOwner(updated.Callsign, updated.ControllerTracking.Callsign);
+                }
+
+                return Task.CompletedTask;
+            });
+
+            // Re-build the label item cache
+            _workQueue.Writer.TryWrite(() => RebuildLabelItemCache());
+
+            // If this flight has any open dialogues, open the current messages window
+            // Ensures flights handed off to us open the window so we can see their requests
+            _workQueue.Writer.TryWrite(async () =>
+            {
+                var store = ServiceProvider.GetRequiredService<DialogueStore>();
+
+                var hasOpenDialogues = (await store.All(CancellationToken.None))
+                    .Where(d => d.AircraftCallsign == updated.Callsign)
+                    .Any(d => !d.IsClosed || !d.IsArchived);
+
+                if (hasOpenDialogues)
+                {
+                    var mediator = ServiceProvider.GetRequiredService<IMediator>();
+                    await mediator.Send(new OpenCurrentMessagesWindowRequest());
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            AddError(ex);
+        }
+    }
 
     public void OnRadarTrackUpdate(RDP.RadarTrack updated) {}
-
-    public static bool ShouldDisplayMessage(DialogueDto dialogue)
-    {
-        var fdr = FDP2.GetFDRs.FirstOrDefault(f => f.Callsign == dialogue.AircraftCallsign);
-        if (fdr == null)
-            return false;
-
-        return ShouldDisplayMessage(dialogue, fdr);
-    }
-
-    static bool ShouldDisplayMessage(DialogueDto dialogue, FDP2.FDR fdr)
-    {
-        // If we have jurisdiction, show the message
-        if (fdr.IsTrackedByMe)
-        {
-            return true;
-        }
-
-        // VATSIM-ISM: If we're involved in the dialogue, then we should see the messages
-        var hasSentUplink = dialogue.Messages.OfType<UplinkMessageDto>().Any(um => um.SenderCallsign == Network.Callsign);
-        if (hasSentUplink)
-        {
-            return true;
-        }
-
-        // TODO: If nobody has jurisdiction, and we're the next owner, show the message
-        // TODO: If nobody has jurisdiction, and we were the last owner, show the message
-
-        // TODO: VATSIM-ISM: If the controlling sector isn't connected to the ATSU server, then show the message
-
-        // Fallback: If nobody has jurisdiction, show the message to everyone
-        if (!fdr.IsTracked)
-        {
-            return true;
-        }
-
-        return false;
-    }
 
     public CustomLabelItem? GetCustomLabelItem(
         string itemType,
@@ -526,18 +527,6 @@ public class Plugin : ILabelPlugin, IRecipient<DialogueChangedNotification>, IRe
         }
     }
 
-    void FDP2OnFDRsChanged(object sender, FDP2.FDRsChangedEventArgs e)
-    {
-        try
-        {
-            _workQueue.Writer.TryWrite(() => RebuildLabelItemCache());
-        }
-        catch (Exception ex)
-        {
-            AddError(ex);
-        }
-    }
-
     public void Receive(ConnectedAircraftChanged _)
     {
         try
@@ -559,8 +548,9 @@ public class Plugin : ILabelPlugin, IRecipient<DialogueChangedNotification>, IRe
                 await RebuildLabelItemCache().ConfigureAwait(false);
 
                 // Try to open the Current Messages Window if this dialogue is relevant to the controller
+                var jurisdictionChecker = ServiceProvider.GetRequiredService<IJurisdictionChecker>();
                 if (dialogueChangedNotification.Dialogue.IsArchived ||
-                    !ShouldDisplayMessage(dialogueChangedNotification.Dialogue))
+                    !jurisdictionChecker.ShouldDisplayDialogue(dialogueChangedNotification.Dialogue))
                 {
                     return;
                 }

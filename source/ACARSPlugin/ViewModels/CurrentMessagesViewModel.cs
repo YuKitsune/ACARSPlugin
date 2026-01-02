@@ -18,6 +18,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Dia
     readonly IGuiInvoker _guiInvoker;
     readonly IErrorReporter _errorReporter;
     readonly IWindowHandle _windowHandle;
+    readonly IJurisdictionChecker _jurisdictionChecker;
     bool _disposed;
 
     public CurrentMessagesViewModel(
@@ -26,7 +27,8 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Dia
         IMediator mediator,
         IGuiInvoker guiInvoker,
         IErrorReporter errorReporter,
-        IWindowHandle windowHandle)
+        IWindowHandle windowHandle,
+        IJurisdictionChecker jurisdictionChecker)
     {
         _configuration = configuration;
         _dialogueStore = dialogueStore;
@@ -34,6 +36,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Dia
         _guiInvoker = guiInvoker;
         _errorReporter = errorReporter;
         _windowHandle = windowHandle;
+        _jurisdictionChecker = jurisdictionChecker;
 
         WeakReferenceMessenger.Default.Register(this);
 
@@ -515,7 +518,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Dia
         try
         {
             var dialogues = (await _dialogueStore.All(CancellationToken.None))
-                .Where(d => !d.IsArchived && Plugin.ShouldDisplayMessage(d))
+                .Where(d => !d.IsArchived && _jurisdictionChecker.ShouldDisplayDialogue(d))
                 .ToArray();
 
             Dialogues.Clear();

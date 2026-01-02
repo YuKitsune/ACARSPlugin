@@ -13,7 +13,8 @@ public class OpenCurrentMessagesWindowRequestHandler(
     IMediator mediator,
     DialogueStore dialogueStore,
     IErrorReporter errorReporter,
-    IGuiInvoker guiInvoker)
+    IGuiInvoker guiInvoker,
+    IJurisdictionChecker jurisdictionChecker)
     : IRequestHandler<OpenCurrentMessagesWindowRequest>
 {
     public Task Handle(OpenCurrentMessagesWindowRequest request, CancellationToken cancellationToken)
@@ -28,7 +29,8 @@ public class OpenCurrentMessagesWindowRequestHandler(
                     mediator,
                     guiInvoker,
                     errorReporter,
-                    windowHandle);
+                    windowHandle,
+                    jurisdictionChecker);
 
                 return new CurrentMessagesWindow(viewModel);
             });
