@@ -7,17 +7,18 @@ EXPOSE 8081
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["source/ACARSServer/ACARSServer.csproj", "ACARSServer/"]
-RUN dotnet restore "ACARSServer/ACARSServer.csproj"
+COPY ["source/CPDLCServer/CPDLCServer.csproj", "CPDLCServer/"]
+COPY ["source/CPDLCServer.Contracts/CPDLCServer.Contracts.csproj", "CPDLCServer.Contracts/"]
+RUN dotnet restore "CPDLCServer/CPDLCServer.csproj"
 COPY . .
-WORKDIR "/src/source/ACARSServer"
-RUN dotnet build "ACARSServer.csproj" -c $BUILD_CONFIGURATION -o /app/build
+WORKDIR "/src/source/CPDLCServer"
+RUN dotnet build "CPDLCServer.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./ACARSServer.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./CPDLCServer.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "ACARSServer.dll"]
+ENTRYPOINT ["dotnet", "CPDLCServer.dll"]
