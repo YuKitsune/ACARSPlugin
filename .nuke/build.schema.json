@@ -31,6 +31,8 @@
         "Release",
         "Repack",
         "Test",
+        "TestPlugin",
+        "TestServer",
         "Uninstall"
       ]
     },

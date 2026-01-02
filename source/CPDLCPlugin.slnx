@@ -1,5 +1,6 @@
 <Solution>
   <Project Path="../build/_build.csproj" />
+  <Project Path="CPDLCPlugin.Tests/CPDLCPlugin.Tests.csproj" />
   <Project Path="CPDLCPlugin/CPDLCPlugin.csproj" />
   <Project Path="CPDLCServer.Contracts/CPDLCServer.Contracts.csproj" />
   <Project Path="CPDLCServer.Tests/CPDLCServer.Tests.csproj" />

@@ -65,6 +65,10 @@ class Build : NukeBuild
 
     AbsolutePath PluginProjectPath => RootDirectory / "source" / "CPDLCPlugin" / "CPDLCPlugin.csproj";
     AbsolutePath PluginTestsProjectPath => RootDirectory / "source" / "CPDLCPlugin.Tests" / "CPDLCPlugin.Tests.csproj";
+
+    AbsolutePath ServerProjectPath => RootDirectory / "source" / "CPDLCServer" / "CPDLCServer.csproj";
+    AbsolutePath ServerTestsProjectPath => RootDirectory / "source" / "CPDLCServer.Tests" / "CPDLCServer.Tests.csproj";
+    
     AbsolutePath BuildOutputDirectory => TemporaryDirectory / "build";
     AbsolutePath ZipPath => TemporaryDirectory / $"CPDLCPlugin.{GetSemanticVersion()}.zip";
     AbsolutePath PackageDirectory => TemporaryDirectory / "package";
@@ -198,14 +202,25 @@ class Build : NukeBuild
             Log.Information("Repack complete");
         });
 
-    Target Test => _ => _
+    Target TestPlugin => _ => _
         .Executes(() =>
         {
-            Log.Information("Running tests");
+            Log.Information("Running plugin tests");
             DotNetTasks.DotNetTest(s => s
                 .SetProjectFile(PluginTestsProjectPath)
                 .SetConfiguration(Configuration));
         });
+
+    Target TestServer => _ => _
+        .Executes(() =>
+        {
+            Log.Information("Running server tests");
+            DotNetTasks.DotNetTest(s => s
+                .SetProjectFile(ServerTestsProjectPath)
+                .SetConfiguration(Configuration));
+        });
+
+    Target Test => _ => _.DependsOn(TestPlugin, TestServer);
 
     Target Uninstall => _ => _
         .Requires(() => ProfileName)
