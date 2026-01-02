@@ -30,7 +30,7 @@ public class MessageMonitorServiceTests
             "CLIMB TO FL410",
             startTime);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -67,7 +67,7 @@ public class MessageMonitorServiceTests
             "CLIMB TO FL410",
             startTime);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -103,7 +103,7 @@ public class MessageMonitorServiceTests
             "ROGER",
             startTime);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -138,7 +138,7 @@ public class MessageMonitorServiceTests
             "REQUEST CLIMB FL410",
             startTime);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -178,7 +178,7 @@ public class MessageMonitorServiceTests
         // Close the message
         uplink.Close(startTime);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -214,7 +214,7 @@ public class MessageMonitorServiceTests
             "ROGER",
             startTime);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -250,7 +250,7 @@ public class MessageMonitorServiceTests
             "ROGER",
             startTime); // NoResponse uplinks are self-closing and auto-acknowledged
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -287,7 +287,7 @@ public class MessageMonitorServiceTests
             "ROGER",
             startTime);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -323,7 +323,7 @@ public class MessageMonitorServiceTests
             "CLIMB TO FL410",
             startTime);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -359,7 +359,7 @@ public class MessageMonitorServiceTests
             "WILCO",
             startTime);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
         await repository.Add(dialogue, CancellationToken.None);
 
         var service = new MessageMonitorService(repository, clock, publisher, Logger.None);
@@ -389,8 +389,8 @@ public class MessageMonitorServiceTests
         var uplink1 = new UplinkMessage(1, null, "UAL123", "BN-TSN_FSS", CpdlcUplinkResponseType.WilcoUnable, AlertType.None, "CLIMB", startTime);
         var uplink2 = new UplinkMessage(2, null, "DAL456", "BN-TSN_FSS", CpdlcUplinkResponseType.WilcoUnable, AlertType.None, "DESCEND", startTime);
 
-        var dialogue1 = new Dialogue("VATSIM", "YBBB", "UAL123", uplink1);
-        var dialogue2 = new Dialogue("VATSIM", "YBBB", "DAL456", uplink2);
+        var dialogue1 = new Dialogue("UAL123", uplink1);
+        var dialogue2 = new Dialogue("DAL456", uplink2);
 
         await repository.Add(dialogue1, CancellationToken.None);
         await repository.Add(dialogue2, CancellationToken.None);

@@ -5,14 +5,13 @@ using vatsys;
 
 namespace CPDLCPlugin.Messages;
 
-public record ConnectRequest(string ServerEndpoint, string StationId) : IRequest;
+public record ConnectRequest(string ServerEndpoint) : IRequest;
 
 public class ConnectRequestHandler(Plugin plugin, IMediator mediator, ILogger logger) : IRequestHandler<ConnectRequest>
 {
     public async Task Handle(ConnectRequest request, CancellationToken cancellationToken)
     {
-        logger.Information("Connecting to {ServerEndpoint} for station {StationId}",
-            request.ServerEndpoint, request.StationId);
+        logger.Information("Connecting to {ServerEndpoint}", request.ServerEndpoint);
 
         // If already connected, disconnect first
         if (plugin.ConnectionManager is not null)
@@ -43,13 +42,13 @@ public class ConnectRequestHandler(Plugin plugin, IMediator mediator, ILogger lo
 
         // Initialize the connection with the station ID and current callsign
         logger.Debug("Initializing SignalR connection");
-        await plugin.ConnectionManager.InitializeAsync(request.StationId, Network.Callsign);
+        await plugin.ConnectionManager.InitializeAsync(Network.Callsign);
 
         // Start the connection
         logger.Debug("Starting SignalR connection");
         await plugin.ConnectionManager.StartAsync();
 
         logger.Debug("Connected to server");
-        await mediator.Publish(new ConnectedNotification(request.StationId), cancellationToken);
+        await mediator.Publish(new ConnectedNotification(), cancellationToken);
     }
 }

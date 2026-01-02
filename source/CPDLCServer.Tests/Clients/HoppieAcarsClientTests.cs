@@ -165,7 +165,7 @@ public class HoppieAcarsClientTests : IDisposable
         await client.DisposeAsync();
         _clients.Remove(client);
     }
-    
+
     [Fact]
     public async Task Send_CpdlcMessage_TranslatesContent()
     {
@@ -174,7 +174,7 @@ public class HoppieAcarsClientTests : IDisposable
         httpHandler.SetResponse(HttpStatusCode.OK, "ok");
         var clock = new TestClock();
         var client = CreateClient(httpHandler);
-    
+
         await client.Connect(CancellationToken.None);
 
         var message = new UplinkMessage(
@@ -186,17 +186,17 @@ public class HoppieAcarsClientTests : IDisposable
             AlertType.None,
             "END SERVICE",
             clock.UtcNow());
-    
+
         // Act
         await client.Send(message, CancellationToken.None);
-    
+
         // Assert
         var sendRequest = httpHandler.Requests.FirstOrDefault(r =>
         {
             var formDataString = r.Content?.ReadAsStringAsync().Result ?? "";
             return formDataString.Contains("type=cpdlc");
         });
-    
+
         Assert.NotNull(sendRequest);
         var formData = await ParseFormDataFromRequest(sendRequest);
         Assert.Equal("/data2/1//NE/LOGOFF", formData["packet"]);

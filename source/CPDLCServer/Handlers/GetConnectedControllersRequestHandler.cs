@@ -12,17 +12,10 @@ public class GetConnectedControllersRequestHandler(IControllerRepository control
         GetConnectedControllersRequest request,
         CancellationToken cancellationToken)
     {
-        var controllers = await controllerRepository.All(
-            request.FlightSimulationNetwork,
-            request.StationIdentifier,
-            cancellationToken);
+        var controllers = await controllerRepository.All(cancellationToken);
 
         var controllerInfo = controllers
-            .Select(c => new ControllerConnectionDto(
-                c.Callsign,
-                c.StationIdentifier,
-                c.FlightSimulationNetwork,
-                c.VatsimCid))
+            .Select(c => new ControllerConnectionDto(c.Callsign, c.VatsimCid))
             .ToArray();
 
         return new GetConnectedControllersResult(controllerInfo);

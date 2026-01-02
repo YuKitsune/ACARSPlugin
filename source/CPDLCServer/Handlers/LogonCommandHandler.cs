@@ -13,25 +13,22 @@ public class LogonCommandHandler(IAircraftRepository aircraftRepository, IClock 
     {
         var aircraft = new AircraftConnection(
             request.Callsign,
-            request.StationId,
-            request.FlightSimulationNetwork,
+            request.AcarsClientId,
             DataAuthorityState.NextDataAuthority);
-        
+
         aircraft.RequestLogon(clock.UtcNow());
-        
+
         // TODO: Perform validation
         // TODO: What if there are no controllers online?
-        
+
         await aircraftRepository.Add(aircraft, cancellationToken);
 
         // Immediately accept it for now
         aircraft.AcceptLogon(clock.UtcNow());
-        
+
         await mediator.Send(
             new SendUplinkCommand(
                 "SYSTEM",
-                request.FlightSimulationNetwork,
-                request.StationId,
                 request.Callsign,
                 request.DownlinkId,
                 CpdlcUplinkResponseType.NoResponse,
@@ -40,8 +37,7 @@ public class LogonCommandHandler(IAircraftRepository aircraftRepository, IClock 
 
         await mediator.Publish(
             new AircraftConnected(
-                request.FlightSimulationNetwork,
-                request.StationId,
+                request.AcarsClientId,
                 request.Callsign,
                 aircraft.DataAuthorityState),
             cancellationToken);

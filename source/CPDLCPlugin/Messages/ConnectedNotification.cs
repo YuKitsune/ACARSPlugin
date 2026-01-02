@@ -4,14 +4,14 @@ using Serilog;
 
 namespace CPDLCPlugin.Messages;
 
-public record ConnectedNotification(string StationId) : INotification;
+public record ConnectedNotification : INotification;
 
 public class ConnectedNotificationHandler(Plugin plugin, DialogueStore dialogueStore, AircraftConnectionStore aircraftConnectionStore, ControllerConnectionStore controllerConnectionStore, ILogger logger)
     : INotificationHandler<ConnectedNotification>
 {
     public async Task Handle(ConnectedNotification notification, CancellationToken cancellationToken)
     {
-        logger.Information("Connected to server as station {StationId}", notification.StationId);
+        logger.Information("Connected to server");
         if (plugin.ConnectionManager is null || !plugin.ConnectionManager.IsConnected)
         {
             logger.Warning("Not connected to server");

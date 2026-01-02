@@ -25,16 +25,6 @@ public class InMemoryControllerRepository : IControllerRepository
         }
     }
 
-    public async Task<ControllerInfo[]> All(string flightSimulationNetwork, string stationId, CancellationToken cancellationToken)
-    {
-        using (await _semaphore.LockAsync(cancellationToken))
-        {
-            return _controllers.Values
-                .Where(c => c.FlightSimulationNetwork == flightSimulationNetwork && c.StationIdentifier == stationId)
-                .ToArray();
-        }
-    }
-
     public async Task<ControllerInfo[]> All(CancellationToken cancellationToken)
     {
         using (await _semaphore.LockAsync(cancellationToken))

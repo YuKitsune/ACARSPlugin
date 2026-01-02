@@ -4,9 +4,9 @@
 
 The server maintains one or more connections to upstream ACARS networks (i.e. [Hoppies](https://www.hoppie.nl/acars/)).
 Each connection simulates a single air traffic service unit (ATSU), such as Brisbane (YBBB) or Melbourne (YMMM).
-The server will relay CPDLC messages between air traffic controllers to the upstream ACARS network, allowing pilots to connect to a single unit and communicate with all enroute controllers within that unit.
+The server will relay CPDLC messages to the upstream ACARS network, allowing pilots to connect to a single ATS unit and communicate with all enroute controllers within that unit.
 
-The server also allows for connections to multiple ACARS networks, enabling you to communicate with aircraft on different ACARS networks (Hoppies, FSDLP, etc.) or host multiple ATSUs from a single server instance.
+The server also allows for multiple connections upstream ACARS networks, enabling ATC to communicate with aircraft on different ACARS networks (Hoppies, FSDLP, etc.) or aggregate messages across multiple ATSUs.
 
 ## Prerequisites
 

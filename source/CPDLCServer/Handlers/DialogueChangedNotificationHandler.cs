@@ -1,4 +1,3 @@
-using CPDLCServer.Contracts;
 using CPDLCServer.Hubs;
 using CPDLCServer.Messages;
 using CPDLCServer.Model;
@@ -19,20 +18,14 @@ public class DialogueChangedNotificationHandler(
         var dialogue = notification.Dialogue;
 
         logger.Debug(
-            "Dialogue {DialogueId} changed for {Callsign} on {Network}/{Station} - Closed: {Closed}, Archived: {Archived}",
+            "Dialogue {DialogueId} changed for {Callsign} - Closed: {Closed}, Archived: {Archived}",
             dialogue.Id,
             dialogue.AircraftCallsign,
-            dialogue.FlightSimulationNetwork,
-            dialogue.StationIdentifier,
             dialogue.IsClosed,
             dialogue.IsArchived);
 
         // Find all controllers on the same network and station
-        var controllers = await controllerRepository.All(
-            dialogue.FlightSimulationNetwork,
-            dialogue.StationIdentifier,
-            cancellationToken);
-
+        var controllers = await controllerRepository.All(cancellationToken);
         if (controllers.Length == 0)
         {
             logger.Debug(

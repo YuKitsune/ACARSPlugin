@@ -8,17 +8,16 @@ namespace CPDLCServer.Tests.Handlers;
 public class GetConnectedAircraftRequestHandlerTests
 {
     [Fact]
-    public async Task Handle_ReturnsAllAircraftForStation()
+    public async Task Handle_ReturnsAllConnectedAircraft()
     {
         // Arrange
         var aircraftManager = new TestAircraftRepository();
         var handler = new GetConnectedAircraftRequestHandler(aircraftManager);
 
-        // Add test aircraft
+        // Add test aircraft on different networks/stations
         var aircraft1 = new AircraftConnection(
             "UAL123",
-            "YBBB",
-            "VATSIM",
+            "hoppies-ybbb",
             DataAuthorityState.CurrentDataAuthority);
         aircraft1.RequestLogon(DateTimeOffset.UtcNow);
         aircraft1.AcceptLogon(DateTimeOffset.UtcNow);
@@ -26,32 +25,30 @@ public class GetConnectedAircraftRequestHandlerTests
 
         var aircraft2 = new AircraftConnection(
             "QFA456",
-            "YBBB",
-            "VATSIM",
+            "hoppies-ybbb",
             DataAuthorityState.CurrentDataAuthority);
         aircraft2.RequestLogon(DateTimeOffset.UtcNow);
         await aircraftManager.Add(aircraft2, CancellationToken.None);
 
-        // Different station - should not be returned
+        // Aircraft on different ACARS client - should also be returned
         var aircraft3 = new AircraftConnection(
             "AAL789",
-            "YMMM",
-            "VATSIM",
+            "hoppies-ymmm",
             DataAuthorityState.CurrentDataAuthority);
         aircraft3.RequestLogon(DateTimeOffset.UtcNow);
         await aircraftManager.Add(aircraft3, CancellationToken.None);
 
-        var query = new GetConnectedAircraftRequest("VATSIM", "YBBB");
+        var query = new GetConnectedAircraftRequest();
 
         // Act
         var result = await handler.Handle(query, CancellationToken.None);
 
-        // Assert
+        // Assert - returns ALL aircraft regardless of ACARS client
         Assert.NotNull(result);
-        Assert.Equal(2, result.Aircraft.Length);
+        Assert.Equal(3, result.Aircraft.Length);
         Assert.Contains(result.Aircraft, a => a.Callsign == "UAL123");
         Assert.Contains(result.Aircraft, a => a.Callsign == "QFA456");
-        Assert.DoesNotContain(result.Aircraft, a => a.Callsign == "AAL789");
+        Assert.Contains(result.Aircraft, a => a.Callsign == "AAL789");
     }
 
     [Fact]
@@ -61,7 +58,7 @@ public class GetConnectedAircraftRequestHandlerTests
         var aircraftManager = new TestAircraftRepository();
         var handler = new GetConnectedAircraftRequestHandler(aircraftManager);
 
-        var query = new GetConnectedAircraftRequest("VATSIM", "YBBB");
+        var query = new GetConnectedAircraftRequest();
 
         // Act
         var result = await handler.Handle(query, CancellationToken.None);
@@ -80,14 +77,13 @@ public class GetConnectedAircraftRequestHandlerTests
 
         var aircraft = new AircraftConnection(
             "UAL123",
-            "YBBB",
-            "VATSIM",
+            "hoppies-ybbb",
             DataAuthorityState.CurrentDataAuthority);
         aircraft.RequestLogon(DateTimeOffset.UtcNow);
         aircraft.AcceptLogon(DateTimeOffset.UtcNow);
         await aircraftManager.Add(aircraft, CancellationToken.None);
 
-        var query = new GetConnectedAircraftRequest("VATSIM", "YBBB");
+        var query = new GetConnectedAircraftRequest();
 
         // Act
         var result = await handler.Handle(query, CancellationToken.None);
@@ -95,8 +91,7 @@ public class GetConnectedAircraftRequestHandlerTests
         // Assert
         var aircraftInfo = Assert.Single(result.Aircraft);
         Assert.Equal("UAL123", aircraftInfo.Callsign);
-        Assert.Equal("YBBB", aircraftInfo.StationId);
-        Assert.Equal("VATSIM", aircraftInfo.FlightSimulationNetwork);
+        Assert.Equal("hoppies-ybbb", aircraftInfo.AcarsClientId);
         Assert.Equal(Contracts.DataAuthorityState.CurrentDataAuthority, aircraftInfo.DataAuthorityState);
     }
 }

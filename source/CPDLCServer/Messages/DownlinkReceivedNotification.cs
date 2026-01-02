@@ -4,7 +4,6 @@ using MediatR;
 namespace CPDLCServer.Messages;
 
 public record DownlinkReceivedNotification(
-    string FlightSimulationNetwork,
-    string StationIdentifier,
+    string AcarsClientId,
     DownlinkMessage Downlink)
     : INotification;

@@ -17,7 +17,16 @@ public class SendUplinkCommandHandlerTests
         var dialogueRepository = new TestDialogueRepository();
         var publisher = new TestPublisher();
         var clock = new TestClock();
+        var aircraftRepository = new TestAircraftRepository();
+
+        // Create aircraft connection
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.CurrentDataAuthority);
+        aircraft.RequestLogon(clock.UtcNow());
+        aircraft.AcceptLogon(clock.UtcNow());
+        await aircraftRepository.Add(aircraft, CancellationToken.None);
+
         var handler = new SendUplinkCommandHandler(
+            aircraftRepository,
             clientManager,
             messageIdProvider,
             dialogueRepository,
@@ -27,8 +36,6 @@ public class SendUplinkCommandHandlerTests
 
         var command = new SendUplinkCommand(
             "BN-TSN_FSS",
-            "VATSIM",
-            "YBBB",
             "UAL123",
             null,
             CpdlcUplinkResponseType.WilcoUnable,
@@ -41,7 +48,7 @@ public class SendUplinkCommandHandlerTests
         Assert.NotNull(result);
         Assert.Equal(1, result.UplinkMessage.MessageId);
 
-        var client = await clientManager.GetAcarsClient("VATSIM", "YBBB", CancellationToken.None);
+        var client = await clientManager.GetAcarsClient("hoppies-ybbb", CancellationToken.None);
         var testClient = (TestAcarsClient)client;
         Assert.Single(testClient.SentMessages);
 
@@ -62,7 +69,16 @@ public class SendUplinkCommandHandlerTests
         var dialogueRepository = new TestDialogueRepository();
         var publisher = new TestPublisher();
         var clock = new TestClock();
+        var aircraftRepository = new TestAircraftRepository();
+
+        // Create aircraft connection
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.CurrentDataAuthority);
+        aircraft.RequestLogon(clock.UtcNow());
+        aircraft.AcceptLogon(clock.UtcNow());
+        await aircraftRepository.Add(aircraft, CancellationToken.None);
+
         var handler = new SendUplinkCommandHandler(
+            aircraftRepository,
             clientManager,
             messageIdProvider,
             dialogueRepository,
@@ -72,8 +88,6 @@ public class SendUplinkCommandHandlerTests
 
         var command = new SendUplinkCommand(
             "BN-TSN_FSS",
-            "VATSIM",
-            "YBBB",
             "UAL123",
             5,
             CpdlcUplinkResponseType.NoResponse,
@@ -86,7 +100,7 @@ public class SendUplinkCommandHandlerTests
         Assert.NotNull(result);
         Assert.Equal(1, result.UplinkMessage.MessageId);
 
-        var client = await clientManager.GetAcarsClient("VATSIM", "YBBB", CancellationToken.None);
+        var client = await clientManager.GetAcarsClient("hoppies-ybbb", CancellationToken.None);
         var testClient = (TestAcarsClient)client;
         Assert.Single(testClient.SentMessages);
 
@@ -107,7 +121,16 @@ public class SendUplinkCommandHandlerTests
         var dialogueRepository = new TestDialogueRepository();
         var publisher = new TestPublisher();
         var clock = new TestClock();
+        var aircraftRepository = new TestAircraftRepository();
+
+        // Create aircraft connection
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.CurrentDataAuthority);
+        aircraft.RequestLogon(clock.UtcNow());
+        aircraft.AcceptLogon(clock.UtcNow());
+        await aircraftRepository.Add(aircraft, CancellationToken.None);
+
         var handler = new SendUplinkCommandHandler(
+            aircraftRepository,
             clientManager,
             messageIdProvider,
             dialogueRepository,
@@ -117,8 +140,6 @@ public class SendUplinkCommandHandlerTests
 
         var command = new SendUplinkCommand(
             "BN-TSN_FSS",
-            "VATSIM",
-            "YBBB",
             "UAL123",
             null,
             CpdlcUplinkResponseType.WilcoUnable,
@@ -129,8 +150,6 @@ public class SendUplinkCommandHandlerTests
 
         // Assert
         var dialogue = await dialogueRepository.FindDialogueForMessage(
-            "VATSIM",
-            "YBBB",
             "UAL123",
             result.UplinkMessage.MessageId,
             CancellationToken.None);
@@ -148,6 +167,13 @@ public class SendUplinkCommandHandlerTests
         var messageIdProvider = new TestMessageIdProvider();
         var dialogueRepository = new TestDialogueRepository();
         var clock = new TestClock();
+        var aircraftRepository = new TestAircraftRepository();
+
+        // Create aircraft connection
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.CurrentDataAuthority);
+        aircraft.RequestLogon(clock.UtcNow());
+        aircraft.AcceptLogon(clock.UtcNow());
+        await aircraftRepository.Add(aircraft, CancellationToken.None);
 
         // Create existing dialogue with a downlink
         var downlink = new DownlinkMessage(
@@ -159,11 +185,12 @@ public class SendUplinkCommandHandlerTests
             "REQUEST CLIMB FL410",
             clock.UtcNow());
 
-        var existingDialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var existingDialogue = new Dialogue("UAL123", downlink);
         await dialogueRepository.Add(existingDialogue, CancellationToken.None);
 
         var publisher = new TestPublisher();
         var handler = new SendUplinkCommandHandler(
+            aircraftRepository,
             clientManager,
             messageIdProvider,
             dialogueRepository,
@@ -173,8 +200,6 @@ public class SendUplinkCommandHandlerTests
 
         var command = new SendUplinkCommand(
             "BN-TSN_FSS",
-            "VATSIM",
-            "YBBB",
             "UAL123",
             5,
             CpdlcUplinkResponseType.NoResponse,
@@ -185,8 +210,6 @@ public class SendUplinkCommandHandlerTests
 
         // Assert
         var dialogue = await dialogueRepository.FindDialogueForMessage(
-            "VATSIM",
-            "YBBB",
             "UAL123",
             5,
             CancellationToken.None);
@@ -194,5 +217,66 @@ public class SendUplinkCommandHandlerTests
         Assert.NotNull(dialogue);
         Assert.Equal(2, dialogue.Messages.Count);
         Assert.Contains(result.UplinkMessage, dialogue.Messages);
+    }
+
+    [Fact]
+    public async Task Handle_RoutesToCorrectAcarsClient()
+    {
+        // Arrange
+        var clientManager = new TestClientManager();
+        var messageIdProvider = new TestMessageIdProvider();
+        var dialogueRepository = new TestDialogueRepository();
+        var publisher = new TestPublisher();
+        var clock = new TestClock();
+        var aircraftRepository = new TestAircraftRepository();
+
+        // Create aircraft connection
+        var aircraft1 = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.CurrentDataAuthority);
+        aircraft1.RequestLogon(clock.UtcNow());
+        aircraft1.AcceptLogon(clock.UtcNow());
+        await aircraftRepository.Add(aircraft1, CancellationToken.None);
+
+        var aircraft2 = new AircraftConnection("UAL456", "hoppies-ymmm", DataAuthorityState.CurrentDataAuthority);
+        aircraft2.RequestLogon(clock.UtcNow());
+        aircraft2.AcceptLogon(clock.UtcNow());
+        await aircraftRepository.Add(aircraft2, CancellationToken.None);
+
+        var handler = new SendUplinkCommandHandler(
+            aircraftRepository,
+            clientManager,
+            messageIdProvider,
+            dialogueRepository,
+            publisher,
+            clock,
+            Logger.None);
+
+        var command = new SendUplinkCommand(
+            "BN-TSN_FSS",
+            "UAL456",
+            5,
+            CpdlcUplinkResponseType.NoResponse,
+            "ROGER");
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal(1, result.UplinkMessage.MessageId);
+
+        // No messages should've been sent through YBBB
+        var ybbbClient = (TestAcarsClient) await clientManager.GetAcarsClient("hoppies-ybbb", CancellationToken.None);
+        Assert.Empty(ybbbClient.SentMessages);
+
+        // Aircraft is connected to YMMM, so the YMMM client should send the message
+        var ymmmClient = (TestAcarsClient) await clientManager.GetAcarsClient("hoppies-ymmm", CancellationToken.None);
+        Assert.Single(ymmmClient.SentMessages);
+
+        var sentMessage = Assert.IsType<UplinkMessage>(ymmmClient.SentMessages[0]);
+        Assert.Equal(1, sentMessage.MessageId);
+        Assert.Equal("UAL456", sentMessage.Recipient);
+        Assert.Equal(5, sentMessage.MessageReference);
+        Assert.Equal(CpdlcUplinkResponseType.NoResponse, sentMessage.ResponseType);
+        Assert.Equal("ROGER", sentMessage.Content);
     }
 }

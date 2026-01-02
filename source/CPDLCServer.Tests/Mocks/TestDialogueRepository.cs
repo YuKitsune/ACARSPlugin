@@ -13,15 +13,11 @@ public class TestDialogueRepository : IDialogueRepository
     }
 
     public Task<Dialogue?> FindDialogueForMessage(
-        string flightSimulationNetwork,
-        string stationIdentifier,
         string aircraftCallsign,
         int messageId,
         CancellationToken cancellationToken)
     {
         return _inner.FindDialogueForMessage(
-            flightSimulationNetwork,
-            stationIdentifier,
             aircraftCallsign,
             messageId,
             cancellationToken);
@@ -37,13 +33,6 @@ public class TestDialogueRepository : IDialogueRepository
         return _inner.All(cancellationToken);
     }
 
-    public Task<Dialogue[]> AllForStation(
-        string flightSimulationNetwork,
-        string stationIdentifier,
-        CancellationToken cancellationToken)
-    {
-        return _inner.AllForStation(flightSimulationNetwork, stationIdentifier, cancellationToken);
-    }
 
     public Task Remove(Dialogue dialogue, CancellationToken cancellationToken)
     {

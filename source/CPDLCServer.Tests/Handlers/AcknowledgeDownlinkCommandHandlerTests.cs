@@ -25,7 +25,7 @@ public class AcknowledgeDownlinkCommandHandlerTests
             "REQUEST DESCENT FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
         await dialogueRepository.Add(dialogue, CancellationToken.None);
 
         var handler = new AcknowledgeDownlinkCommandHandler(
@@ -64,7 +64,7 @@ public class AcknowledgeDownlinkCommandHandlerTests
             "REQUEST DESCENT FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
         await dialogueRepository.Add(dialogue, CancellationToken.None);
 
         var handler = new AcknowledgeDownlinkCommandHandler(
@@ -102,7 +102,7 @@ public class AcknowledgeDownlinkCommandHandlerTests
             "REQUEST DESCENT FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
         await dialogueRepository.Add(dialogue, CancellationToken.None);
 
         var handler = new AcknowledgeDownlinkCommandHandler(
@@ -164,7 +164,7 @@ public class AcknowledgeDownlinkCommandHandlerTests
             "REQUEST DESCENT FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
         await dialogueRepository.Add(dialogue, CancellationToken.None);
 
         var handler = new AcknowledgeDownlinkCommandHandler(

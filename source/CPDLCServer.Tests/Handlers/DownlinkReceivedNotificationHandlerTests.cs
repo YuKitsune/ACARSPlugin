@@ -18,7 +18,7 @@ public class DownlinkReceivedNotificationHandlerTests
         // Arrange
         var clock = new TestClock();
         var aircraftManager = new TestAircraftRepository();
-        var aircraft = new AircraftConnection("UAL123", "YBBB", "VATSIM", DataAuthorityState.CurrentDataAuthority);
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.CurrentDataAuthority);
         aircraft.RequestLogon(clock.UtcNow());
         aircraft.AcceptLogon(clock.UtcNow());
         await aircraftManager.Add(aircraft, CancellationToken.None);
@@ -27,15 +27,11 @@ public class DownlinkReceivedNotificationHandlerTests
         var controller1 = new ControllerInfo(
             Guid.NewGuid(),
             "ConnectionId-1",
-            "VATSIM",
-            "YBBB",
             "BN-TSN_FSS",
             "1234567");
         var controller2 = new ControllerInfo(
             Guid.NewGuid(),
             "ConnectionId-2",
-            "VATSIM",
-            "YBBB",
             "BN-OCN_CTR",
             "7654321");
         await controllerManager.Add(controller1, CancellationToken.None);
@@ -69,8 +65,7 @@ public class DownlinkReceivedNotificationHandlerTests
             clock.UtcNow());
 
         var notification = new DownlinkReceivedNotification(
-            "VATSIM",
-            "YBBB",
+            "hoppies-ybbb",
             downlinkMessage);
 
         // Act
@@ -80,8 +75,6 @@ public class DownlinkReceivedNotificationHandlerTests
         Assert.Single(publisher.PublishedNotifications.OfType<DialogueChangedNotification>());
         var dialogueNotification = publisher.PublishedNotifications.OfType<DialogueChangedNotification>().First();
         Assert.Equal("UAL123", dialogueNotification.Dialogue.AircraftCallsign);
-        Assert.Equal("VATSIM", dialogueNotification.Dialogue.FlightSimulationNetwork);
-        Assert.Equal("YBBB", dialogueNotification.Dialogue.StationIdentifier);
         Assert.Single(dialogueNotification.Dialogue.Messages);
         Assert.Equal(downlinkMessage, dialogueNotification.Dialogue.Messages.First());
     }
@@ -92,7 +85,7 @@ public class DownlinkReceivedNotificationHandlerTests
         // Arrange
         var clock = new TestClock();
         var aircraftManager = new TestAircraftRepository();
-        var aircraft = new AircraftConnection("UAL123", "YBBB", "VATSIM", DataAuthorityState.CurrentDataAuthority);
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.CurrentDataAuthority);
         aircraft.RequestLogon(clock.UtcNow());
         aircraft.AcceptLogon(clock.UtcNow());
         await aircraftManager.Add(aircraft, CancellationToken.None);
@@ -101,8 +94,6 @@ public class DownlinkReceivedNotificationHandlerTests
         var controller = new ControllerInfo(
             Guid.NewGuid(),
             "ConnectionId-1",
-            "VATSIM",
-            "YMMM",
             "ML-IND_FSS",
             "1234567");
         await controllerManager.Add(controller, CancellationToken.None);
@@ -135,8 +126,7 @@ public class DownlinkReceivedNotificationHandlerTests
             clock.UtcNow());
 
         var notification = new DownlinkReceivedNotification(
-            "VATSIM",
-            "YBBB",
+            "hoppies-ybbb",
             downlinkMessage);
 
         // Act
@@ -149,84 +139,12 @@ public class DownlinkReceivedNotificationHandlerTests
     }
 
     [Fact]
-    public async Task Handle_PublishesDialogueChangedForCorrectNetwork()
-    {
-        // Arrange
-        var clock = new TestClock();
-        var aircraftManager = new TestAircraftRepository();
-        var aircraft = new AircraftConnection("UAL123", "YBBB", "VATSIM", DataAuthorityState.CurrentDataAuthority);
-        aircraft.RequestLogon(clock.UtcNow());
-        aircraft.AcceptLogon(clock.UtcNow());
-        await aircraftManager.Add(aircraft, CancellationToken.None);
-
-        var controllerManager = new TestControllerRepository();
-        var vatsimController = new ControllerInfo(
-            Guid.NewGuid(),
-            "conn-vatsim",
-            "VATSIM",
-            "YBBB",
-            "BN-TSN_FSS",
-            "1234567");
-        var ivaoController = new ControllerInfo(
-            Guid.NewGuid(),
-            "conn-ivao",
-            "IVAO",
-            "YBBB",
-            "BN-TSN_FSS",
-            "7654321");
-        await controllerManager.Add(vatsimController, CancellationToken.None);
-        await controllerManager.Add(ivaoController, CancellationToken.None);
-
-        var mediator = Substitute.For<IMediator>();
-        var hubContext = Substitute.For<IHubContext<ControllerHub>>();
-        var clientProxy = Substitute.For<IClientProxy>();
-        hubContext.Clients.Clients(Arg.Any<IReadOnlyList<string>>()).Returns(clientProxy);
-
-        var dialogueRepository = new TestDialogueRepository();
-
-        var publisher = new TestPublisher();
-        var handler = new DownlinkReceivedNotificationHandler(
-            aircraftManager,
-            mediator,
-            clock,
-            controllerManager,
-            dialogueRepository,
-            hubContext,
-            publisher,
-            Logger.None);
-
-        var downlinkMessage = new DownlinkMessage(
-            1,
-            null,
-            "UAL123",
-            CpdlcDownlinkResponseType.ResponseRequired,
-            AlertType.None,
-            "REQUEST DESCENT",
-            clock.UtcNow());
-
-        var notification = new DownlinkReceivedNotification(
-            "VATSIM",
-            "YBBB",
-            downlinkMessage);
-
-        // Act
-        await handler.Handle(notification, CancellationToken.None);
-
-        // Assert - DialogueChangedNotification is published with correct network
-        Assert.Single(publisher.PublishedNotifications.OfType<DialogueChangedNotification>());
-        var dialogueNotification = publisher.PublishedNotifications.OfType<DialogueChangedNotification>().First();
-        Assert.Equal("VATSIM", dialogueNotification.Dialogue.FlightSimulationNetwork);
-        Assert.Equal("YBBB", dialogueNotification.Dialogue.StationIdentifier);
-        Assert.Equal("UAL123", dialogueNotification.Dialogue.AircraftCallsign);
-    }
-
-    [Fact]
     public async Task Handle_PromotesAircraftToCurrentDataAuthorityOnFirstDownlink()
     {
         // Arrange
         var clock = new TestClock();
         var aircraftManager = new TestAircraftRepository();
-        var aircraft = new AircraftConnection("UAL123", "YBBB", "VATSIM", DataAuthorityState.NextDataAuthority);
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.NextDataAuthority);
         aircraft.RequestLogon(clock.UtcNow());
         aircraft.AcceptLogon(clock.UtcNow());
         await aircraftManager.Add(aircraft, CancellationToken.None);
@@ -235,8 +153,6 @@ public class DownlinkReceivedNotificationHandlerTests
         var controller = new ControllerInfo(
             Guid.NewGuid(),
             "ConnectionId-1",
-            "VATSIM",
-            "YBBB",
             "BN-TSN_FSS",
             "1234567");
         await controllerManager.Add(controller, CancellationToken.None);
@@ -269,8 +185,7 @@ public class DownlinkReceivedNotificationHandlerTests
             clock.UtcNow());
 
         var notification = new DownlinkReceivedNotification(
-            "VATSIM",
-            "YBBB",
+            "hoppies-ybbb",
             downlinkMessage);
 
         // Assert - aircraft starts as NextDataAuthority
@@ -298,8 +213,7 @@ public class DownlinkReceivedNotificationHandlerTests
         var dto = eventArgs[0] as Contracts.AircraftConnectionDto;
         Assert.NotNull(dto);
         Assert.Equal("UAL123", dto.Callsign);
-        Assert.Equal("YBBB", dto.StationId);
-        Assert.Equal("VATSIM", dto.FlightSimulationNetwork);
+        Assert.Equal("hoppies-ybbb", dto.AcarsClientId);
         Assert.Equal(Contracts.DataAuthorityState.CurrentDataAuthority, dto.DataAuthorityState);
     }
 
@@ -312,7 +226,7 @@ public class DownlinkReceivedNotificationHandlerTests
         clock.SetUtcNow(logonTime);
 
         var aircraftManager = new TestAircraftRepository();
-        var aircraft = new AircraftConnection("UAL123", "YBBB", "VATSIM", DataAuthorityState.NextDataAuthority);
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.NextDataAuthority);
         aircraft.RequestLogon(logonTime);
         aircraft.AcceptLogon(logonTime);
         await aircraftManager.Add(aircraft, CancellationToken.None);
@@ -321,8 +235,6 @@ public class DownlinkReceivedNotificationHandlerTests
         var controller = new ControllerInfo(
             Guid.NewGuid(),
             "ConnectionId-1",
-            "VATSIM",
-            "YBBB",
             "BN-TSN_FSS",
             "1234567");
         await controllerManager.Add(controller, CancellationToken.None);
@@ -358,8 +270,7 @@ public class DownlinkReceivedNotificationHandlerTests
             clock.UtcNow());
 
         var notification = new DownlinkReceivedNotification(
-            "VATSIM",
-            "YBBB",
+            "hoppies-ybbb",
             downlinkMessage);
 
         // Assert
@@ -378,7 +289,7 @@ public class DownlinkReceivedNotificationHandlerTests
         // Arrange
         var clock = new TestClock();
         var aircraftRepository = new TestAircraftRepository();
-        var aircraft = new AircraftConnection("UAL123", "YBBB", "VATSIM", DataAuthorityState.CurrentDataAuthority);
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.CurrentDataAuthority);
         aircraft.RequestLogon(clock.UtcNow());
         aircraft.AcceptLogon(clock.UtcNow());
         await aircraftRepository.Add(aircraft, CancellationToken.None);
@@ -408,15 +319,13 @@ public class DownlinkReceivedNotificationHandlerTests
             "REQUEST CLIMB FL410",
             clock.UtcNow());
 
-        var notification = new DownlinkReceivedNotification("VATSIM", "YBBB", downlink);
+        var notification = new DownlinkReceivedNotification("hoppies-ybbb", downlink);
 
         // Act
         await handler.Handle(notification, CancellationToken.None);
 
         // Assert
         var dialogue = await dialogueRepository.FindDialogueForMessage(
-            "VATSIM",
-            "YBBB",
             "UAL123",
             1,
             CancellationToken.None);
@@ -432,7 +341,7 @@ public class DownlinkReceivedNotificationHandlerTests
         // Arrange
         var clock = new TestClock();
         var aircraftRepository = new TestAircraftRepository();
-        var aircraft = new AircraftConnection("UAL123", "YBBB", "VATSIM", DataAuthorityState.CurrentDataAuthority);
+        var aircraft = new AircraftConnection("UAL123", "hoppies-ybbb", DataAuthorityState.CurrentDataAuthority);
         aircraft.RequestLogon(clock.UtcNow());
         aircraft.AcceptLogon(clock.UtcNow());
         await aircraftRepository.Add(aircraft, CancellationToken.None);
@@ -453,7 +362,7 @@ public class DownlinkReceivedNotificationHandlerTests
             "CLIMB TO FL410",
             clock.UtcNow());
 
-        var existingDialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var existingDialogue = new Dialogue("UAL123", uplink);
         await dialogueRepository.Add(existingDialogue, CancellationToken.None);
 
         var publisher = new TestPublisher();
@@ -476,15 +385,13 @@ public class DownlinkReceivedNotificationHandlerTests
             "WILCO",
             clock.UtcNow().AddSeconds(10));
 
-        var notification = new DownlinkReceivedNotification("VATSIM", "YBBB", downlink);
+        var notification = new DownlinkReceivedNotification("hoppies-ybbb", downlink);
 
         // Act
         await handler.Handle(notification, CancellationToken.None);
 
         // Assert
         var dialogue = await dialogueRepository.FindDialogueForMessage(
-            "VATSIM",
-            "YBBB",
             "UAL123",
             5,
             CancellationToken.None);

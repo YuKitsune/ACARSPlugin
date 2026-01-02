@@ -5,8 +5,6 @@ namespace CPDLCServer.Messages;
 
 public record SendUplinkCommand(
     string Sender,
-    string FlightSimulationNetwork,
-    string StationIdentifier,
     string Recipient,
     int? ReplyToDownlinkId,
     CpdlcUplinkResponseType ResponseType,

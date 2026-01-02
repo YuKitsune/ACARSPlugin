@@ -27,8 +27,6 @@ public class DownlinkReceivedNotificationHandler(
         {
             // Create a dialogue for the logon request
             dialogue = new Dialogue(
-                notification.FlightSimulationNetwork,
-                notification.StationIdentifier,
                 notification.Downlink.Sender,
                 notification.Downlink);
             await dialogueRepository.Add(dialogue, cancellationToken);
@@ -37,17 +35,12 @@ public class DownlinkReceivedNotificationHandler(
                 new LogonCommand(
                     notification.Downlink.MessageId,
                     notification.Downlink.Sender,
-                    notification.StationIdentifier,
-                    notification.FlightSimulationNetwork),
+                    notification.AcarsClientId),
                 cancellationToken);
             return;
         }
 
-        var aircraftConnection = await aircraftRepository.Find(
-            notification.FlightSimulationNetwork,
-            notification.StationIdentifier,
-            notification.Downlink.Sender,
-            cancellationToken);
+        var aircraftConnection = await aircraftRepository.Find(notification.Downlink.Sender, cancellationToken);
 
         if (aircraftConnection is null)
         {
@@ -55,8 +48,6 @@ public class DownlinkReceivedNotificationHandler(
             await mediator.Send(
                 new SendUplinkCommand(
                     "SYSTEM",
-                    notification.FlightSimulationNetwork,
-                    notification.StationIdentifier,
                     notification.Downlink.Sender,
                     notification.Downlink.MessageId,
                     CpdlcUplinkResponseType.NoResponse,
@@ -72,8 +63,7 @@ public class DownlinkReceivedNotificationHandler(
                 new LogoffCommand(
                     notification.Downlink.MessageId,
                     notification.Downlink.Sender,
-                    notification.StationIdentifier,
-                    notification.FlightSimulationNetwork),
+                    notification.AcarsClientId),
                 cancellationToken);
 
             // Allow these to flow through to the controller
@@ -85,10 +75,7 @@ public class DownlinkReceivedNotificationHandler(
             aircraftConnection.PromoteToCurrentDataAuthority();
 
             // Notify all controllers that the aircraft has been promoted to CurrentDataAuthority
-            var controllers = await controllerRepository.All(
-                notification.FlightSimulationNetwork,
-                notification.StationIdentifier,
-                cancellationToken);
+            var controllers = await controllerRepository.All(cancellationToken);
 
             if (controllers.Any())
             {
@@ -98,8 +85,7 @@ public class DownlinkReceivedNotificationHandler(
                         "AircraftConnectionUpdated",
                         new Contracts.AircraftConnectionDto(
                             aircraftConnection.Callsign,
-                            aircraftConnection.StationId,
-                            aircraftConnection.FlightSimulationNetwork,
+                            aircraftConnection.AcarsClientId,
                             DialogueConverter.ToDto(aircraftConnection.DataAuthorityState)),
                         cancellationToken);
 
@@ -115,8 +101,6 @@ public class DownlinkReceivedNotificationHandler(
         // Add or update the dialogue
         dialogue = notification.Downlink.MessageReference.HasValue
             ? await dialogueRepository.FindDialogueForMessage(
-                notification.FlightSimulationNetwork,
-                notification.StationIdentifier,
                 notification.Downlink.Sender,
                 notification.Downlink.MessageReference.Value,
                 cancellationToken)
@@ -124,11 +108,7 @@ public class DownlinkReceivedNotificationHandler(
 
         if (dialogue is null)
         {
-            dialogue = new Dialogue(
-                notification.FlightSimulationNetwork,
-                notification.StationIdentifier,
-                notification.Downlink.Sender,
-                notification.Downlink);
+            dialogue = new Dialogue(notification.Downlink.Sender, notification.Downlink);
             await dialogueRepository.Add(dialogue, cancellationToken);
         }
         else

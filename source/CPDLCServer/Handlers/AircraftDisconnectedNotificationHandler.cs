@@ -15,15 +15,12 @@ public class AircraftDisconnectedNotificationHandler(
     public async Task Handle(AircraftDisconnected notification, CancellationToken cancellationToken)
     {
         logger.Information(
-            "Aircraft {Callsign} disconnected from {Network}/{StationId}",
+            "Aircraft {Callsign} disconnected from {AcarsClientId}",
             notification.Callsign,
-            notification.FlightSimulationNetwork,
-            notification.StationId);
+            notification.AcarsClientId);
 
         // Find all controllers on the same network and station
-        var controllers = await controllerRepository.All(
-            notification.FlightSimulationNetwork,
-            notification.StationId, cancellationToken);
+        var controllers = await controllerRepository.All(cancellationToken);
 
         if (!controllers.Any())
         {

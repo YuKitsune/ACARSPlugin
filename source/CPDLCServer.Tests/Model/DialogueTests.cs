@@ -19,7 +19,7 @@ public class DialogueTests
             time);
 
         // Act
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
 
         // Assert
         Assert.Single(dialogue.Messages);
@@ -41,7 +41,7 @@ public class DialogueTests
             time);
 
         // Act
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
 
         // Assert
         Assert.Equal(time, dialogue.Opened);
@@ -62,12 +62,10 @@ public class DialogueTests
             time);
 
         // Act
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
 
         // Assert
         Assert.Equal("UAL123", dialogue.AircraftCallsign);
-        Assert.Equal("VATSIM", dialogue.FlightSimulationNetwork);
-        Assert.Equal("YBBB", dialogue.StationIdentifier);
     }
 
     [Fact]
@@ -84,7 +82,7 @@ public class DialogueTests
             "REQUEST CLIMB FL410",
             time);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
 
         var uplink = new UplinkMessage(
             2,
@@ -119,7 +117,7 @@ public class DialogueTests
             "CLIMB TO FL410",
             time);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
 
         var downlink = new DownlinkMessage(
             2,
@@ -153,7 +151,7 @@ public class DialogueTests
             "CLIMB FL410",
             time);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
 
         var standbyDownlink = new DownlinkMessage(
             2,
@@ -185,7 +183,7 @@ public class DialogueTests
             "REQUEST CLIMB FL410",
             time);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
 
         var standbyUplink = new UplinkMessage(
             2,
@@ -219,7 +217,7 @@ public class DialogueTests
             "REQUEST CLIMB FL410",
             time);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
 
         var deferredUplink = new UplinkMessage(
             2,
@@ -253,7 +251,7 @@ public class DialogueTests
             "REQUEST CLIMB FL410",
             time);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
 
         var uplink = new UplinkMessage(
             2,
@@ -288,7 +286,7 @@ public class DialogueTests
             "REQUEST CLIMB FL410",
             time);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
 
         var uplink = new UplinkMessage(
             2,
@@ -325,7 +323,7 @@ public class DialogueTests
             time);
 
         // Act
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
 
         // Assert
         Assert.True(downlink.IsClosed);
@@ -349,7 +347,7 @@ public class DialogueTests
             "REQUEST CLIMB FL410",
             time);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink1);
+        var dialogue = new Dialogue("UAL123", downlink1);
         Assert.False(dialogue.IsClosed); // Dialogue open - downlink awaiting response
 
         // Controller sends STANDBY
@@ -416,7 +414,7 @@ public class DialogueTests
             "REQUEST LOGON",
             time);
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", logonRequest);
+        var dialogue = new Dialogue("UAL123", logonRequest);
         Assert.False(dialogue.IsClosed); // Dialogue open - waiting for response
 
         // System sends LOGON ACCEPTED (NoResponse type, so self-closing)

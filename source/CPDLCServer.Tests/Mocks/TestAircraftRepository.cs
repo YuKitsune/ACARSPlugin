@@ -12,18 +12,18 @@ public class TestAircraftRepository : IAircraftRepository
         return _inner.Add(connection, cancellationToken);
     }
 
-    public Task<AircraftConnection?> Find(string flightSimulationNetwork, string stationId, string callsign, CancellationToken cancellationToken)
+    public Task<AircraftConnection?> Find(string callsign, CancellationToken cancellationToken)
     {
-        return _inner.Find(flightSimulationNetwork, stationId, callsign, cancellationToken);
+        return _inner.Find(callsign, cancellationToken);
     }
 
-    public Task<AircraftConnection[]> All(string flightSimulationNetwork, string stationId, CancellationToken cancellationToken)
+    public Task<AircraftConnection[]> All(CancellationToken cancellationToken)
     {
-        return _inner.All(flightSimulationNetwork, stationId, cancellationToken);
+        return _inner.All(cancellationToken);
     }
 
-    public Task<bool> Remove(string flightSimulationNetwork, string stationId, string callsign, CancellationToken cancellationToken)
+    public Task<bool> Remove(string callsign, CancellationToken cancellationToken)
     {
-        return _inner.Remove(flightSimulationNetwork, stationId, callsign, cancellationToken);
+        return _inner.Remove(callsign, cancellationToken);
     }
 }

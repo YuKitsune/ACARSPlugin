@@ -6,34 +6,29 @@ namespace CPDLCServer.Tests.Mocks;
 public class TestClientManager : IClientManager
 {
     private readonly Dictionary<string, IAcarsClient> _clients = new();
-    private readonly TestAcarsClient _defaultClient = new();
 
     public TestClientManager()
     {
-        AddClient("VATSIM", "YBBB", _defaultClient);
-        AddClient("VATSIM", "YMMM", _defaultClient);
+        AddClient("hoppies-ybbb", new TestAcarsClient());
+        AddClient("hoppies-ymmm", new TestAcarsClient());
     }
 
-    public void AddClient(string flightSimulationNetwork, string stationIdentifier, IAcarsClient client)
+    public void AddClient(string acarsClientId, IAcarsClient client)
     {
-        var key = CreateKey(flightSimulationNetwork, stationIdentifier);
-        _clients[key] = client;
+        _clients[acarsClientId] = client;
     }
 
-    public Task<IAcarsClient> GetAcarsClient(string flightSimulationNetwork, string stationId, CancellationToken cancellationToken)
+    public Task<IAcarsClient> GetAcarsClient(string acarsClientId, CancellationToken cancellationToken)
     {
-        var key = CreateKey(flightSimulationNetwork, stationId);
-        if (!_clients.TryGetValue(key, out var client))
+        if (!_clients.TryGetValue(acarsClientId, out var client))
         {
-            throw new ConfigurationNotFoundException(flightSimulationNetwork, stationId);
+            throw new ConfigurationNotFoundException(acarsClientId);
         }
         return Task.FromResult(client);
     }
 
-    public bool ClientExists(string flightSimulationNetwork, string stationIdentifier)
+    public bool ClientExists(string acarsClientId)
     {
-        return _clients.ContainsKey(CreateKey(flightSimulationNetwork, stationIdentifier));
+        return _clients.ContainsKey(acarsClientId);
     }
-
-    private string CreateKey(string flightSimulationNetwork, string stationId) => $"{flightSimulationNetwork}/{stationId}";
 }

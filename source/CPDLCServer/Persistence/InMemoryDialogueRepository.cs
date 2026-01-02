@@ -18,8 +18,6 @@ public class InMemoryDialogueRepository : IDialogueRepository
     }
 
     public async Task<Dialogue?> FindDialogueForMessage(
-        string flightSimulationNetwork,
-        string stationIdentifier,
         string aircraftCallsign,
         int messageId,
         CancellationToken cancellationToken)
@@ -28,8 +26,6 @@ public class InMemoryDialogueRepository : IDialogueRepository
         {
             return _dialogues
                 .FirstOrDefault(d =>
-                    d.FlightSimulationNetwork == flightSimulationNetwork &&
-                    d.StationIdentifier == stationIdentifier &&
                     d.AircraftCallsign == aircraftCallsign &&
                     d.Messages.Any(m => m.MessageId == messageId));
         }
@@ -48,21 +44,6 @@ public class InMemoryDialogueRepository : IDialogueRepository
         using (await _semaphore.LockAsync(cancellationToken))
         {
             return _dialogues.ToArray();
-        }
-    }
-
-    public async Task<Dialogue[]> AllForStation(
-        string flightSimulationNetwork,
-        string stationIdentifier,
-        CancellationToken cancellationToken)
-    {
-        using (await _semaphore.LockAsync(cancellationToken))
-        {
-            return _dialogues
-                .Where(d =>
-                    d.FlightSimulationNetwork == flightSimulationNetwork &&
-                    d.StationIdentifier == stationIdentifier)
-                .ToArray();
         }
     }
 

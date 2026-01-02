@@ -22,39 +22,26 @@ public class AircraftLostNotificationHandler(
 {
     public async Task Handle(AircraftLost notification, CancellationToken cancellationToken)
     {
-        var aircraft = await aircraftRepository.Find(
-            notification.FlightSimulationNetwork,
-            notification.StationId,
-            notification.Callsign,
-            cancellationToken);
-
+        var aircraft = await aircraftRepository.Find(notification.Callsign, cancellationToken);
         if (aircraft is null)
         {
             logger.Information(
-                "Aircraft {Callsign} already removed from tracking on {Network}/{StationId}",
+                "Aircraft {Callsign} already removed from tracking on {AcarsClientId}",
                 notification.Callsign,
-                notification.FlightSimulationNetwork,
-                notification.StationId);
+                notification.AcarsClientId);
             return;
         }
 
         // Remove aircraft from tracking
-        await aircraftRepository.Remove(
-            notification.FlightSimulationNetwork,
-            notification.StationId,
-            notification.Callsign,
-            cancellationToken);
+        await aircraftRepository.Remove(notification.Callsign, cancellationToken);
 
         logger.Information(
-            "Aircraft {Callsign} lost on {Network}/{StationId}",
+            "Aircraft {Callsign} lost on {AcarsClientId}",
             notification.Callsign,
-            notification.FlightSimulationNetwork,
-            notification.StationId);
+            notification.AcarsClientId);
 
         // Find all controllers on the same network and station
-        var controllers = await controllerRepository.All(
-            notification.FlightSimulationNetwork,
-            notification.StationId, cancellationToken);
+        var controllers = await controllerRepository.All(cancellationToken);
 
         if (!controllers.Any())
         {
@@ -64,12 +51,7 @@ public class AircraftLostNotificationHandler(
             return;
         }
 
-        // Find all dialogues for this aircraft on this station
-        var allDialogues = await dialogueRepository.AllForStation(
-            notification.FlightSimulationNetwork,
-            notification.StationId,
-            cancellationToken);
-
+        var allDialogues = await dialogueRepository.All(cancellationToken);
         var aircraftDialogues = allDialogues
             .Where(d => d.AircraftCallsign == notification.Callsign && !d.IsArchived)
             .ToArray();
@@ -93,7 +75,7 @@ public class AircraftLostNotificationHandler(
                 }
 
                 var messageId = await messageIdProvider.GetNextMessageId(
-                    notification.StationId,
+                    notification.AcarsClientId,
                     notification.Callsign,
                     cancellationToken);
 
@@ -121,7 +103,7 @@ public class AircraftLostNotificationHandler(
         {
             // No open dialogues, create a new one with the error message
             var messageId = await messageIdProvider.GetNextMessageId(
-                notification.StationId,
+                notification.AcarsClientId,
                 notification.Callsign,
                 cancellationToken);
 
@@ -134,11 +116,7 @@ public class AircraftLostNotificationHandler(
                 "ERROR CONNECTION TIMED OUT",
                 clock.UtcNow());
 
-            var dialogue = new Dialogue(
-                notification.FlightSimulationNetwork,
-                notification.StationId,
-                notification.Callsign,
-                errorDownlink);
+            var dialogue = new Dialogue(notification.Callsign, errorDownlink);
 
             await dialogueRepository.Add(dialogue, cancellationToken);
 

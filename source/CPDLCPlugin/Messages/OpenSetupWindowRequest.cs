@@ -28,8 +28,6 @@ public class OpenSetupWindowRequestHandler(
                     errorReporter,
                     windowHandle,
                     plugin.ConnectionManager?.ServerEndpoint ?? pluginConfiguration.ServerEndpoint,
-                    pluginConfiguration.Stations,
-                    isConnected ? plugin.ConnectionManager!.StationIdentifier : pluginConfiguration.Stations.First(),
                     isConnected);
 
                 var control = new SetupWindow(viewModel);

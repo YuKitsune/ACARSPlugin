@@ -27,13 +27,9 @@ public class ControllerHub(
 
         // Read connection parameters from query string
         var query = httpContext.Request.Query;
-        var network = query["network"].ToString().ToUpper();
-        var stationId = query["stationId"].ToString().ToUpper();
         var callsign = query["callsign"].ToString().ToUpper();
 
-        if (string.IsNullOrWhiteSpace(network) ||
-            string.IsNullOrWhiteSpace(stationId) ||
-            string.IsNullOrWhiteSpace(callsign))
+        if (string.IsNullOrWhiteSpace(callsign))
         {
             throw new HubException("Required parameters missing: network, stationId, and callsign must be provided");
         }
@@ -49,8 +45,6 @@ public class ControllerHub(
         var controller = new ControllerInfo(
             Guid.NewGuid(),
             Context.ConnectionId,
-            network,
-            stationId,
             callsign,
             "TEST");
             // validationResult.VatsimCid);
@@ -58,15 +52,13 @@ public class ControllerHub(
         await controllerRepository.Add(controller, Context.GetHttpContext()?.RequestAborted ?? CancellationToken.None);
 
         _logger.Information(
-            "Controller connected: {Callsign} (VATSIM CID: {VatsimCid}) on {Network}/{StationId} (ConnectionId: {ConnectionId})",
-            callsign, "TEST", network, stationId, Context.ConnectionId);
+            "Controller connected: {Callsign} (VATSIM CID: {VatsimCid}; ConnectionId: {ConnectionId})",
+            callsign, "TEST", Context.ConnectionId);
 
         await mediator.Publish(
             new ControllerConnectedNotification(
                 controller.UserId,
-                controller.FlightSimulationNetwork,
-                controller.Callsign,
-                controller.StationIdentifier));
+                controller.Callsign));
 
         await base.OnConnectedAsync();
     }
@@ -96,8 +88,6 @@ public class ControllerHub(
 
         var command = new SendUplinkCommand(
             controller.Callsign,
-            controller.FlightSimulationNetwork,
-            controller.StationIdentifier,
             recipient,
             replyToDownlinkId,
             modelResponseType,
@@ -117,7 +107,7 @@ public class ControllerHub(
             throw new InvalidOperationException($"Controller not found for connection {Context.ConnectionId}");
         }
 
-        var query = new GetConnectedAircraftRequest(controller.FlightSimulationNetwork, controller.StationIdentifier);
+        var query = new GetConnectedAircraftRequest();
         var result = await mediator.Send(query);
 
         return result.Aircraft;
@@ -132,7 +122,7 @@ public class ControllerHub(
             throw new InvalidOperationException($"Controller not found for connection {Context.ConnectionId}");
         }
 
-        var query = new GetConnectedControllersRequest(controller.FlightSimulationNetwork, controller.StationIdentifier);
+        var query = new GetConnectedControllersRequest();
         var result = await mediator.Send(query);
 
         return result.Controllers;
@@ -186,10 +176,7 @@ public class ControllerHub(
     // TODO: Move this into a MediatR handler
     async Task<DialogueDto[]> GetAllDialoguesFor(ControllerInfo controller, CancellationToken cancellationToken)
     {
-        var dialogues = await dialogueRepository.AllForStation(
-            controller.FlightSimulationNetwork,
-            controller.StationIdentifier,
-            cancellationToken);
+        var dialogues = await dialogueRepository.All(cancellationToken);
 
         _logger.Information(
             "Sending {DialogueCount} dialogues to controller {Callsign}",
@@ -209,12 +196,7 @@ public class ControllerHub(
                 "Controller disconnected: {Callsign} (ConnectionId: {ConnectionId})",
                 controller.Callsign, Context.ConnectionId);
 
-            await mediator.Publish(
-                new ControllerDisconnectedNotification(
-                    controller.UserId,
-                    controller.FlightSimulationNetwork,
-                    controller.StationIdentifier,
-                    controller.Callsign));
+            await mediator.Publish(new ControllerDisconnectedNotification(controller.UserId, controller.Callsign));
         }
 
         await base.OnDisconnectedAsync(exception);

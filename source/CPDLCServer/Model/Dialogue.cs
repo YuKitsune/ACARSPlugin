@@ -17,27 +17,23 @@ public class Dialogue
 {
     readonly List<ICpdlcMessage> _messages = [];
 
-    public Dialogue(string flightSimulationNetwork, string stationIdentifier, string aircraftCallsign, ICpdlcMessage firstMessage)
+    public Dialogue(string aircraftCallsign, ICpdlcMessage firstMessage)
     {
-        FlightSimulationNetwork = flightSimulationNetwork;
-        StationIdentifier = stationIdentifier;
         AircraftCallsign = aircraftCallsign;
         Opened = firstMessage.Time;
         AddMessage(firstMessage);
     }
 
     public Guid Id { get; } = Guid.NewGuid();
-    public string FlightSimulationNetwork { get; }
-    public string StationIdentifier { get; }
 
     public string AircraftCallsign { get; }
     public IReadOnlyList<ICpdlcMessage> Messages => _messages.AsReadOnly();
     public DateTimeOffset Opened { get; }
     public DateTimeOffset? Closed { get; private set; }
-    
+
     [MemberNotNullWhen(true, nameof(Closed))]
     public bool IsClosed => Closed.HasValue;
-    
+
     public DateTimeOffset? Archived { get; private set; }
 
     [MemberNotNullWhen(true, nameof(Archived))]

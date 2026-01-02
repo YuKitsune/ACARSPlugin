@@ -10,6 +10,7 @@ using MediatR;
 namespace CPDLCServer.Handlers;
 
 public class SendUplinkCommandHandler(
+    IAircraftRepository aircraftRepository,
     IClientManager clientManager,
     IMessageIdProvider messageIdProvider,
     IDialogueRepository dialogueRepository,
@@ -20,13 +21,14 @@ public class SendUplinkCommandHandler(
 {
     public async Task<SendUplinkResult> Handle(SendUplinkCommand request, CancellationToken cancellationToken)
     {
-        var client = await clientManager.GetAcarsClient(
-            request.FlightSimulationNetwork,
-            request.StationIdentifier,
-            cancellationToken);
-        
+        var aircraftConnection = await aircraftRepository.Find(request.Recipient, cancellationToken);
+        if (aircraftConnection is null)
+            throw new Exception($"{request.Recipient} is not connected");
+
+        var client = await clientManager.GetAcarsClient(aircraftConnection.AcarsClientId, cancellationToken);
+
         var messageId = await messageIdProvider.GetNextMessageId(
-            request.StationIdentifier,
+            aircraftConnection.AcarsClientId,
             request.Recipient,
             cancellationToken);
 
@@ -43,8 +45,6 @@ public class SendUplinkCommandHandler(
         // Add or update the dialogue
         var dialogue = request.ReplyToDownlinkId.HasValue
             ? await dialogueRepository.FindDialogueForMessage(
-                request.FlightSimulationNetwork,
-                request.StationIdentifier,
                 request.Recipient,
                 request.ReplyToDownlinkId.Value,
                 cancellationToken)
@@ -52,11 +52,7 @@ public class SendUplinkCommandHandler(
 
         if (dialogue is null)
         {
-            dialogue = new Dialogue(
-                request.FlightSimulationNetwork,
-                request.StationIdentifier,
-                request.Recipient,
-                uplinkMessage);
+            dialogue = new Dialogue(request.Recipient, uplinkMessage);
             await dialogueRepository.Add(dialogue, cancellationToken);
         }
         else

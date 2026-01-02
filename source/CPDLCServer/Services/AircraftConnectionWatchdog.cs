@@ -15,15 +15,15 @@ public class AircraftConnectionWatchdog : IHostedService
 #else
     readonly TimeSpan _errorInterval = TimeSpan.FromMinutes(5);
 #endif
-    
+
     readonly IClientManager _clientManager;
     readonly IAircraftRepository _aircraftRepository;
     readonly IClock _clock;
     readonly IMediator _mediator;
     readonly ILogger _logger;
-    
+
     readonly AcarsConfiguration[] _acarsConfigurations;
-    
+
     CancellationTokenSource? _cancellationTokenSource;
     Task? _task;
 
@@ -56,7 +56,7 @@ public class AircraftConnectionWatchdog : IHostedService
 
         _acarsConfigurations = configurationList.ToArray();
     }
-    
+
     public Task StartAsync(CancellationToken cancellationToken)
     {
         if (_cancellationTokenSource is not null || _task is not null)
@@ -72,14 +72,14 @@ public class AircraftConnectionWatchdog : IHostedService
     {
         if (_cancellationTokenSource is null || _task is null)
             throw new Exception("Already stopped");
-        
+
         await _cancellationTokenSource.CancelAsync();
         await _task;
-        
+
         _cancellationTokenSource = null;
         _task = null;
     }
-    
+
     async Task DoWork(CancellationToken cancellationToken)
     {
         try
@@ -96,14 +96,10 @@ public class AircraftConnectionWatchdog : IHostedService
                     foreach (var acarsConfiguration in _acarsConfigurations)
                     {
                         var client = await _clientManager.GetAcarsClient(
-                            acarsConfiguration.FlightSimulationNetwork,
-                            acarsConfiguration.StationIdentifier,
+                            acarsConfiguration.ClientId,
                             checkTimeoutCancellationTokenSource.Token);
 
-                        var trackedConnections = await _aircraftRepository.All(
-                            acarsConfiguration.FlightSimulationNetwork,
-                            acarsConfiguration.StationIdentifier,
-                            checkTimeoutCancellationTokenSource.Token);
+                        var trackedConnections = await _aircraftRepository.All(checkTimeoutCancellationTokenSource.Token);
 
                         var activeConnections = await client.ListConnections(checkTimeoutCancellationTokenSource.Token);
                         var lostConnections = trackedConnections.Where(t => !activeConnections.Contains(t.Callsign));
@@ -117,11 +113,10 @@ public class AircraftConnectionWatchdog : IHostedService
                             {
                                 continue;
                             }
-                            
+
                             await _mediator.Publish(
                                 new AircraftLost(
-                                    aircraftConnection.FlightSimulationNetwork,
-                                    aircraftConnection.StationId,
+                                    aircraftConnection.AcarsClientId,
                                     aircraftConnection.Callsign),
                                 checkTimeoutCancellationTokenSource.Token);
                         }

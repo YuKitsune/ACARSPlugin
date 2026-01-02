@@ -13,16 +13,11 @@ public class GetConnectedAircraftRequestHandler(IAircraftRepository aircraftRepo
         GetConnectedAircraftRequest request,
         CancellationToken cancellationToken)
     {
-        var aircraft = await aircraftRepository.All(
-            request.FlightSimulationNetwork,
-            request.StationIdentifier,
-            cancellationToken);
-
+        var aircraft = await aircraftRepository.All(cancellationToken);
         var aircraftInfo = aircraft
             .Select(a => new AircraftConnectionDto(
                 a.Callsign,
-                a.StationId,
-                a.FlightSimulationNetwork,
+                a.AcarsClientId,
                 DialogueConverter.ToDto(a.DataAuthorityState)))
             .ToArray();
 

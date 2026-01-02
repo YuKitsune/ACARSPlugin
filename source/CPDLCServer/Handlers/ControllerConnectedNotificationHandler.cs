@@ -15,17 +15,10 @@ public class ControllerConnectedNotificationHandler(
 {
     public async Task Handle(ControllerConnectedNotification notification, CancellationToken cancellationToken)
     {
-        logger.Information(
-            "Controller {Callsign} connected on {Network}/{StationId}",
-            notification.Callsign,
-            notification.FlightSimulationNetwork,
-            notification.StationIdentifier);
+        logger.Information("Controller {Callsign} connected", notification.Callsign);
 
         // Find all other controllers on the same network and station
-        var controllers = await controllerRepository.All(
-            notification.FlightSimulationNetwork,
-            notification.StationIdentifier,
-            cancellationToken);
+        var controllers = await controllerRepository.All(cancellationToken);
 
         // Exclude the controller that just connected
         var otherControllers = controllers.Where(c => c.UserId != notification.UserId).ToArray();
@@ -45,8 +38,6 @@ public class ControllerConnectedNotificationHandler(
                 "ControllerConnectionUpdated",
                 new ControllerConnectionDto(
                     notification.Callsign,
-                    notification.StationIdentifier,
-                    notification.FlightSimulationNetwork,
                     controllers.First(c => c.UserId == notification.UserId).VatsimCid),
                 cancellationToken);
 

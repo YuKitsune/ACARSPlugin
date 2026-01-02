@@ -17,16 +17,13 @@ public class AircraftConnectedNotificationHandler(
     public async Task Handle(AircraftConnected notification, CancellationToken cancellationToken)
     {
         logger.Information(
-            "Aircraft {Callsign} connected on {Network}/{StationId} with data authority state {DataAuthorityState}",
+            "Aircraft {Callsign} connected on {AcarsClientId} with data authority state {DataAuthorityState}",
             notification.Callsign,
-            notification.FlightSimulationNetwork,
-            notification.StationId,
+            notification.AcarsClientId,
             notification.DataAuthorityState);
 
         // Find all controllers on the same network and station
-        var controllers = await controllerRepository.All(
-            notification.FlightSimulationNetwork,
-            notification.StationId, cancellationToken);
+        var controllers = await controllerRepository.All(cancellationToken);
 
         if (!controllers.Any())
         {
@@ -41,7 +38,7 @@ public class AircraftConnectedNotificationHandler(
             .Clients(controllers.Select(c => c.ConnectionId))
             .SendAsync(
                 "AircraftConnectionUpdated",
-                new AircraftConnectionDto(notification.Callsign, notification.StationId, notification.FlightSimulationNetwork, DialogueConverter.ToDto(notification.DataAuthorityState)),
+                new AircraftConnectionDto(notification.Callsign, notification.AcarsClientId, DialogueConverter.ToDto(notification.DataAuthorityState)),
                 cancellationToken);
 
         logger.Information(

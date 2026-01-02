@@ -1,4 +1,4 @@
 namespace CPDLCServer.Exceptions;
 
-public sealed class ConfigurationNotFoundException(string flightSimulationNetwork, string stationIdentifier) 
-    : Exception($"No configuration found for {flightSimulationNetwork} on {stationIdentifier}");
+public sealed class ConfigurationNotFoundException(string acarsClientId)
+    : Exception($"No ACARS configuration found for client ID '{acarsClientId}'");

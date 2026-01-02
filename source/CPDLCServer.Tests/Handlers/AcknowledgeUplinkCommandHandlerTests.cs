@@ -26,7 +26,7 @@ public class AcknowledgeUplinkCommandHandlerTests
             "CLEARED DESCEND FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await dialogueRepository.Add(dialogue, CancellationToken.None);
 
         var handler = new AcknowledgeUplinkCommandHandler(
@@ -68,7 +68,7 @@ public class AcknowledgeUplinkCommandHandlerTests
             "CLEARED DESCEND FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await dialogueRepository.Add(dialogue, CancellationToken.None);
 
         var handler = new AcknowledgeUplinkCommandHandler(
@@ -107,7 +107,7 @@ public class AcknowledgeUplinkCommandHandlerTests
             "CLEARED DESCEND FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await dialogueRepository.Add(dialogue, CancellationToken.None);
 
         var handler = new AcknowledgeUplinkCommandHandler(
@@ -149,7 +149,7 @@ public class AcknowledgeUplinkCommandHandlerTests
             "CLEARED DESCEND FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink1);
+        var dialogue = new Dialogue("UAL123", uplink1);
 
         // Add a second uplink message to the dialogue
         var uplink2 = new UplinkMessage(
@@ -228,7 +228,7 @@ public class AcknowledgeUplinkCommandHandlerTests
             "CLEARED DESCEND FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", uplink);
+        var dialogue = new Dialogue("UAL123", uplink);
         await dialogueRepository.Add(dialogue, CancellationToken.None);
 
         var handler = new AcknowledgeUplinkCommandHandler(
@@ -263,7 +263,7 @@ public class AcknowledgeUplinkCommandHandlerTests
             "REQUEST DESCENT FL350",
             clock.UtcNow());
 
-        var dialogue = new Dialogue("VATSIM", "YBBB", "UAL123", downlink);
+        var dialogue = new Dialogue("UAL123", downlink);
         await dialogueRepository.Add(dialogue, CancellationToken.None);
 
         var handler = new AcknowledgeUplinkCommandHandler(

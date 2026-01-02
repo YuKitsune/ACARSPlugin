@@ -17,9 +17,9 @@ public class TestControllerRepository : IControllerRepository
         return _inner.FindByConnectionId(connectionId, cancellationToken);
     }
 
-    public Task<ControllerInfo[]> All(string flightSimulationNetwork, string stationId, CancellationToken cancellationToken)
+    public Task<ControllerInfo[]> All(CancellationToken cancellationToken)
     {
-        return _inner.All(flightSimulationNetwork, stationId, cancellationToken);
+        return _inner.All(cancellationToken);
     }
 
     public Task<bool> RemoveByConnectionId(string connectionId, CancellationToken cancellationToken)

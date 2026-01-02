@@ -38,12 +38,11 @@ public class SignalRConnectionManager(
     public event EventHandler<Exception>? ConnectionError;
 
     public string ServerEndpoint { get; } = serverEndpoint;
-    public string StationIdentifier { get; set; } = string.Empty;
 
     /// <summary>
     /// Initializes the SignalR connection.
     /// </summary>
-    public async Task InitializeAsync(string stationId, string callsign)
+    public async Task InitializeAsync(string callsign)
     {
         if (_connection != null)
         {
@@ -51,7 +50,7 @@ public class SignalRConnectionManager(
             await DisposeConnectionAsync();
         }
 
-        var url = $"{ServerEndpoint}?network=VATSIM&stationId={stationId}&callsign={callsign}";
+        var url = $"{ServerEndpoint}?callsign={callsign}";
         logger.Debug("Building SignalR connection to {Url}", url);
 
         var hubConnectionBuilder = new HubConnectionBuilder()
@@ -76,8 +75,6 @@ public class SignalRConnectionManager(
 
         RegisterHandlers();
         RegisterConnectionEvents();
-
-        StationIdentifier = stationId;
     }
 
     /// <summary>
@@ -123,8 +120,6 @@ public class SignalRConnectionManager(
         {
             await _connection.StopAsync();
             OnConnectionStateChanged(HubConnectionState.Disconnected);
-
-            StationIdentifier = string.Empty;
         }
         catch (Exception ex)
         {

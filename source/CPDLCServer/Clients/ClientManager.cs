@@ -7,7 +7,7 @@ namespace CPDLCServer.Clients;
 
 public interface IClientManager
 {
-    Task<IAcarsClient> GetAcarsClient(string flightSimulationNetwork, string stationId, CancellationToken cancellationToken);
+    Task<IAcarsClient> GetAcarsClient(string acarsClientId, CancellationToken cancellationToken);
 }
 
 public class ClientManager : BackgroundService, IClientManager
@@ -56,7 +56,7 @@ public class ClientManager : BackgroundService, IClientManager
 
         foreach (var config in _acarsConfigurations)
         {
-            await CreateClientWithRetry(config.FlightSimulationNetwork, config.StationIdentifier, stoppingToken);
+            await CreateClientWithRetry(config.ClientId, stoppingToken);
         }
 
         _logger.Information("All ACARS clients initialized");
@@ -71,7 +71,7 @@ public class ClientManager : BackgroundService, IClientManager
         }
     }
 
-    async Task CreateClientWithRetry(string flightSimulationNetwork, string stationId, CancellationToken cancellationToken)
+    async Task CreateClientWithRetry(string acarsClientId, CancellationToken cancellationToken)
     {
         const int maxRetries = 5;
         var retryDelay = TimeSpan.FromSeconds(1);
@@ -80,15 +80,10 @@ public class ClientManager : BackgroundService, IClientManager
         {
             try
             {
-                var acarsClientHandle = await CreateAcarsClient(flightSimulationNetwork, stationId, cancellationToken);
+                var acarsClientHandle = await CreateAcarsClient(acarsClientId, cancellationToken);
+                _clients.Add(acarsClientId, acarsClientHandle);
 
-                var key = CreateKey(flightSimulationNetwork, stationId);
-                _clients.Add(key, acarsClientHandle);
-
-                _logger.Information(
-                    "Successfully created ACARS client for {Network}/{StationId}",
-                    flightSimulationNetwork,
-                    stationId);
+                _logger.Information("Successfully created ACARS client {ClientId}", acarsClientId);
 
                 return;
             }
@@ -96,9 +91,8 @@ public class ClientManager : BackgroundService, IClientManager
             {
                 _logger.Warning(
                     ex,
-                    "Failed to create ACARS client for {Network}/{StationId} (attempt {Attempt}/{MaxRetries}). Retrying in {Delay}",
-                    flightSimulationNetwork,
-                    stationId,
+                    "Failed to create ACARS client {ClientId} (attempt {Attempt}/{MaxRetries}). Retrying in {Delay}",
+                    acarsClientId,
                     attempt + 1,
                     maxRetries,
                     retryDelay);
@@ -110,32 +104,29 @@ public class ClientManager : BackgroundService, IClientManager
             {
                 _logger.Error(
                     ex,
-                    "Failed to create ACARS client for {Network}/{StationId} after {MaxRetries} attempts. Client will not be available",
-                    flightSimulationNetwork,
-                    stationId,
+                    "Failed to create ACARS client {ClientId} after {MaxRetries} attempts. Client will not be available",
+                    acarsClientId,
                     maxRetries);
                 break;
             }
         }
     }
 
-    public Task<IAcarsClient> GetAcarsClient(string flightSimulationNetwork, string stationId, CancellationToken cancellationToken)
+    public Task<IAcarsClient> GetAcarsClient(string acarsClientId, CancellationToken cancellationToken)
     {
-        var key = CreateKey(flightSimulationNetwork, stationId);
-
-        if (!_clients.TryGetValue(key, out var acarsClientHandle))
+        if (!_clients.TryGetValue(acarsClientId, out var acarsClientHandle))
         {
-            throw new ConfigurationNotFoundException(flightSimulationNetwork, stationId);
+            throw new ConfigurationNotFoundException(acarsClientId);
         }
 
         return Task.FromResult(acarsClientHandle.Client);
     }
 
-    async Task<AcarsClientHandle> CreateAcarsClient(string flightSimulationNetwork, string stationId, CancellationToken cancellationToken)
+    async Task<AcarsClientHandle> CreateAcarsClient(string acarsClientId, CancellationToken cancellationToken)
     {
-        var configuration = _acarsConfigurations.FirstOrDefault(c => c.FlightSimulationNetwork == flightSimulationNetwork && c.StationIdentifier == stationId);
+        var configuration = _acarsConfigurations.FirstOrDefault(c => c.ClientId == acarsClientId);
         if (configuration is null)
-            throw new ConfigurationNotFoundException(flightSimulationNetwork, stationId);
+            throw new ConfigurationNotFoundException(acarsClientId);
 
         IAcarsClient acarsClient = configuration switch
         {
@@ -145,8 +136,7 @@ public class ClientManager : BackgroundService, IClientManager
 
         var subscribeTaskCancellationSource = new CancellationTokenSource();
         var subscribeTask = Subscribe(
-            flightSimulationNetwork,
-            stationId,
+            acarsClientId,
             acarsClient,
             _mediator,
             subscribeTaskCancellationSource.Token);
@@ -155,10 +145,7 @@ public class ClientManager : BackgroundService, IClientManager
 
         await acarsClient.Connect(cancellationToken);
 
-        _logger.Information(
-            "Connected to ACARS network for {Network}/{StationIdentifier}",
-            configuration.FlightSimulationNetwork,
-            configuration.StationIdentifier);
+        _logger.Information("Connected to ACARS client {ClientId}", acarsClientId);
 
         return acarsClientHandle;
     }
@@ -175,21 +162,20 @@ public class ClientManager : BackgroundService, IClientManager
             _logger.ForContext<HoppieAcarsClient>());
     }
 
-    async Task Subscribe(string flightSimulationNetwork, string stationIdentifier, IAcarsClient acarsClient, IMediator mediator, CancellationToken cancellationToken)
+    async Task Subscribe(string acarsClientId, IAcarsClient acarsClient, IMediator mediator, CancellationToken cancellationToken)
     {
-        var subscriptionLogger = _logger.ForContext("Network", flightSimulationNetwork).ForContext("Station", stationIdentifier);
+        var subscriptionLogger = _logger.ForContext("AcarsClientId", acarsClientId);
         await foreach (var downlinkMessage in acarsClient.MessageReader.ReadAllAsync(cancellationToken))
         {
             // TODO: Make this configurable
             var publishTimeoutCancellationTokenSource = new CancellationTokenSource();
             publishTimeoutCancellationTokenSource.CancelAfter(TimeSpan.FromSeconds(10));
-            
+
             try
             {
                 await mediator.Publish(
                     new DownlinkReceivedNotification(
-                        flightSimulationNetwork,
-                        stationIdentifier,
+                        acarsClientId,
                         downlinkMessage),
                     publishTimeoutCancellationTokenSource.Token);
             }
@@ -219,13 +205,12 @@ public class ClientManager : BackgroundService, IClientManager
 
             await SubscribeCancellationTokenSource.CancelAsync();
             await SubscribeTask;
-            
+
             SubscribeCancellationTokenSource.Dispose();
             SubscribeTask.Dispose();
         }
     }
-    
-    string CreateKey(string flightSimulationNetwork, string stationId) => $"{flightSimulationNetwork}/{stationId}";
+
 
     public override async Task StopAsync(CancellationToken cancellationToken)
     {
