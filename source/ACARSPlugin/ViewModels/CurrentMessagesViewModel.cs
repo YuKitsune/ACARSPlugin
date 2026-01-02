@@ -17,6 +17,7 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Dia
     readonly IMediator _mediator;
     readonly IGuiInvoker _guiInvoker;
     readonly IErrorReporter _errorReporter;
+    readonly IWindowHandle _windowHandle;
     bool _disposed;
 
     public CurrentMessagesViewModel(
@@ -24,13 +25,15 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Dia
         DialogueStore dialogueStore,
         IMediator mediator,
         IGuiInvoker guiInvoker,
-        IErrorReporter errorReporter)
+        IErrorReporter errorReporter,
+        IWindowHandle windowHandle)
     {
         _configuration = configuration;
         _dialogueStore = dialogueStore;
         _mediator = mediator;
         _guiInvoker = guiInvoker;
         _errorReporter = errorReporter;
+        _windowHandle = windowHandle;
 
         WeakReferenceMessenger.Default.Register(this);
 
@@ -528,6 +531,12 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Dia
             {
                 Dialogues.Add(dialogueViewModel);
             }
+
+            // Close the window if there are no messages left
+            if (Dialogues.Count == 0)
+            {
+                _windowHandle.Close();
+            }
         }
         catch (Exception ex)
         {
@@ -665,7 +674,6 @@ public partial class CurrentMessagesViewModel : ObservableObject, IRecipient<Dia
         try
         {
             await _mediator.Send(new ArchiveRequest(currentMessageViewModel.Dialogue.Id));
-            // TODO: Close if there are no more current messages
         }
         catch (Exception ex)
         {

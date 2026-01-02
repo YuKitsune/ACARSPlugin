@@ -27,7 +27,8 @@ public class OpenCurrentMessagesWindowRequestHandler(
                     dialogueStore,
                     mediator,
                     guiInvoker,
-                    errorReporter);
+                    errorReporter,
+                    windowHandle);
 
                 return new CurrentMessagesWindow(viewModel);
             });
