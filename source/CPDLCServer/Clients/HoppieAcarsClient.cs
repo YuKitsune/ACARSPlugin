@@ -14,12 +14,12 @@ public class HoppieAcarsClient : IAcarsClient
     {
         { "END SERVICE", "LOGOFF" }
     };
-    
+
     readonly HoppiesConfiguration _configuration;
     readonly HttpClient _httpClient;
     readonly IClock _clock;
     readonly ILogger _logger;
-    
+
     readonly Channel<DownlinkMessage> _messageChannel = Channel.CreateUnbounded<DownlinkMessage>();
     readonly Random _random = Random.Shared;
 
@@ -37,7 +37,7 @@ public class HoppieAcarsClient : IAcarsClient
         _httpClient = httpClient;
         _httpClient.Timeout = TimeSpan.FromSeconds(15);
         _clock = clock;
-        _logger = logger.ForContext("FlightSimulationNetwork", _configuration.FlightSimulationNetwork).ForContext("StationIdentifier", _configuration.StationIdentifier);
+        _logger = logger.ForContext("ClientId", _configuration.ClientId);
     }
 
     public Task Connect(CancellationToken cancellationToken)
@@ -187,7 +187,7 @@ public class HoppieAcarsClient : IAcarsClient
                 try
                 {
                     _logger.Debug("Polling for messages");
-                    
+
                     var parameters = new Dictionary<string, string>
                     {
                         ["logon"] = _configuration.AuthenticationCode,
@@ -203,7 +203,7 @@ public class HoppieAcarsClient : IAcarsClient
                     var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
 
                     _logger.Verbose("Poll response: {Response}", responseText);
-                    
+
                     if (!string.IsNullOrWhiteSpace(responseText) && responseText != "ok")
                     {
                         ParseAndPublishDownlinkMessages(responseText);
@@ -256,7 +256,7 @@ public class HoppieAcarsClient : IAcarsClient
             }
 
             var messages = ExtractMessages(responseText);
-            
+
             _logger.Debug("Extracted {Count} messages", messages.Count);
 
             foreach (var messageText in messages)
@@ -386,7 +386,7 @@ public class HoppieAcarsClient : IAcarsClient
 
         return TimeSpan.FromSeconds(_random.Next(45, 76));
     }
-    
+
     string SerializeCpdlcMessage(UplinkMessage uplinkMessage)
     {
         var responseType = uplinkMessage.ResponseType switch
@@ -401,9 +401,9 @@ public class HoppieAcarsClient : IAcarsClient
         var replyToId = uplinkMessage.MessageReference is not null
             ? uplinkMessage.MessageReference.ToString()
             : string.Empty;
-        
+
         var content = GetTranslatedContent(uplinkMessage);
-        
+
         return $"/data2/{uplinkMessage.MessageId}/{replyToId}/{responseType}/{content}";
     }
 
@@ -413,12 +413,12 @@ public class HoppieAcarsClient : IAcarsClient
             ? translation
             : uplinkMessage.Content;
     }
-    
+
     public async ValueTask DisposeAsync()
     {
         if (_disposed)
             return;
-        
+
         await Disconnect(CancellationToken.None);
 
         if (_pollTask is not null)
@@ -426,9 +426,9 @@ public class HoppieAcarsClient : IAcarsClient
 
         if (_pollCancellationTokenSource is not null)
             _pollCancellationTokenSource.Dispose();
-        
+
         _httpClient.Dispose();
-        
+
         _disposed = true;
     }
 }

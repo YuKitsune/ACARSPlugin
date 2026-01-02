@@ -31,7 +31,7 @@ public class ControllerHub(
 
         if (string.IsNullOrWhiteSpace(callsign))
         {
-            throw new HubException("Required parameters missing: network, stationId, and callsign must be provided");
+            throw new HubException("Required parameters missing: callsign must be provided");
         }
 
         // Validate API key
