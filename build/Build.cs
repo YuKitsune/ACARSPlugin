@@ -15,6 +15,8 @@ using Nuke.Common.Tools.ILRepack;
 using Octokit;
 using Serilog;
 
+namespace _build;
+
 [SupportedOSPlatform("Windows")]
 [GitHubActions(
     "build",
@@ -55,16 +57,16 @@ class Build : NukeBuild
     [GitVersion]
     readonly GitVersion GitVersion;
 
-    const string ReleasePluginName = "ACARSPlugin";
-    const string DebugPluginName = "ACARSPlugin - Debug";
-    const string PluginAssemblyFileName = "ACARSPlugin.dll";
+    const string ReleasePluginName = "CPDLCPlugin";
+    const string DebugPluginName = "CPDLCPlugin - Debug";
+    const string PluginAssemblyFileName = "CPDLCPlugin.dll";
 
     string PluginName => Configuration == Configuration.Debug ? DebugPluginName : ReleasePluginName;
 
-    AbsolutePath PluginProjectPath => RootDirectory / "source" / "ACARSPlugin" / "ACARSPlugin.csproj";
-    AbsolutePath PluginTestsProjectPath => RootDirectory / "source" / "ACARSPlugin.Tests" / "ACARSPlugin.Tests.csproj";
+    AbsolutePath PluginProjectPath => RootDirectory / "source" / "CPDLCPlugin" / "CPDLCPlugin.csproj";
+    AbsolutePath PluginTestsProjectPath => RootDirectory / "source" / "CPDLCPlugin.Tests" / "CPDLCPlugin.Tests.csproj";
     AbsolutePath BuildOutputDirectory => TemporaryDirectory / "build";
-    AbsolutePath ZipPath => TemporaryDirectory / $"ACARSPlugin.{GetSemanticVersion()}.zip";
+    AbsolutePath ZipPath => TemporaryDirectory / $"CPDLCPlugin.{GetSemanticVersion()}.zip";
     AbsolutePath PackageDirectory => TemporaryDirectory / "package";
 
     [Parameter]

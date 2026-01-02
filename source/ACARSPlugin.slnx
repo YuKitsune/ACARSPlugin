@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="../build/_build.csproj" />
-  <Project Path="ACARSPlugin/ACARSPlugin.csproj" />
-</Solution>

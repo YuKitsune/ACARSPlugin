@@ -1,5 +1,5 @@
 {
-  "ServerEndpoint": "https://acars.eoinmotherway.dev/hubs/controller",
+  "ServerEndpoint": "https://cpdlc.eoinmotherway.dev/hubs/controller",
   "Stations": ["YBBB", "YMMM"],
   "MaxCurrentMessages": 50,
   "MaxArchivedMessages": 50,

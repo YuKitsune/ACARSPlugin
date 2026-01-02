@@ -3,14 +3,24 @@
 </h1>
 
 <h3 align="center">
-  A vatSys plugin enabling support for CPDLC via [ACARS Server](https://github.com/YuKitsune/ACARSServer).
+  A vatSys plugin enabling support for CPDLC via a relay server.
 
-  [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/yukitsune/acarsplugin/build.yml?branch=main)](https://github.com/YuKitsune/acarsplugin/actions/workflows/build.yml)
-  [![License](https://img.shields.io/github/license/YuKitsune/acarsplugin)](https://github.com/YuKitsune/acarsplugin/blob/main/LICENSE)
-  [![Latest Release](https://img.shields.io/github/v/release/YuKitsune/acarsplugin?include_prereleases)](https://github.com/YuKitsune/acarsplugin/releases)
+  [![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/yukitsune/CPDLCPlugin/build.yml?branch=main)](https://github.com/YuKitsune/CPDLCPlugin/actions/workflows/build.yml)
+  [![License](https://img.shields.io/github/license/YuKitsune/CPDLCPlugin)](https://github.com/YuKitsune/CPDLCPlugin/blob/main/LICENSE)
+  [![Latest Release](https://img.shields.io/github/v/release/YuKitsune/CPDLCPlugin?include_prereleases)](https://github.com/YuKitsune/CPDLCPlugin/releases)
 
   <img src="./README.png" />
 </h3>
+
+## How it works
+
+The plugin communicates with a CPDLC Server. This server maintains connections to upstream ACARS networks (i.e. [Hoppies](https://www.hoppie.nl/acars/)).
+Each connection simulates a single air traffic service unit (ATSU), such as the Brisbane FIR (YBBB) or Melbourne FIR (YMMM).
+Messages from air traffic controllers are relayed to the upstream network, allowing pilots to connect to a single unit and communicate with all enroute controllers within that unit.
+
+This solves a limitation in the Hoppies network where station IDs cannot be shared, preventing multiple controllers from operating under the same FIR identifier.
+
+<img src="./diagram.png" />
 
 ## Installation
 
@@ -21,9 +31,9 @@ Before installing the CPDLC Plugin, ensure you have the following:
 
 ### Installing from GitHub
 
-1. Download the [latest release from GitHub](https://github.com/YuKitsune/ACARSPlugin/releases).
-2. Extract the `ACARSPlugin.zip` file into your vatSys plugins directory (`Documents\vatSys Files\Profiles\<Profile Name>\Plugins\ACARSPlugin`).
-3. Run the `unblock-dlls.bat` helper script (included in the `ACARSPlugin.zip` file) to unblock all the `.dll` files.
+1. Download the [latest release from GitHub](https://github.com/YuKitsune/CPDLCPlugin/releases).
+2. Extract the `CPDLCPlugin.zip` file into your vatSys plugins directory (`Documents\vatSys Files\Profiles\<Profile Name>\Plugins\CPDLCPlugin`).
+3. Run the `unblock-dlls.bat` helper script (included in the `CPDLCPlugin.zip` file) to unblock all the `.dll` files.
 
 ### Verifying Installation
 
@@ -40,10 +50,10 @@ In order to use the CPDLC label items, you need to replace the default CPDLC lab
 Replace each occurance of `<Item Type="LABEL_ITEM_CPDLC" Colour="" BackgroundColour="CPDLCDownlink" LeftClick="Label_CPDLC_Menu" MiddleClick="Label_CPDLC_Message_Toggle" RightClick="Label_CPDLC_Editor" />` with the following lines:
 
 ```xml
-<Item Type="ACARSPLUGIN_CPDLCSTATUS" />
-<Item Type="ACARSPLUGIN_CPDLCSTATUS_BG" BackgroundColour="Custom" />
-<Item Type="ACARSPLUGIN_TEXTSTATUS" />
-<Item Type="ACARSPLUGIN_TEXTSTATUS_BG" BackgroundColour="Custom" />
+<Item Type="CPDLCPLUGIN_CPDLCSTATUS" />
+<Item Type="CPDLCPLUGIN_CPDLCSTATUS_BG" BackgroundColour="Custom" />
+<Item Type="CPDLCPLUGIN_TEXTSTATUS" />
+<Item Type="CPDLCPLUGIN_TEXTSTATUS_BG" BackgroundColour="Custom" />
 ```
 
 ## Troubleshooting
@@ -53,7 +63,7 @@ Replace each occurance of `<Item Type="LABEL_ITEM_CPDLC" Colour="" BackgroundCol
 If the CPDLC menu item does not appear, it's likely that the `.dll` files for the plugin have been blocked by Windows.
 This is a security feature in Windows that blocks files downloaded from the internet to protect your computer from potentially harmful software.
 
-1. Locate the `unblock-dlls.bat` file (included in the `ACARSPlugin.zip` file).
+1. Locate the `unblock-dlls.bat` file (included in the `CPDLCPlugin.zip` file).
 2. Ensure the file is located in the same folder as the `.dll` files, or in one of the folders above it.
 3. Run the script by double-clicking it. You will be shown a list of all the `.dll` files the script will unblock. Press `Y` to continue, or `N` to exit.
 4. Restart vatSys once the script has completed.
@@ -64,7 +74,7 @@ This script will search for any `.dll` files in the current folder or sub-folder
 
 If you are using a high-resolution display (4K monitor, high-DPI laptop screen, etc.) and experience graphical issues after launching vatSys, you may need to run the `dpiawarefix.bat` script.
 
-1. Locate the `dpiawarefix.bat` file (included in the `ACARSPlugin.zip` file).
+1. Locate the `dpiawarefix.bat` file (included in the `CPDLCPlugin.zip` file).
 2. Run the script by double-clicking it.
 3. Restart vatSys.
 

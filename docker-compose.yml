@@ -1,0 +1,11 @@
+services:
+  cpdlc-server:
+    image: cpdlc-server
+    build:
+      context: .
+      dockerfile: source/CPDLCServer/Dockerfile
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - SEQ_SERVER_URL=http://seq:5341
+    ports:
+      - "5272:8080"

@@ -5,7 +5,7 @@
 /modules.xml
 /projectSettingsUpdater.xml
 /contentModel.xml
-/.idea.ACARSPlugin.iml
+/.idea.CPDLCPlugin.iml
 # Ignored default folder with query files
 /queries/
 # Datasource local storage ignored files

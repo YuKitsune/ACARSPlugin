@@ -3,7 +3,7 @@
 /workspace.xml
 # Rider ignored files
 /contentModel.xml
-/.idea.ACARSPlugin.iml
+/.idea.CPDLCPlugin.iml
 /modules.xml
 /projectSettingsUpdater.xml
 # Ignored default folder with query files

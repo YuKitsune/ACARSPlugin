@@ -1,0 +1,39 @@
+namespace CPDLCServer.Services;
+
+public interface IMessageIdProvider
+{
+    Task<int> GetNextMessageId(
+        string stationId,
+        string callsign,
+        CancellationToken cancellationToken);
+}
+
+public class MessageIdProvider : IMessageIdProvider
+{
+    private readonly Dictionary<Key, int> _ids = new();
+    readonly SemaphoreSlim _semaphore = new(1, 1);
+    
+    public async Task<int> GetNextMessageId(
+        string stationId,
+        string callsign,
+        CancellationToken cancellationToken)
+    {
+        await  _semaphore.WaitAsync(cancellationToken);
+        try
+        {
+            var key = new Key(stationId, callsign);
+            if (!_ids.TryGetValue(key, out var nextId))
+            {
+                nextId = 0;
+            }
+
+            return _ids[key] = nextId + 1;
+        }
+        finally
+        {
+            _semaphore.Release();
+        }
+    }
+    
+    record Key(string StationId, string Callsign);
+}

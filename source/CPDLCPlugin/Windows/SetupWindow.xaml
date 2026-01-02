@@ -1,0 +1,119 @@
+﻿<Window x:Class="CPDLCPlugin.Windows.SetupWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:cpdlcPlugin="clr-namespace:CPDLCPlugin"
+        xmlns:converters="clr-namespace:CPDLCPlugin.Converters"
+        xmlns:viewModels="clr-namespace:CPDLCPlugin.ViewModels"
+        Background="{x:Static cpdlcPlugin:Theme.BackgroundColor}"
+        d:DataContext="{d:DesignInstance Type=viewModels:SetupViewModel}"
+        mc:Ignorable="d"
+        Title="CPDLC Setup"
+        Width="400"
+        SizeToContent="Height"
+        ResizeMode="NoResize">
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/CPDLCPlugin;component/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <converters:BoolInversionConverter x:Key="BoolInversionConverter" />
+
+            <Style TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
+                <Setter Property="Height" Value="32"/>
+                <Setter Property="MinWidth" Value="80"/>
+                <Setter Property="Margin" Value="4"/>
+            </Style>
+
+            <Style TargetType="TextBlock" BasedOn="{StaticResource GenericTextStyle}" />
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="16"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Server Endpoint -->
+        <Grid Grid.Row="0" Margin="0,0,0,8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Server URL" Margin="0,0,0,4"/>
+            <TextBox
+                Grid.Row="1"
+                Text="{Binding ServerEndpoint, UpdateSourceTrigger=PropertyChanged}"
+                IsEnabled="{Binding Connected, Converter={StaticResource BoolInversionConverter}}"/>
+        </Grid>
+
+        <!-- API Key -->
+        <!-- <Grid Grid.Row="1" Margin="0,0,0,8"> -->
+        <!--     <Grid.RowDefinitions> -->
+        <!--         <RowDefinition Height="Auto"/> -->
+        <!--         <RowDefinition Height="Auto"/> -->
+        <!--     </Grid.RowDefinitions> -->
+        <!-- -->
+        <!--     <TextBlock Grid.Row="0" Text="API Key" Margin="0,0,0,4"/> -->
+        <!--     <PasswordBox -->
+        <!--         Grid.Row="1" -->
+        <!--         x:Name="ApiKeyPasswordBox" -->
+        <!--         PasswordChanged="ApiKeyPasswordBox_OnPasswordChanged" -->
+        <!--         IsEnabled="{Binding Connected, Converter={StaticResource BoolInversionConverter}}"/> -->
+        <!-- </Grid> -->
+
+        <!-- Station Identifier -->
+        <Grid Grid.Row="2" Margin="0,0,0,8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Station Identifier" Margin="0,0,0,4"/>
+            <ComboBox Grid.Row="1"
+                      IsEnabled="{Binding Connected, Converter={StaticResource BoolInversionConverter}}"
+                      ItemsSource="{Binding AvailableStationIdentifiers}"
+                      SelectedItem="{Binding SelectedStationIdentifier}"/>
+        </Grid>
+
+        <!-- Buttons -->
+        <Grid Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button
+                Grid.Column="0"
+                Command="{Binding ConnectOrDisconnectCommand}"
+                HorizontalAlignment="Stretch"
+                Margin="0,0,4,0">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
+                        <Setter Property="Content" Value="Connect"/>
+                        <Setter Property="Height" Value="32"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding Connected}" Value="True">
+                                <Setter Property="Content" Value="Disconnect"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+
+            <Button
+                Grid.Column="1"
+                Content="Close"
+                Command="{Binding CloseCommand}"
+                HorizontalAlignment="Stretch"
+                Margin="4,0,0,0"/>
+        </Grid>
+    </Grid>
+</Window>

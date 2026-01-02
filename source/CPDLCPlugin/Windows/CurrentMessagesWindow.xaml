@@ -1,0 +1,184 @@
+﻿<Window x:Class="CPDLCPlugin.Windows.CurrentMessagesWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:local="clr-namespace:CPDLCPlugin"
+        xmlns:converters="clr-namespace:CPDLCPlugin.Converters"
+        xmlns:controls="clr-namespace:CPDLCPlugin.Controls"
+        xmlns:viewModels="clr-namespace:CPDLCPlugin.ViewModels"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=viewModels:CurrentMessagesViewModel}"
+        Title="Current Messages"
+        Height="320" Width="467"
+        MinHeight="24" MinWidth="140"
+        d:DesignHeight="640"
+        Background="{x:Static local:Theme.BackgroundColor}">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/CPDLCPlugin;component/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <converters:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
+
+            <Style x:Key="PopupButtonStyle" TargetType="Button" BasedOn="{StaticResource ButtonBaseStyle}">
+                <Setter Property="MinWidth" Value="120"/>
+            </Style>
+
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <controls:BeveledBorder BorderThickness="{x:Static local:Theme.BeveledBorderThickness}" BevelType="Sunken">
+        <Grid>
+            <!-- Action Popup -->
+            <Popup x:Name="ActionPopup"
+                   StaysOpen="False"
+                   AllowsTransparency="True"
+                   Placement="MousePoint">
+                <Border MouseDown="Popup_MouseDown">
+                    <StackPanel>
+                        <Button x:Name="StandbyButton" Content="STANDBY" Style="{StaticResource PopupButtonStyle}" Visibility="Collapsed"/>
+                        <Button x:Name="DeferredButton" Content="REQUEST DEFERRED" Style="{StaticResource PopupButtonStyle}" Visibility="Collapsed"/>
+                        <Button x:Name="UnableButton" Content="UNABLE" Style="{StaticResource PopupButtonStyle}" Visibility="Collapsed"/>
+                        <Button x:Name="UnableTrafficButton" Content="UNABLE DUE TRAFFIC" Style="{StaticResource PopupButtonStyle}" Visibility="Collapsed"/>
+                        <Button x:Name="UnableAirspaceButton" Content="UNABLE DUE AIRSPACE" Style="{StaticResource PopupButtonStyle}" Visibility="Collapsed"/>
+                        <Button x:Name="ManualAckButton" Content="MANUAL ACK" Style="{StaticResource PopupButtonStyle}" Visibility="Collapsed"/>
+                        <Button x:Name="ReissueButton" Content="RE-ISSUE" Style="{StaticResource PopupButtonStyle}" Visibility="Collapsed"/>
+                        <Button x:Name="HistoryButton" Content="HISTORY" Style="{StaticResource PopupButtonStyle}" Visibility="Collapsed"/>
+                    </StackPanel>
+                </Border>
+            </Popup>
+
+            <!-- Extended Message Popup -->
+            <Popup x:Name="ExtendedMessagePopup"
+                   StaysOpen="False"
+                   AllowsTransparency="True"
+                   Placement="Relative">
+                <Border Background="Transparent"
+                        MouseRightButtonDown="ExtendedMessage_MouseRightButtonDown">
+                    <StackPanel Background="{Binding CurrentlyExtendedMessage.BackgroundColor}">
+                        <Grid Margin="2">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/> <!-- Prefix -->
+                            <ColumnDefinition Width="Auto"/> <!-- Time -->
+                            <ColumnDefinition Width="Auto"/> <!-- Callsign -->
+                            <ColumnDefinition Width="Auto"/> <!-- Full Content -->
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Prefix TextBlock -->
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding CurrentlyExtendedMessage.Prefix}"
+                                   Foreground="{Binding CurrentlyExtendedMessage.ForegroundColor}"
+                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                   FontSize="{x:Static local:Theme.FontSize}"
+                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                   Margin="0,0,8,0"/>
+
+                        <!-- Time TextBlock -->
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding CurrentlyExtendedMessage.Time}"
+                                   Foreground="{Binding CurrentlyExtendedMessage.ForegroundColor}"
+                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                   FontSize="{x:Static local:Theme.FontSize}"
+                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                   Margin="0,0,8,0"/>
+
+                        <!-- Callsign TextBlock (clickable) -->
+                        <TextBlock Grid.Column="2"
+                                   Text="{Binding CurrentlyExtendedMessage.Callsign}"
+                                   Foreground="{Binding CurrentlyExtendedMessage.ForegroundColor}"
+                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                   FontSize="{x:Static local:Theme.FontSize}"
+                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                   Margin="0,0,8,0"
+                                   MouseLeftButtonDown="ExtendedCallsign_MouseLeftButtonDown"/>
+
+                        <!-- Full Content TextBlock (clickable, unlimited length) -->
+                        <TextBlock Grid.Column="3"
+                                   Text="{Binding CurrentlyExtendedMessage.FullContent}"
+                                   Foreground="{Binding CurrentlyExtendedMessage.ForegroundColor}"
+                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                   FontSize="{x:Static local:Theme.FontSize}"
+                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                   TextWrapping="NoWrap"
+                                   MouseLeftButtonDown="ExtendedContent_MouseLeftButtonDown"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Popup>
+
+            <ScrollViewer x:Name="MessagesScrollViewer" Style="{StaticResource CustomScrollViewerStyle}">
+                <ItemsControl ItemsSource="{Binding Dialogues}">
+                    <!-- Each DialogueGroupViewModel -->
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type viewModels:DialogueViewModel}">
+                            <StackPanel>
+                                
+                                <!-- TODO: Consider extracting this into a control we can share with Current Message Window -->
+
+                                <!-- Display all messages for this dialogue -->
+                                <ItemsControl ItemsSource="{Binding Messages}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type viewModels:CurrentMessageViewModel}">
+                                            <Border x:Name="MessageBorder"
+                                                    Background="{Binding BackgroundColor}"
+                                                    HorizontalAlignment="Left"
+                                                    MouseLeftButtonDown="Message_MouseLeftButtonDown"
+                                                    MouseRightButtonDown="Message_MouseRightButtonDown">
+                                                <StackPanel>
+                                                    <!-- Main message line -->
+                                                    <Grid Margin="2">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto"/> <!-- Prefix -->
+                                                            <ColumnDefinition Width="Auto"/> <!-- Time -->
+                                                            <ColumnDefinition Width="Auto"/> <!-- Callsign -->
+                                                            <ColumnDefinition Width="Auto"/> <!-- Content -->
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <TextBlock Grid.Column="0"
+                                                                   Text="{Binding Prefix}"
+                                                                   Foreground="{Binding ForegroundColor}"
+                                                                   FontFamily="{x:Static local:Theme.FontFamily}"
+                                                                   FontSize="{x:Static local:Theme.FontSize}"
+                                                                   FontWeight="{x:Static local:Theme.FontWeight}"
+                                                                   Margin="0,0,8,0"/>
+
+                                                        <TextBlock Grid.Column="1"
+                                                                  Text="{Binding Time}"
+                                                                  Foreground="{Binding ForegroundColor}"
+                                                                  FontFamily="{x:Static local:Theme.FontFamily}"
+                                                                  FontSize="{x:Static local:Theme.FontSize}"
+                                                                  FontWeight="{x:Static local:Theme.FontWeight}"
+                                                                  Margin="0,0,8,0"/>
+
+                                                        <TextBlock Grid.Column="2"
+                                                                  Text="{Binding Callsign}"
+                                                                  Foreground="{Binding ForegroundColor}"
+                                                                  FontFamily="{x:Static local:Theme.FontFamily}"
+                                                                  FontSize="{x:Static local:Theme.FontSize}"
+                                                                  FontWeight="{x:Static local:Theme.FontWeight}"
+                                                                  Margin="0,0,8,0"
+                                                                  MouseLeftButtonDown="Callsign_MouseLeftButtonDown"/>
+
+                                                        <TextBlock Grid.Column="3"
+                                                                  Text="{Binding Content}"
+                                                                  Foreground="{Binding ForegroundColor}"
+                                                                  FontFamily="{x:Static local:Theme.FontFamily}"
+                                                                  FontSize="{x:Static local:Theme.FontSize}"
+                                                                  FontWeight="{x:Static local:Theme.FontWeight}"/>
+                                                    </Grid>
+                                                </StackPanel>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </controls:BeveledBorder>
+</Window>
