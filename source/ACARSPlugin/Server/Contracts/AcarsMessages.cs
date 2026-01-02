@@ -30,6 +30,12 @@ public record AircraftConnectionDto(
     string FlightSimulationNetwork,
     DataAuthorityState DataAuthorityState);
 
+public record ControllerConnectionDto(
+    string Callsign,
+    string StationId,
+    string FlightSimulationNetwork,
+    string VatsimCid);
+
 public record DialogueDto(
     Guid Id,
     string AircraftCallsign,

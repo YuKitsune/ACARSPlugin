@@ -11,17 +11,22 @@ public interface IJurisdictionChecker
     bool ShouldDisplayDialogue(DialogueDto dialogue, FDP2.FDR fdr);
 }
 
-public class JurisdictionChecker : IJurisdictionChecker
+public class JurisdictionChecker(ControllerConnectionStore controllerConnectionStore) : IJurisdictionChecker
 {
     // Need to keep track of which controller last had ownership of each FDR
     // vatSys will set the owner to `null` when the tag is relinquished, and there's no reference to who "previously" owned it
     // Key = aircraft callsign
     // Value = controller callsign
-    readonly ConcurrentDictionary<string, string> _lastKnownOwners = new();
+    readonly ConcurrentDictionary<string, List<string>> _lastKnownOwners = new();
+
+    readonly ControllerConnectionStore _controllerConnectionStore = controllerConnectionStore;
 
     public void RecordFdrOwner(string callsign, string controllerCallsign)
     {
-        _lastKnownOwners.AddOrUpdate(callsign, controllerCallsign, (_, _) => controllerCallsign);
+        _lastKnownOwners.AddOrUpdate(
+            callsign,
+            [controllerCallsign],
+            (_, list) => [..list, controllerCallsign]);
     }
 
     public bool ShouldDisplayDialogue(DialogueDto dialogue)
@@ -55,13 +60,25 @@ public class JurisdictionChecker : IJurisdictionChecker
             return true;
         }
 
+        if (_lastKnownOwners.TryGetValue(fdr.Callsign, out var owners))
+            return false;
+
         // If nobody has jurisdiction, and we were the last owner, show the message
-        if (!fdr.IsTracked && _lastKnownOwners.TryGetValue(fdr.Callsign, out var lastOwner) && lastOwner == Network.Callsign)
+        if (!fdr.IsTracked && owners.Last() == Network.Callsign)
         {
             return true;
         }
 
-        // TODO: VATSIM-ism: If the controlling sector isn't connected to the ATSU server, and we were the last owner, then show the message
+        // VATSIM-ism: If the controlling sector isn't connected to the ATSU server, and we were the last owner, then show the message
+        if (fdr.ControllerTracking is not null && fdr.ControllerTracking.Callsign != Network.Callsign && owners.Count > 2)
+        {
+            var trackingControllerIsConnected = _controllerConnectionStore.IsConnected(fdr.ControllerTracking.Callsign);
+            var weWereTheLastControllerBeforeThisOne = owners[owners.Count - 2] == Network.Callsign;
+            if (!trackingControllerIsConnected && weWereTheLastControllerBeforeThisOne)
+            {
+                return true;
+            }
+        }
 
         return false;
     }

@@ -6,7 +6,7 @@ namespace ACARSPlugin.Messages;
 
 public record ConnectedNotification(string StationId) : INotification;
 
-public class ConnectedNotificationHandler(Plugin plugin, DialogueStore dialogueStore, AircraftConnectionStore aircraftConnectionStore, ILogger logger)
+public class ConnectedNotificationHandler(Plugin plugin, DialogueStore dialogueStore, AircraftConnectionStore aircraftConnectionStore, ControllerConnectionStore controllerConnectionStore, ILogger logger)
     : INotificationHandler<ConnectedNotification>
 {
     public async Task Handle(ConnectedNotification notification, CancellationToken cancellationToken)
@@ -29,6 +29,12 @@ public class ConnectedNotificationHandler(Plugin plugin, DialogueStore dialogueS
         var connectedAircraft = await plugin.ConnectionManager.GetConnectedAircraft(cancellationToken);
         await aircraftConnectionStore.Populate(connectedAircraft, cancellationToken);
         logger.Debug("Loaded {ConnectionCount} aircraft connection(s)", connectedAircraft.Length);
+
+        // Load controller connections
+        logger.Debug("Loading all controller connections");
+        var connectedControllers = await plugin.ConnectionManager.GetConnectedControllers(cancellationToken);
+        await controllerConnectionStore.Populate(connectedControllers, cancellationToken);
+        logger.Debug("Loaded {ControllerCount} controller connection(s)", connectedControllers.Length);
 
         // Relay notification to UI
         WeakReferenceMessenger.Default.Send(notification);

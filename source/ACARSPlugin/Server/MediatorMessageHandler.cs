@@ -21,6 +21,16 @@ public class MediatorMessageHandler(IMediator mediator) : IDownlinkHandlerDelega
         await mediator.Publish(new AircraftConnectionRemovedNotification(callsign), cancellationToken);
     }
 
+    public async Task ControllerConnectionUpdated(ControllerConnectionDto controllerConnectionDto, CancellationToken cancellationToken)
+    {
+        await mediator.Publish(new ControllerConnectionUpdatedNotification(controllerConnectionDto), cancellationToken);
+    }
+
+    public async Task ControllerConnectionRemoved(string callsign, CancellationToken cancellationToken)
+    {
+        await mediator.Publish(new ControllerConnectionRemovedNotification(callsign), cancellationToken);
+    }
+
     public void Error(Exception error)
     {
         Plugin.AddError(error, "Error from SignalR Handler Delegate");

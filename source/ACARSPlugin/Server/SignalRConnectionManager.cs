@@ -144,6 +144,10 @@ public class SignalRConnectionManager(
             WithCancellationToken<AircraftConnectionDto>(downlinkHandlerDelegate.AircraftConnectionUpdated)(connectedAircraftInfo));
         _connection.On<string>("AircraftConnectionRemoved", callsign =>
             WithCancellationToken<string>(downlinkHandlerDelegate.AircraftConnectionRemoved)(callsign));
+        _connection.On<ControllerConnectionDto>("ControllerConnectionUpdated", connectedAircraftInfo =>
+            WithCancellationToken<ControllerConnectionDto>(downlinkHandlerDelegate.ControllerConnectionUpdated)(connectedAircraftInfo));
+        _connection.On<string>("ControllerConnectionRemoved", callsign =>
+            WithCancellationToken<string>(downlinkHandlerDelegate.ControllerConnectionRemoved)(callsign));
     }
 
     Func<T, Task> WithCancellationToken<T>(Func<T, CancellationToken, Task> action)
@@ -182,6 +186,16 @@ public class SignalRConnectionManager(
             cancellationToken);
 
         return aircraft;
+    }
+
+    public async Task<ControllerConnectionDto[]> GetConnectedControllers(CancellationToken cancellationToken)
+    {
+        EnsureConnected();
+        var controllers = await _connection!.InvokeAsync<ControllerConnectionDto[]>(
+            "GetConnectedControllers",
+            cancellationToken);
+
+        return controllers;
     }
 
     public async Task AcknowledgeDownlink(Guid dialogueId, int downlinkMessageId, CancellationToken cancellationToken)
