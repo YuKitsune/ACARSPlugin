@@ -12,15 +12,12 @@
   <img src="./README.png" />
 </h3>
 
-## How it works
+## Overview
 
-The plugin communicates with a CPDLC Server. This server maintains connections to upstream ACARS networks (i.e. [Hoppies](https://www.hoppie.nl/acars/)).
-Each connection simulates a single air traffic service unit (ATSU), such as the Brisbane FIR (YBBB) or Melbourne FIR (YMMM).
-Messages from air traffic controllers are relayed to the upstream network, allowing pilots to connect to a single unit and communicate with all enroute controllers within that unit.
+This plugin enables CPDLC (Controller-Pilot Data Link Communications) functionality in vatSys, allowing controllers to send and receive datalink messages with aircraft on the VATSIM network.
 
-This solves a limitation in the Hoppies network where station IDs cannot be shared, preventing multiple controllers from operating under the same FIR identifier.
-
-<img src="./diagram.png" />
+> [!NOTE]
+> This plugin requires a CPDLC Server to function. For information on how the system works and how to configure the server, see the [Server Documentation](docs/SERVER.md).
 
 ## Installation
 
@@ -47,7 +44,7 @@ Before installing the CPDLC Plugin, ensure you have the following:
 
 In order to use the CPDLC label items, you need to replace the default CPDLC label items in the `Labels.xml` file in the profile.
 
-Replace each occurance of `<Item Type="LABEL_ITEM_CPDLC" Colour="" BackgroundColour="CPDLCDownlink" LeftClick="Label_CPDLC_Menu" MiddleClick="Label_CPDLC_Message_Toggle" RightClick="Label_CPDLC_Editor" />` with the following lines:
+Replace each occurence of `<Item Type="LABEL_ITEM_CPDLC" Colour="" BackgroundColour="CPDLCDownlink" LeftClick="Label_CPDLC_Menu" MiddleClick="Label_CPDLC_Message_Toggle" RightClick="Label_CPDLC_Editor" />` with the following lines:
 
 ```xml
 <Item Type="CPDLCPLUGIN_CPDLCSTATUS" />

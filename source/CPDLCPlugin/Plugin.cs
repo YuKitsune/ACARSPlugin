@@ -18,12 +18,11 @@ using vatsys.Plugin;
 
 namespace CPDLCPlugin;
 
-// TODO: Fix jurisdiction checks
+// TODO: Complex variable entry (popups and validation)
 // TODO: Text message fallback
 // TODO: window frame styling
-// TODO: Complex variable entry (popups and validation)
-// TODO: ADS-C
 // TODO: Strip items
+// TODO: ADS-C
 
 [Export(typeof(IPlugin))]
 public class Plugin : ILabelPlugin, IRecipient<DialogueChangedNotification>, IRecipient<ConnectedAircraftChanged>
