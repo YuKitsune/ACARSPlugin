@@ -21,10 +21,10 @@ using vatsys.Plugin;
 
 namespace ACARSPlugin;
 
+// TODO: Fix jurisdiction checks
 // TODO: Text message fallback
 // TODO: window frame styling
 // TODO: Complex variable entry (popups and validation)
-// TODO: Fix jurisdiction checks
 // TODO: ADS-C
 // TODO: Strip items
 
@@ -124,6 +124,7 @@ public class Plugin : ILabelPlugin, IRecipient<DialogueChangedNotification>, IRe
             .AddSingleton<AircraftConnectionStore>()
             .AddSingleton<WindowManager>()
             .AddSingleton<DialogueStore>()
+            .AddSingleton<SuspendedMessageStore>()
             .AddSingleton(_labelItemCache)
             .AddSingleton(_colourCache)
             .AddMediatR(c => c.RegisterServicesFromAssemblies(typeof(Plugin).Assembly))
@@ -475,6 +476,12 @@ public class Plugin : ILabelPlugin, IRecipient<DialogueChangedNotification>, IRe
         {
             labelItem.BackColourIdentity = Colours.Identities.Custom;
             labelItem.CustomBackColour = customItem.BackgroundColour;
+        }
+
+        if (customItem.ForegroundColour is not null)
+        {
+            labelItem.ForeColourIdentity = Colours.Identities.Custom;
+            labelItem.CustomForeColour = customItem.ForegroundColour;
         }
 
         labelItem.OnMouseClick = args =>

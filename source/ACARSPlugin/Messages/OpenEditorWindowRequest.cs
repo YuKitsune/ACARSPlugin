@@ -13,6 +13,7 @@ public class OpenEditorWindowRequestHandler(
     PluginConfiguration pluginConfiguration,
     IMediator mediator,
     DialogueStore dialogueStore,
+    SuspendedMessageStore suspendedMessageStore,
     IErrorReporter errorReporter,
     IGuiInvoker guiInvoker)
     : IRequestHandler<OpenEditorWindowRequest>
@@ -31,6 +32,7 @@ public class OpenEditorWindowRequestHandler(
                     request.Callsign,
                     dialogueStore,
                     pluginConfiguration.UplinkMessages,
+                    suspendedMessageStore,
                     mediator,
                     errorReporter,
                     guiInvoker,

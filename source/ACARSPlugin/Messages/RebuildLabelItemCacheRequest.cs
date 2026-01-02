@@ -8,6 +8,7 @@ namespace ACARSPlugin.Messages;
 public record CustomStripOrLabelItem(
     string Text,
     CustomColour? BackgroundColour,
+    CustomColour? ForegroundColour,
     Action LeftClickCallback);
 
 public record RebuildLabelItemCacheRequest : IRequest;
@@ -17,6 +18,7 @@ public class RebuildLabelItemCacheRequestHandler(
     ColourCache colourCache,
     DialogueStore dialogueStore,
     AircraftConnectionStore aircraftConnectionStore,
+    SuspendedMessageStore suspendedMessageStore,
     IMediator mediator,
     IGuiInvoker guiInvoker,
     IErrorReporter errorReporter) : IRequestHandler<RebuildLabelItemCacheRequest>
@@ -68,8 +70,7 @@ public class RebuildLabelItemCacheRequestHandler(
                     .OfType<DownlinkMessageDto>()
                     .Any(m => m.Content.Contains("UNABLE") && m.Acknowledged is null);
 
-                // TODO: Suspended messages
-                var hasSuspendedMessage = false;
+                var hasSuspendedMessage = suspendedMessageStore.HasSuspendedMessage(flightDataRecord.Callsign);
 
                 var text = " ";
                 CustomColour? backgroundColour = null;
@@ -123,11 +124,17 @@ public class RebuildLabelItemCacheRequestHandler(
                             backgroundColour = colourCache.DownlinkBackgroundColour;
                         }
                     }
+
+                    if (hasSuspendedMessage)
+                    {
+                        foregroundColour = colourCache.SuspendedForegroundColour;
+                    }
                 }
 
                 newLabelItems[flightDataRecord.Callsign] = new CustomStripOrLabelItem(
                     text,
                     backgroundColour,
+                    foregroundColour,
                     leftClickAction);
             }
 

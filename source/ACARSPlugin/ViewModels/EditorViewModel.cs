@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Text;
 using ACARSPlugin.Configuration;
 using ACARSPlugin.Messages;
@@ -14,12 +13,10 @@ namespace ACARSPlugin.ViewModels;
 
 public partial class EditorViewModel : ObservableObject, IRecipient<DialogueChangedNotification>, IDisposable
 {
-    // Ick, but I can't be bothered making it better...
-    static ConcurrentDictionary<string, UplinkMessageElementViewModel[]> _suspendedUplinkMessages = new();
-
     // readonly PluginConfiguration _configuration;
     readonly UplinkMessagesConfiguration _uplinkMessagesConfiguration;
     readonly DialogueStore _dialogueStore;
+    readonly SuspendedMessageStore _suspendedMessageStore;
     readonly IMediator _mediator;
     readonly IErrorReporter _errorReporter;
     readonly IGuiInvoker _guiInvoker;
@@ -132,7 +129,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<DialogueChan
     }
 
     // For testing in the designer
-    public EditorViewModel() : this("QFA1", null!, CreateTestConfiguration(), null!, null!, null!, null!)
+    public EditorViewModel() : this("QFA1", null!,CreateTestConfiguration(), null!, null!, null!, null!, null!)
     {
         DownlinkMessages = _testDownlinkMessages;
     }
@@ -143,6 +140,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<DialogueChan
         string callsign,
         DialogueStore dialogueStore,
         UplinkMessagesConfiguration uplinkMessagesConfiguration,
+        SuspendedMessageStore suspendedMessageStore,
         IMediator mediator,
         IErrorReporter errorReporter,
         IGuiInvoker guiInvoker,
@@ -150,6 +148,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<DialogueChan
     {
         _uplinkMessagesConfiguration = uplinkMessagesConfiguration;
         _dialogueStore = dialogueStore;
+        _suspendedMessageStore = suspendedMessageStore;
         _mediator = mediator;
         _errorReporter = errorReporter;
         _guiInvoker = guiInvoker;
@@ -171,6 +170,12 @@ public partial class EditorViewModel : ObservableObject, IRecipient<DialogueChan
         ClearUplinkMessage();
 
         WeakReferenceMessenger.Default.Register(this);
+
+        _ = Task.Run(async () =>
+        {
+            await LoadDownlinkMessagesAsync();
+            SelectedDownlinkMessage = DownlinkMessages.LastOrDefault(); // Select the last downlink by default
+        });
     }
 
     [ObservableProperty] string callsign;
@@ -497,32 +502,36 @@ public partial class EditorViewModel : ObservableObject, IRecipient<DialogueChan
     bool CanEscape() => UplinkMessageElements.Any();
 
     [RelayCommand(CanExecute = nameof(CanRestore))]
-    void Restore()
+    async Task Restore()
     {
         ClearUplinkMessage();
 
-        if (!_suspendedUplinkMessages.TryRemove(Callsign, out var suspendedUplinkMessageElements))
+        if (!_suspendedMessageStore.TryRemove(Callsign, out var suspendedUplinkMessageElements))
             return;
 
         UplinkMessageElements = suspendedUplinkMessageElements;
         SelectedUplinkMessageElement = null;
+
+        await _mediator.Send(new RebuildLabelItemCacheRequest());
     }
 
     bool CanRestore()
     {
-        return _suspendedUplinkMessages.ContainsKey(Callsign);
+        return _suspendedMessageStore.HasSuspendedMessage(Callsign);
     }
 
     [RelayCommand(CanExecute = nameof(CanSuspend))]
-    void Suspend()
+    async Task Suspend()
     {
-        _suspendedUplinkMessages[Callsign] = UplinkMessageElements.ToArray();
+        _suspendedMessageStore.Add(Callsign, UplinkMessageElements.ToArray());
         ClearUplinkMessage();
 
         // Select the most recent downlink message if none is already selected
         SelectedDownlinkMessage ??= DownlinkMessages.LastOrDefault();
 
         SelectedMessageCategory = null;
+
+        await _mediator.Send(new RebuildLabelItemCacheRequest());
     }
 
     bool CanSuspend()
@@ -540,7 +549,7 @@ public partial class EditorViewModel : ObservableObject, IRecipient<DialogueChan
             return false;
 
         // Cannot suspend when there is already a suspended message
-        if (_suspendedUplinkMessages.ContainsKey(Callsign))
+        if (_suspendedMessageStore.HasSuspendedMessage(Callsign))
             return false;
 
         return true;
