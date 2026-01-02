@@ -922,6 +922,14 @@
         "ResponseType": "Roger"
       },
       {
+        "Id": 160,
+        "Template": "NEXT DATA AUTHORITY [icao]",
+        "Parameters": [
+          { "Name": "icao", "Type": "FacilityDesignation" }
+        ],
+        "ResponseType": "NoResponse"
+      },
+      {
         "Id": 161,
         "Template": "END SERVICE",
         "Parameters": [],
@@ -1010,13 +1018,6 @@
           "freetext": "REQUEST RECEIVED, RESPONSE WILL BE VIA VOICE"
         },
         "ResponseType": "Roger"
-      },
-      {
-        "MessageId": 117,
-        "DefaultParameters": {
-          "unit name": "MELBOURNE CTR",
-          "freq": "122.4"
-        }
       },
       { "MessageId": 121 },
       { "MessageId": 118 },
